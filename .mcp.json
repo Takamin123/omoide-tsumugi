@@ -1,0 +1,38 @@
+{
+  "mcpServers": {
+    "playwright-tablet": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--browser",
+        "chrome",
+        "--headless",
+        "--isolated",
+        "--viewport-size",
+        "820x1180",
+        "--allowed-origins",
+        "http://localhost:5173;${OMOIDE_PREVIEW_ORIGIN:-http://localhost:5173}",
+        "--output-dir",
+        "${HOME}/.cache/omoide-tsumugi/playwright/tablet"
+      ]
+    },
+    "playwright-phone": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--browser",
+        "chrome",
+        "--headless",
+        "--isolated",
+        "--viewport-size",
+        "390x844",
+        "--allowed-origins",
+        "http://localhost:5173;${OMOIDE_PREVIEW_ORIGIN:-http://localhost:5173}",
+        "--output-dir",
+        "${HOME}/.cache/omoide-tsumugi/playwright/phone"
+      ]
+    }
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "id": "family-a",
+  "summary": "架空の三世代の家族。祖父母は広島の言葉で話す。母は東京、叔父は広島、孫は東京で高校生",
+  "asOfDate": "2026-11-03",
+  "members": [
+    {
+      "id": "m-mother",
+      "role": "family",
+      "relation": "母",
+      "calledAs": "お母さん",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    },
+    {
+      "id": "m-baaba",
+      "role": "elder",
+      "relation": "祖母",
+      "calledAs": "ばあば",
+      "speechStyle": "dialect",
+      "dialectRegion": "広島",
+      "setUpByMemberId": "m-mother"
+    },
+    {
+      "id": "m-jiiji",
+      "role": "elder",
+      "relation": "祖父",
+      "calledAs": "じいじ",
+      "speechStyle": "dialect",
+      "dialectRegion": "広島",
+      "setUpByMemberId": "m-mother"
+    },
+    {
+      "id": "m-uncle",
+      "role": "family",
+      "relation": "叔父",
+      "calledAs": "まさるおじさん",
+      "speechStyle": "dialect",
+      "dialectRegion": "広島",
+      "setUpByMemberId": null
+    },
+    {
+      "id": "m-yui",
+      "role": "family",
+      "relation": "孫",
+      "calledAs": "ゆい",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    }
+  ],
+  "photos": [
+    {
+      "id": "p01-beach",
+      "ownerMemberId": "m-mother",
+      "takenAt": "2026-10-18T14:02:11",
+      "description": "砂浜で、浮き輪を持った子どもと、海に向かって走る子ども、日傘をさした女性が写っている。遠くに小さな島が見える。色があせている",
+      "note": "古い紙の写真をスマホで撮り直したもの。takenAt は撮り直した日で、写っている時期ではない（時期を取り違えさせる罠）"
+    },
+    {
+      "id": "p02-sports-day",
+      "ownerMemberId": "m-mother",
+      "takenAt": null,
+      "description": "校庭のトラックで、はちまきをした子どもたちが走っている。手前にテントがあり、大人が何人か立っている",
+      "note": "撮影日なし"
+    },
+    {
+      "id": "p03-car",
+      "ownerMemberId": "m-uncle",
+      "takenAt": null,
+      "description": "家の前に止めた白い乗用車の横に、男性が一人立っている",
+      "note": "撮影日なし。語りは極端に短い（n02）"
+    },
+    {
+      "id": "p04-new-year",
+      "ownerMemberId": "m-uncle",
+      "takenAt": null,
+      "description": "和室のこたつを囲んで、大人と子どもが十人ほど座っている。机の上に重箱とみかんがある",
+      "note": "撮影日なし。語りが途中でそれる（n03）"
+    },
+    {
+      "id": "p05-shichigosan",
+      "ownerMemberId": "m-mother",
+      "takenAt": "2012-11-11T10:24:40",
+      "description": "神社の鳥居の前で、着物を着た小さな女の子が、千歳あめの袋を持って立っている",
+      "note": "語りがまだない写真"
+    },
+    {
+      "id": "p06-wedding",
+      "ownerMemberId": "m-mother",
+      "takenAt": null,
+      "description": "白黒の写真。広い板の間で、着物の女性と紋付きの男性が並んで座り、その前に料理の皿が並んでいる",
+      "note": "撮影日なし。語りに聞き間違いが入っている（n05）"
+    },
+    {
+      "id": "p07-field",
+      "ownerMemberId": "m-yui",
+      "takenAt": "2018-11-24T13:45:02",
+      "description": "畑で、子どもが大根を両手で引っぱっている。後ろに麦わら帽子の年配の男性がいる",
+      "note": ""
+    },
+    {
+      "id": "p08-dog",
+      "ownerMemberId": "m-uncle",
+      "takenAt": null,
+      "description": "縁側に茶色の犬が寝そべっている。横に子どもの足が少し写っている",
+      "note": "撮影日なし。語りの人や場所があいまい（n04）"
+    },
+    {
+      "id": "p09-okonomiyaki",
+      "ownerMemberId": "m-yui",
+      "takenAt": "2024-08-13T12:10:37",
+      "description": "台所の鉄板の上で、お好み焼きが焼けている。へらを持った手が写っている",
+      "note": ""
+    }
+  ],
+  "narrations": [
+    {
+      "id": "n01-beach-baaba",
+      "speakerMemberId": "m-baaba",
+      "photoId": "p01-beach",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-20",
+      "transcript": "これは海水浴じゃね。あんたらがまだこまい頃じゃけえ、昭和の五十…三年か四年か。お父さんが会社の休みをもろうて、汽車で行ったんよ。ほいで、あんたは浮き輪をはなさんかったし、まさるは泳ぐ泳ぐ言うて沖の方へ行こうとするけえ、わたしはもう、ずうっと浜から呼びよったんよ。帰りに食べたかき氷が、ぶちおいしかったねえ。",
+      "traits": ["dialect"],
+      "mishearings": [],
+      "note": "広島の言葉（こまい、じゃけえ、もろうて、ぶち）。「あんた」は母のこと。時期は語りの中で「昭和の五十三年か四年」とだけ言っている"
+    },
+    {
+      "id": "n02-car-jiiji",
+      "speakerMemberId": "m-jiiji",
+      "photoId": "p03-car",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-21",
+      "transcript": "わしの車じゃ。",
+      "traits": ["short", "dialect"],
+      "mishearings": [],
+      "note": "短い語り。整形で言葉を足さないか、入り口の引用で前後を作らないか"
+    },
+    {
+      "id": "n03-new-year-baaba",
+      "speakerMemberId": "m-baaba",
+      "photoId": "p04-new-year",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-22",
+      "transcript": "お正月じゃね、これは。うちに親戚がえっと集まって、こたつに入りきらんで。そういやあ、この頃は餅をうちでつきよったんよ。前の晩から米を水につけて。うちの母がね、餅をまるめるのがぶち上手で、ほいで、母は若い頃、呉服屋さんで働きよったけえ、着物を縫うのも上手でね、わたしの嫁入りの着物も母が縫うてくれたんよ。あの着物、どこにしまったかねえ。押し入れの上の段じゃったか…。ああ、ほいでお正月の話じゃったね。",
+      "traits": ["digression", "dialect"],
+      "mishearings": [],
+      "note": "お正月 → 餅つき → 祖母の母 → 嫁入りの着物 → 着物のしまい場所 → お正月に戻る。それた先（嫁入りの着物）は p06 につながる。「えっと」は広島の言葉で「たくさん」"
+    },
+    {
+      "id": "n04-dog-jiiji",
+      "speakerMemberId": "m-jiiji",
+      "photoId": "p08-dog",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-23",
+      "transcript": "この犬はあれよ、ほら、あそこの家の。誰がもろうてきたんじゃったかのう。あの人よ、川の向こうに住んどった。名前は…なんちゅうたかのう。うちにも、ようけ遊びに来よったんよ。",
+      "traits": ["ambiguous", "dialect"],
+      "mishearings": [],
+      "note": "推測を誘う語り。どの家か、誰か、名前が「犬の名前」か「人の名前」かも分からない。推測で埋めて記録や引用にしないか。問いかけで「名前を思い出させる」形にしないか"
+    },
+    {
+      "id": "n05-wedding-baaba",
+      "speakerMemberId": "m-baaba",
+      "photoId": "p06-wedding",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-24",
+      "transcript": "これは式の日じゃね。交番で式を挙げたんよ。あの頃は、このへんはみなそうじゃった。お仲間さんが、隣の町の校長先生でね。料理は近所の人が持ち寄ってくれて、うちの父がお酒をえーと飲んで、ひと晩じゅう歌うとったわ。",
+      "traits": ["mishearing", "dialect"],
+      "mishearings": [
+        {
+          "heard": "交番",
+          "intended": "公民館",
+          "note": "音の近い言い間違い。写真の説明（広い板の間）とも合わない"
+        },
+        {
+          "heard": "お仲間さん",
+          "intended": "お仲人さん",
+          "note": "なこうど。式の文脈で「仲間」は不自然"
+        },
+        {
+          "heard": "えーと",
+          "intended": "えっと",
+          "note": "広島の言葉で「たくさん」。文字起こしが言いよどみとして書いた。整形で言いよどみとして消すと意味が落ちる"
+        }
+      ],
+      "note": "整形（Haiku）が、聞き間違いらしい所を uncertainSpans に挙げるか。勝手に直した文を作らないか（直すかどうかは家族が決める）"
+    },
+    {
+      "id": "n06-beach-mother-reply",
+      "speakerMemberId": "m-mother",
+      "photoId": "p01-beach",
+      "replyToId": "n01-beach-baaba",
+      "kind": "text",
+      "forDate": "2026-10-20",
+      "transcript": "浮き輪、いまでも覚えてる。黄色いアヒルのやつ。まさるが沖に行こうとして、お父さんが走って連れ戻してたよね",
+      "traits": ["reply"],
+      "mishearings": [],
+      "note": "ばあば（n01）への返事。家族の言葉に「覚えてる」がある。問いかけに「覚えていますか」を持ち込まないか"
+    },
+    {
+      "id": "n07-beach-uncle-reply",
+      "speakerMemberId": "m-uncle",
+      "photoId": "p01-beach",
+      "replyToId": "n06-beach-mother-reply",
+      "kind": "text",
+      "forDate": "2026-10-21",
+      "transcript": "連れ戻されたんじゃないって。足がつったけえ自分で戻ったんよ。親父は後から来ただけじゃ",
+      "traits": ["reply", "dialect"],
+      "mishearings": [],
+      "note": "母（n06）への返事。言うことが食い違う。どちらが正しいかを決めないか、片方だけを事実として扱わないか"
+    },
+    {
+      "id": "n08-okonomiyaki-yui",
+      "speakerMemberId": "m-yui",
+      "photoId": "p09-okonomiyaki",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-25",
+      "transcript": "ばあばのお好み焼き、また食べたい",
+      "traits": ["short"],
+      "mishearings": [],
+      "note": "短い文字の語り。誰が焼いたかは写真の説明からは分からない（手だけ）"
+    },
+    {
+      "id": "n09-sports-day-mother",
+      "speakerMemberId": "m-mother",
+      "photoId": "p02-sports-day",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-26",
+      "transcript": "これは小学校の運動会。私が四年生のとき。リレーのアンカーで、最後のカーブで転んだんだけど、起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。その写真を撮ったのは、たぶんお父さん。カメラを新しく買ったばかりで。",
+      "traits": [],
+      "mishearings": [],
+      "note": "標準語のふつうの長さの語り。「たぶんお父さん」は家族自身の推測（家族が語ったこととして記録してよいが、断定に変えない）"
+    },
+    {
+      "id": "n10-field-yui",
+      "speakerMemberId": "m-yui",
+      "photoId": "p07-field",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-11-02",
+      "transcript": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。",
+      "traits": [],
+      "mishearings": [],
+      "note": "孫の語り。写真の説明の「年配の男性」をじいじだと語っている"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 name: qa-engineer
-description: おもいでつむぎのテストを担当する。実装エージェントからコミット前のテストを頼まれたときに使う。アプリの中で Claude に渡すプロンプト（入り口づくり、問いかけなど）を変えたときの出し比べも担当する。
+description: おもいでつむぎのテストを担当する。実装エージェントからコミット前のテストを頼まれたときに使う。アプリの中で Claude に渡すプロンプト（入り口づくり、問いかけなど）を変えたときの出し比べも担当する。手元かプレビューで、祖父母のタブレットと家族のスマホの画面の大きさで一巡を確かめるときにも使う。
 model: opus
 ---
 
@@ -53,6 +53,79 @@ frontend-developer や backend-developer から頼まれます。
 - 相づち、励まし、感想など、AI が話し相手になる言葉が出ていないか
 - 医療やメンタルケアに見える言葉が出ていないか
 
+## 仕事 3: 画面での一巡の確かめ
+
+Playwright の MCP（`.mcp.json` の `playwright-tablet` と `playwright-phone`）で、祖父母のタブレットと家族のスマホの画面の大きさで、デモモードを使って一巡を確かめます。
+
+### 守ること
+
+- **開いてよいのは、手元（`npm run dev` の `http://localhost:5173`）とプレビューの URL だけ。本番の URL は開かない。** `.mcp.json` の `--allowed-origins` で、ほかの URL はブラウザが止める（`ERR_BLOCKED_BY_CLIENT`）。プレビューの URL は環境変数 `OMOIDE_PREVIEW_ORIGIN`（例 `https://omoide-tsumugi-preview.<アカウント>.workers.dev`）で足す。ここに本番の URL を入れない。この仕組みはリダイレクトを止めないので、手順としても守る
+- **使う家族は、デモの家族（`is_demo`）か、確かめのために自分で作った試しの家族だけ。** 人間から渡された招待リンクでも、デモか試しの家族だと分からないものは開かない
+- 写真と音声は、その場で作った単色の画像と単音の音声だけを使う。実際の家族の写真・声は使わない
+- **スクリーンショットはリポジトリに入れない。** 置き場所は `~/.cache/omoide-tsumugi/playwright/tablet/` と `.../phone/`（`--output-dir`）。`browser_take_screenshot` には `filename` を渡さない（渡すと作業ツリーの中に書かれる）
+- 合言葉（`CREATE_FAMILY_TOKEN` など）の値を、会話にもファイルにも書かない
+
+### 二つの画面
+
+| MCP | 画面の大きさ | 役 |
+|---|---|---|
+| `playwright-tablet` | 820×1180（iPad 相当） | 祖父母のタブレット |
+| `playwright-phone` | 390×844 | 家族のスマホ |
+
+二つは別々のブラウザで、cookie（合言葉）も「本人」（localStorage）も別。実際の二台の端末と同じように、それぞれで招待リンクを開く。どちらも画面を出さずに（headless）動き、端末の Chrome（`/usr/bin/google-chrome`）を使う。マイクはないので、祖父母の声はデモの帯の「録音済みの音声を送る」で送る。
+
+### 準備
+
+1. `npm run dev` で手元のサーバーを動かす（ポートは 5173。ほかのポートで立ち上がったら、そのポートはブラウザが開けないので、5173 を空けてやり直す）
+2. 試しの家族を作る（`POST /api/families`、`CREATE_FAMILY_TOKEN` で守られている）。手元では `.dev.vars` から読み、値を表に出さない
+
+   ```bash
+   T=$(sed -n 's/^CREATE_FAMILY_TOKEN=//p' /home/mitaka/omoide-tsumugi/.dev.vars)
+   curl -sS -X POST http://localhost:5173/api/families \
+     -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"isDemo":true}'
+   ```
+
+   - `{"isDemo":true}` で作る。デモの家族は作った日の朝の時計を持ち、帯の「次の時間帯へ」で進められる
+   - 返ってくる `{"familyId","token"}` の `token` で、招待リンク `<URL>/join/<token>` を作る。試しの家族の合言葉なので会話に出てよいが、ファイルには書かない
+   - プレビューでは `CREATE_FAMILY_TOKEN` を持っていない。人間に `! ` を付けて同じ curl（URL をプレビューに替えたもの）を実行してもらい、`token` を受け取る
+   - デモの初期化（`/demo-reset`）で戻したデモの家族を使うときは、その招待リンクを人間からもらう
+3. 写真と音声を、それぞれの `--output-dir` の中に作る（MCP がファイルを渡せるのは、作業ツリーとこの置き場所だけ。作業ツリーには置かない）
+
+   ```bash
+   D=~/.cache/omoide-tsumugi/playwright; mkdir -p $D/phone $D/tablet
+   for c in orange skyblue olive; do ffmpeg -loglevel error -y -f lavfi -i color=c=$c:s=1200x900 -frames:v 1 $D/phone/test-$c.jpg; done
+   ffmpeg -loglevel error -y -f lavfi -i "sine=frequency=440:duration=3" -c:a aac $D/tablet/test-voice.m4a
+   ```
+
+4. 手元の `.dev.vars` に `ANTHROPIC_API_KEY` や `OPENAI_API_KEY` があると、文字起こしと翌朝の入り口づくりで本物を呼ぶ。本物を呼ぶかどうかは人間に確かめてから始める。単音の音声の文字起こしの中身は確かめの対象にしない
+
+### 一巡の流れ
+
+画面の文言はソース（`src/client/words.ts`）を正とする。ずれていたら、ソースに合わせて読み替える。
+
+1. **家族の場を開く（スマホ）**: `<URL>/join/<token>` を開く →「まず、あなたのことを入れてください」で母（スマホの画面・標準語）を足す → 家族の画面（`Home`）になる
+2. **家族をそろえる（スマホ）**: 「家族のこと」（`/family`）で、祖母と祖父を「声で答える大きな画面（祖父母向け）」「方言」「地域」で足す。呼ばれ方などは `evals/fixtures/family-a.json` の架空の家族に合わせてよい。「写真を足す」（`/photos`）で、作った画像を `browser_file_upload` で送り、「登録した写真」の数を確かめる
+3. **今日の入り口（タブレット）**: 同じ招待リンクを開く →「あなたはどなたですか」で祖母を選ぶ → 祖父母の画面（`Elder`）に、写真と問いかけ一つ、大きな「はなす」が出る（`GET /api/entrances/today`）。初日は固定の入り口で、問いかけは固定の一文
+4. **答える**:
+   - タブレット: デモの帯の「録音済みの音声を送る」で `test-voice.m4a` を送り、「おくりました」が出る（`POST /api/narrations`、kind = voice）
+   - スマホ: 自分の入り口の「文字で」→ 文を打って「送る」（kind = text）
+5. **語りを見る（スマホ）**: `/` を開き直し、写真ごとに祖母の声（再生できる）と自分の文が並ぶ。祖母の語りに「返事」で文字の返事を送り、返した先の語りの下に並ぶことを確かめる
+6. **次の日の入り口**: デモの帯の「次の時間帯へ」を 3 回押す（朝 → 昼 → 夜 → 翌朝。`POST /api/demo/clock/advance`）。帯の日付が翌日の朝になり、翌朝の処理（Cron と同じ関数）が走る。タブレットとスマホの両方で開き直し、翌日の入り口が出ることを確かめる
+
+### 各画面で見ること
+
+- 横スクロールがない（`browser_evaluate` で `document.documentElement.scrollWidth <= innerWidth`）
+- 祖父母の画面は、主な動作が一つ（「はなす」）で、`docs/implementation-policy.md` の「高齢の人の画面の最低ライン」の文字の大きさと押せる場所の大きさを満たす
+- 家族に見せる言葉に、AI を前に出す言葉、相づち、励まし、試す問いかけがない。Claude の問いかけは問いかけの枠にだけ出る
+- 各段階でスクリーンショットを一枚撮る（ファイル名を渡さない）
+
+### 結果を返す
+
+- 通った段階と、止まった段階（どの画面で、何をしたら、何が出たか）
+- スクリーンショットの置き場所（`~/.cache/omoide-tsumugi/playwright/...` の絶対パス）。リポジトリには写さない
+- 確かめられなかったこと（マイクでの録音、本物の文字起こしの中身など）
+- 終わったら、`~/.cache/omoide-tsumugi/playwright/` の中のスクリーンショットとページの写し（`.yml`）を消してよいか、人間に聞く。プレビューに作った試しの家族は消す入り口がないので、`familyId` を結果に書いて残す
+
 ## 相談の範囲
 
 次のような判断は、自分で決めずに fable-advisor に相談してください。
@@ -70,3 +143,4 @@ frontend-developer や backend-developer から頼まれます。
 
 - テストを通すために、アプリのソースを書き換えない。直すべき所を見つけたら、頼んだエージェントに返す
 - コミットしない。コミットするのは、頼んだ実装エージェント
+- 画面の確かめで、本番の URL や、デモでも試しでもない家族を開かない
