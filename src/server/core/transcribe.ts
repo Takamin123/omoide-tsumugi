@@ -1,11 +1,16 @@
+import { cleanNarration } from "./clean-transcript";
 import type { AppDeps, Transcriber } from "./ports";
 
 /**
  * 声の語りを文字起こしする（受け取ったことを返した後に、背景で呼ぶ）。
  * 失敗しても録音は残し、文字は空のまま failed にする。作り話で埋めない。
- * 整形（Claude）は今日はまだ作らない。
+ * 文字起こしができたら、同じ背景の処理の続きで一度だけ整形する（Haiku。0018）。整形が失敗しても transcript は残る。
  */
-export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos" | "transcriber">, familyId: string, narrationId: string): Promise<void> {
+export async function transcribeNarration(
+  deps: Pick<AppDeps, "repos" | "photos" | "transcriber" | "claude">,
+  familyId: string,
+  narrationId: string,
+): Promise<void> {
   const { repos } = deps;
   const narration = await repos.narrations.get(familyId, narrationId);
   if (!narration || narration.kind !== "voice" || narration.transcriptStatus !== "pending" || !narration.audioKey) return;
@@ -19,6 +24,7 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
     const [members, stored] = await Promise.all([repos.members.list(familyId), deps.photos.get(narration.audioKey)]);
     const speaker = members.find((m) => m.id === narration.speakerMemberId);
     // 綴りの手がかりは、この家族の呼ばれ方だけ（0013）。推測の語や位置から引いた地名は入れない
+    // 家族が語った語（記録の told など）を足すときも、整形で聞き間違いの印が付いた範囲（uncertainSpans）の語は使わない（0018）
     // 上限で切られても話し手の呼ばれ方が残るよう、話し手を先に置く
     const keywords = [...(speaker ? [speaker] : []), ...members.filter((m) => m !== speaker)].map((m) => m.calledAs);
     keywordCandidates = keywords.length;
@@ -54,6 +60,7 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
       ...(outcome.status === "failed" ? { reason: outcome.reason } : {}),
     }),
   );
+  if (outcome.status === "done") await cleanNarration(deps, familyId, narrationId);
 }
 
 /** キーがないときの文字起こし。文字は作らず、失敗として返す。 */

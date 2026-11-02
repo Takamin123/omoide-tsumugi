@@ -1,4 +1,5 @@
 // 入り口。初日は Claude を使わない「固定の入り口」だけを作る（選び方は docs/decisions/0009）。
+import { displayText } from "./clean-transcript";
 import type { AppDeps, EntranceRow, FamilyRow, MemberRow, NarrationRow, PhotoRow } from "./ports";
 
 export type EnsureResult = { entrance: EntranceRow; created: boolean } | null;
@@ -75,16 +76,10 @@ function compareTaken(a: PhotoRow, b: PhotoRow): number {
   return a.id < b.id ? -1 : 1;
 }
 
-/** 画面に出す文字: 整えた文字があればそれ、なければ文字起こし。どちらもなければ null */
-export function narrationText(n: Pick<NarrationRow, "cleanedText" | "transcript">): string | null {
-  const t = n.cleanedText ?? n.transcript;
-  return t && t.length > 0 ? t : null;
-}
-
 function latestWithText(narrations: NarrationRow[]): NarrationRow | null {
   let best: NarrationRow | null = null;
   for (const n of narrations) {
-    if (narrationText(n) === null) continue;
+    if (displayText(n) === null) continue;
     if (!best || n.createdAt > best.createdAt) best = n;
   }
   return best;

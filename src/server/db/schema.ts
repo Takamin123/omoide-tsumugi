@@ -128,7 +128,8 @@ export const narrations = sqliteTable(
     cleanedText: text("cleaned_text"),
     cleanedModel: text("cleaned_model"),
     cleanedPromptVersion: text("cleaned_prompt_version"),
-    uncertainSpans: text("uncertain_spans", { mode: "json" }).$type<{ start: number; end: number }[]>(),
+    // [{ start, end }] の JSON（cleaned_text の位置）。壊れた値で読み出しが落ちないよう、文字のまま読んでリポジトリで解釈する
+    uncertainSpans: text("uncertain_spans"),
     forDate: text("for_date").notNull(),
     createdAt: integer("created_at").notNull(),
   },

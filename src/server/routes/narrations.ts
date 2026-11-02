@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { narrationMetaSchema } from "../../shared/api";
 import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
-import type { NarrationRow } from "../core/ports";
+import type { NarrationRow, NewNarration } from "../core/ports";
 import { transcribeNarration } from "../core/transcribe";
 import type { AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm } from "./http";
@@ -68,7 +68,7 @@ export const narrations = new Hono<AppEnv>()
       await deps.photos.put(audioKey, audio, { contentType: audio.type });
     }
 
-    const row: NarrationRow = {
+    const insert: NewNarration = {
       id,
       familyId: family.id,
       speakerMemberId: speaker.id,
@@ -82,11 +82,10 @@ export const narrations = new Hono<AppEnv>()
       durationMs: null,
       transcript: meta.kind === "text" ? meta.text : null,
       transcriptStatus: meta.kind === "text" ? "done" : "pending",
-      cleanedText: null,
       forDate: familyToday(family, now),
       createdAt: now.getTime(),
     };
-    const { cleanedText: _cleaned, ...insert } = row;
+    const row: NarrationRow = { ...insert, cleanedText: null, cleanedModel: null, cleanedPromptVersion: null, uncertainSpans: null };
     if (!(await repos.narrations.insertIfAbsent(insert))) {
       // 同時に同じ requestId が届いた: 先に入った方を返す
       if (audioKey) await deps.photos.delete(audioKey);

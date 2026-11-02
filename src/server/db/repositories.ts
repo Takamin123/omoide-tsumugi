@@ -14,6 +14,7 @@ import type {
   PhotoGuessRow,
   PhotoRow,
   Repositories,
+  UncertainSpan,
 } from "../core/ports";
 import * as schema from "./schema";
 
@@ -50,9 +51,32 @@ const toNarration = (r: NarrationRecord): NarrationRow => ({
   transcript: r.transcript,
   transcriptStatus: r.transcriptStatus,
   cleanedText: r.cleanedText,
+  cleanedModel: r.cleanedModel,
+  cleanedPromptVersion: r.cleanedPromptVersion,
+  uncertainSpans: parseSpans(r.uncertainSpans),
   forDate: r.forDate,
   createdAt: r.createdAt,
 });
+
+/** 印の範囲を読む。形が合わなければ null（表示は transcript に倒れる。範囲そのものの確かめは表示の側でも行う） */
+function parseSpans(raw: string | null): UncertainSpan[] | null {
+  if (raw === null) return null;
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(v)) return null;
+  const spans: UncertainSpan[] = [];
+  for (const s of v) {
+    if (typeof s !== "object" || s === null) return null;
+    const { start, end } = s as Record<string, unknown>;
+    if (typeof start !== "number" || typeof end !== "number") return null;
+    spans.push({ start, end });
+  }
+  return spans;
+}
 
 type EntranceRecord = typeof entrances.$inferSelect;
 const toEntrance = (r: EntranceRecord): EntranceRow => ({
@@ -246,6 +270,26 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .where(
             and(eq(narrations.familyId, familyId), eq(narrations.id, narrationId), eq(narrations.transcriptStatus, "pending")),
           );
+      },
+      async setCleaned(familyId, narrationId, cleaned) {
+        const res = await db
+          .update(narrations)
+          .set({
+            cleanedText: cleaned.cleanedText,
+            cleanedModel: cleaned.cleanedModel,
+            cleanedPromptVersion: cleaned.cleanedPromptVersion,
+            uncertainSpans: JSON.stringify(cleaned.uncertainSpans),
+          })
+          .where(
+            and(
+              eq(narrations.familyId, familyId),
+              eq(narrations.id, narrationId),
+              eq(narrations.kind, "voice"),
+              eq(narrations.transcriptStatus, "done"),
+              isNull(narrations.cleanedText),
+            ),
+          );
+        return changes(res) > 0;
       },
     },
 

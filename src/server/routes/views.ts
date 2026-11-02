@@ -1,6 +1,6 @@
 // データベースの行から、API の形（src/shared/api.ts）へ。緯度経度などクライアントに返さないものはここで落とす。
 import type { Entrance, Member, Narration, Photo } from "../../shared/api";
-import { narrationText } from "../core/entrances";
+import { displayText, quoteText } from "../core/clean-transcript";
 import type { EntranceRow, MemberRow, NarrationRow, PhotoRow } from "../core/ports";
 
 export const memberView = (m: MemberRow): Member => ({
@@ -32,18 +32,21 @@ export const narrationView = (n: NarrationRow): Narration => ({
   kind: n.kind,
   audioUrl: n.kind === "voice" ? `/api/narrations/${encodeURIComponent(n.id)}/audio` : null,
   transcriptStatus: n.transcriptStatus,
-  text: narrationText(n),
+  // 印の範囲は「……」に置き換え済み。生の範囲（uncertainSpans）は返さない
+  text: displayText(n),
   forDate: n.forDate,
   createdAt: n.createdAt,
 });
 
-/** 添える家族の言葉は、語りの本文から範囲で引く（null なら全文）。 */
+/**
+ * 添える家族の言葉は、語りの本文から範囲で引く（null なら全文）。範囲は cleanedText の位置（0017、0018）。
+ * 切り出してから印の範囲を「……」に置き換える（quoteText）。
+ */
 export function entranceView(e: EntranceRow, photo: PhotoRow, quoteFrom: NarrationRow | null): Entrance {
   let quote: Entrance["quote"] = null;
-  const full = quoteFrom ? narrationText(quoteFrom) : null;
-  if (quoteFrom && full !== null) {
-    const text = e.quoteStart !== null && e.quoteEnd !== null ? full.slice(e.quoteStart, e.quoteEnd) : full;
-    if (text.length > 0) quote = { narrationId: quoteFrom.id, speakerMemberId: quoteFrom.speakerMemberId, text };
+  const text = quoteFrom ? quoteText(quoteFrom, e.quoteStart, e.quoteEnd) : null;
+  if (quoteFrom && text !== null && text.length > 0) {
+    quote = { narrationId: quoteFrom.id, speakerMemberId: quoteFrom.speakerMemberId, text };
   }
   return { id: e.id, memberId: e.memberId, forDate: e.forDate, photo: photoView(photo), focus: e.focus, quote, question: e.question };
 }

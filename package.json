@@ -11,6 +11,7 @@
     "deploy:preview": "CLOUDFLARE_ENV=preview vite build && node scripts/assert-build-env.mjs preview && wrangler deploy",
     "typecheck": "npm run cf-typegen && tsc -b",
     "test": "vitest run",
+    "eval:clean": "vitest run --config vitest.evals.config.ts evals/clean-transcript.eval.ts",
     "cf-typegen": "wrangler types src/server/platform/cloudflare/worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
     "postinstall": "npm run cf-typegen"
