@@ -4,6 +4,7 @@
 
 - 要件と守る方針: [docs/requirements.md](docs/requirements.md)（作業の前に必ず読む）
 - 基本仕様: [docs/spec.md](docs/spec.md)
+- 実装の方針（迷ったときの倒し方）: [docs/implementation-policy.md](docs/implementation-policy.md)
 - なぜそう決めたか: [docs/decisions/](docs/decisions/)
 - ドキュメントの方針（どこに何を書くか）: [docs/README.md](docs/README.md)
 

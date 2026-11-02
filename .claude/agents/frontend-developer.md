@@ -10,6 +10,7 @@ model: opus
 
 - `docs/requirements.md`（守る方針。必ず読む）
 - `docs/spec.md`
+- `docs/implementation-policy.md`（迷ったときの倒し方。実装・テストの判断はまずここに照らす）
 - `docs/decisions/` のうち、作業に関わるもの
 - 詳細はソースを正とします。ドキュメントは信用せず、都度ソースを読んでください
 

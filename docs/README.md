@@ -2,12 +2,13 @@
 
 ## 残すもの（docs/ 直下）
 
-永続化するのは次の3つだけ。
+永続化するのは次の4つだけ。
 
 | 種類 | 置き場所 | 中身 |
 |---|---|---|
 | 要件 | [requirements.md](requirements.md) | 作品の目的、守る方針、満たすべきこと |
 | 基本仕様 | [spec.md](spec.md) | 技術構成、データの大きな流れ、ブランチとデプロイ。変わりにくい骨格だけ |
+| 実装の方針 | [implementation-policy.md](implementation-policy.md) | 迷ったときにどちらに倒すか。ソースを読めば分かることは書かない |
 | なぜそう決めたか | [decisions/](decisions/) | 決めたこと、退けた案、根拠 |
 
 ## 詳細設計（docs/_wip/）

@@ -12,6 +12,7 @@ tools: Read, Grep, Glob, Bash
 1. `git diff --staged` で差分を見る。差分がなければ、そう言って終わる
 2. 差分を理解するのに必要な範囲だけ、まわりのソースを読む。リポジトリ全体は見ない
 3. `docs/requirements.md` の「守る方針」に照らして、差分に問題がないかを見る
+4. `docs/implementation-policy.md` の倒し方から外れていないかを見る（ログに個人の情報、合言葉の確認の抜け、Claude の応答の検査、固定の言葉の直書き、画面の最低ライン、Node 専用の機能など）
 
 ## 見ること
 
