@@ -78,12 +78,34 @@ export interface NarrationRow {
   /** 家族が語ったそのまま（文字起こし、または打った文字） */
   transcript: string | null;
   transcriptStatus: TranscriptStatus;
-  /** Claude が整えた文字（推測の側）。今日はまだ作らない */
+  /**
+   * Claude が整えた文字（推測の側）。声の語りの transcript から、句読点・改行を入れ、フィラーと言い直しを削っただけのもの（0018）。
+   * 整形できなかったら null（表示は transcript）。一度入れたら変えない（引用の位置が動くため）
+   */
   cleanedText: string | null;
+  cleanedModel: string | null;
+  cleanedPromptVersion: string | null;
+  /**
+   * 聞き間違いかもしれない範囲。cleanedText の位置（UTF-16 の添字、[start, end)）。重ならず、昇順。
+   * 表示ではサーバーが「……」に置き換える。クライアントには出さない。
+   * 整形があるときは、印がなくても空の配列。cleanedText があるのに null なら、読めなかったもの（表示は transcript に倒す）
+   */
+  uncertainSpans: UncertainSpan[] | null;
   forDate: string;
   createdAt: number;
 }
-export type NewNarration = Omit<NarrationRow, "cleanedText">;
+export interface UncertainSpan {
+  start: number;
+  end: number;
+}
+export type NewNarration = Omit<NarrationRow, "cleanedText" | "cleanedModel" | "cleanedPromptVersion" | "uncertainSpans">;
+/** 整形の結果。cleanedModel と cleanedPromptVersion は必ず一緒に入れる（出所） */
+export interface NarrationCleaned {
+  cleanedText: string;
+  cleanedModel: string;
+  cleanedPromptVersion: string;
+  uncertainSpans: UncertainSpan[];
+}
 
 export interface EntranceRow {
   id: string;
@@ -147,6 +169,11 @@ export interface NarrationRepository {
   listAll(familyId: string): Promise<NarrationRow[]>;
   /** 文字起こしの結果を入れる。pending のときだけ書き換える。 */
   setTranscript(familyId: string, narrationId: string, status: "done" | "failed", transcript: string | null): Promise<void>;
+  /**
+   * 整形の結果を入れる。声の語りで、文字起こしが done で、まだ整形していないときだけ書き換える（整形し直さない）。
+   * 書き換えたら true
+   */
+  setCleaned(familyId: string, narrationId: string, cleaned: NarrationCleaned): Promise<boolean>;
 }
 
 export interface EntranceRepository {
