@@ -159,6 +159,67 @@ export interface EntranceRepository {
   markShown(familyId: string, entranceId: string, now: number): Promise<void>;
 }
 
+// ---- 写真の初回整理（photo_guess） ----
+// 説明は Claude の推測。家族には見せない（家族向けの API の形に入れない）。入り口づくりの材料にだけ使う。
+
+export interface PhotoGuessRow {
+  id: string;
+  photoId: string;
+  familyId: string;
+  description: string;
+  model: string;
+  promptVersion: string;
+  createdAt: number;
+}
+
+/** 説明を作っている途中の写真の記録（「取る」ことで、同じ写真を二度呼ばない・二度 Batch に入れない） */
+export interface PhotoGuessClaim {
+  photoId: string;
+  familyId: string;
+  promptVersion: string;
+  /** Batch に入れたもの。一枚ずつ呼んでいるものは null */
+  batchId: string | null;
+  attempts: number;
+}
+
+/** 取り直してよい作業の記録の条件 */
+export interface ClaimOpts {
+  /** 失敗したもの、または Batch なしで、これより前に取ったまま残っているもの */
+  staleBefore: number;
+  /** Batch に入れたまま、これより前に取ったまま残っているもの */
+  batchStaleBefore: number;
+  /** 失敗で、試した回数がこれ未満のもの */
+  maxAttempts: number;
+}
+
+export interface PhotoGuessRepository {
+  /** この版の説明も、作業中の記録もない写真（作業中でも取り直せるものは含む）。古い順に limit 枚まで */
+  listCandidates(
+    familyId: string,
+    promptVersion: string,
+    limit: number,
+    opts: ClaimOpts,
+  ): Promise<PhotoRow[]>;
+  /**
+   * 写真を「取る」。取れたものの photoId だけを返す。
+   * まだ記録のない写真か、取り直してよい写真（ClaimOpts）だけを取る。
+   */
+  claim(familyId: string, photoIds: string[], promptVersion: string, opts: ClaimOpts & { now: number }): Promise<string[]>;
+  /** 取った写真を Batch に結びつける */
+  attachBatch(familyId: string, photoIds: string[], promptVersion: string, batchId: string): Promise<void>;
+  /** 説明を入れ、作業の記録を消す（一度に）。同じ写真・同じ版の説明がすでにあれば入れない */
+  saveGuess(row: PhotoGuessRow): Promise<void>;
+  /** 取ったのをやめる（試した回数に数えない。Claude を呼べなかったときや、今回の Batch に載せきれなかったとき） */
+  release(familyId: string, photoIds: string[], promptVersion: string): Promise<void>;
+  /** 失敗にする（Batch からも外す）。attempts が上限に届いたものは、それ以上取らない */
+  markFailed(familyId: string, photoIds: string[], promptVersion: string): Promise<void>;
+  /** 回収を待っている Batch（familyId を渡せばその家族だけ） */
+  listOpenBatches(familyId?: string): Promise<{ batchId: string; familyId: string; promptVersion: string }[]>;
+  /** その Batch に入っている写真の記録 */
+  listClaimsByBatch(batchId: string): Promise<PhotoGuessClaim[]>;
+  listByFamily(familyId: string): Promise<PhotoGuessRow[]>;
+}
+
 /** データベースのリポジトリの集まり。 */
 export interface Repositories {
   families: FamilyRepository;
@@ -166,6 +227,7 @@ export interface Repositories {
   photos: PhotoRepository;
   narrations: NarrationRepository;
   entrances: EntranceRepository;
+  photoGuesses: PhotoGuessRepository;
 }
 
 // ---- 文字起こし ----

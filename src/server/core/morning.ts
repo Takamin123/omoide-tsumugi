@@ -1,5 +1,6 @@
 import { familyToday } from "./clock";
 import { ensureFixedEntrance } from "./entrances";
+import { runPhotoGuesses } from "./photo-guess";
 import type { AppDeps } from "./ports";
 
 export interface MorningSummary {
@@ -17,6 +18,7 @@ export interface MorningSummary {
  *
  * - familyId を渡したらその家族だけ。渡さなければ、時計を持たない家族すべて（時計を持つ家族の朝はボタンで来る。0009）
  * - 「今日」は家族ごとに決める: 時計があればその日付、なければ now の日本時間の日付
+ * - 家族ごとに、入り口づくりの前に写真の説明づくりを一回進める（runPhotoGuesses。失敗しても入り口づくりは続ける）
  * - 一人ひとりに、その日の入り口がなければ固定の入り口を作る（今日は Claude を使わない）
  * - 失敗した人だけ飛ばして続ける。全員が失敗したときだけ、全体を失敗にする
  */
@@ -34,6 +36,8 @@ export async function runMorning(
   for (const familyId of familyIds) {
     const family = await deps.repos.families.get(familyId);
     if (!family) continue;
+    // 写真の説明（推測）づくりを先に進める: 終わった Batch の回収と、まだ説明のない写真。投げない
+    await runPhotoGuesses(deps, familyId);
     const forDate = familyToday(family, now);
     const members = await deps.repos.members.list(familyId);
     for (const member of members) {

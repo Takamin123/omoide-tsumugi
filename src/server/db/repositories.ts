@@ -2,14 +2,16 @@
 // 実行環境ごとに違うのは「drizzle のデータベース」と「いくつかの文を一度に行う方法」だけで、入り口の層が渡す。
 // - D1: db.batch()（対話的なトランザクションは使えない）
 // - better-sqlite3: db.transaction() の中で順に run する
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { BatchItem as DrizzleBatchItem } from "drizzle-orm/batch";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type {
+  ClaimOpts,
   EntranceRow,
   FamilyRow,
   MemberRow,
   NarrationRow,
+  PhotoGuessRow,
   PhotoRow,
   Repositories,
 } from "../core/ports";
@@ -21,7 +23,7 @@ export type BatchItem = DrizzleBatchItem<"sqlite">;
 /** いくつかの書き込みを、すべて行うか、どれも行わないかで行う。 */
 export type RunBatch = (items: [BatchItem, ...BatchItem[]]) => Promise<void>;
 
-const { families, inviteLinks, members, photos, narrations, entrances } = schema;
+const { families, inviteLinks, members, photos, narrations, entrances, photoGuesses, photoGuessRequests } = schema;
 
 type FamilyRecord = typeof families.$inferSelect;
 const toFamily = (r: FamilyRecord): FamilyRow => ({
@@ -68,6 +70,21 @@ const toEntrance = (r: EntranceRecord): EntranceRow => ({
   shownAt: r.shownAt,
   createdAt: r.createdAt,
 });
+
+/** 取り直してよい作業の記録: 失敗で回数が上限に届いていないもの、または古いまま残っているもの（途中で落ちた処理、回収できなかった Batch） */
+function claimable(req: typeof schema.photoGuessRequests, o: ClaimOpts) {
+  // どの場合も、試した回数の上限は越えない（落ち続ける写真で Claude を呼び続けない）
+  return and(
+    lt(req.attempts, o.maxAttempts),
+    or(
+      // 失敗したものは、取ってから少し待ってから（一時的な障害の間に、続く登録で回数を使い切らないように）
+      and(eq(req.state, "failed"), lt(req.claimedAt, o.staleBefore)),
+      and(eq(req.state, "working"), isNull(req.batchId), lt(req.claimedAt, o.staleBefore)),
+      // Batch に入れたまま回収できなかったもの（Batch の期限 24 時間の外側）
+      and(eq(req.state, "working"), isNotNull(req.batchId), lt(req.claimedAt, o.batchStaleBefore)),
+    ),
+  );
+}
 
 /** 書き込みの結果から、変わった行の数を取り出す（D1 は meta.changes、better-sqlite3 は changes）。 */
 function changes(result: unknown): number {
@@ -269,6 +286,142 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .update(entrances)
           .set({ shownAt: now })
           .where(and(eq(entrances.familyId, familyId), eq(entrances.id, entranceId), isNull(entrances.shownAt)));
+      },
+    },
+
+    photoGuesses: {
+      async listCandidates(familyId, promptVersion, limit, opts) {
+        const req = photoGuessRequests;
+        const rows = await db
+          .select({ photo: photos })
+          .from(photos)
+          .leftJoin(photoGuesses, and(eq(photoGuesses.photoId, photos.id), eq(photoGuesses.promptVersion, promptVersion)))
+          .leftJoin(req, and(eq(req.photoId, photos.id), eq(req.promptVersion, promptVersion)))
+          .where(
+            and(
+              eq(photos.familyId, familyId),
+              isNull(photoGuesses.id),
+              or(isNull(req.photoId), claimable(req, opts)),
+            ),
+          )
+          .orderBy(asc(photos.createdAt), asc(photos.id))
+          .limit(limit)
+          .all();
+        return rows.map((r) => r.photo as PhotoRow);
+      },
+      async claim(familyId, photoIds, promptVersion, { now, ...opts }) {
+        if (photoIds.length === 0) return [];
+        const claimed: string[] = [];
+        // 一行ずつ（D1 の一文の変数の上限に当たらないように）。取れたかどうかは RETURNING で見る
+        for (const photoId of photoIds) {
+          const r = await db
+            .insert(photoGuessRequests)
+            .values({ photoId, promptVersion, familyId, state: "working", batchId: null, attempts: 1, claimedAt: now })
+            .onConflictDoUpdate({
+              target: [photoGuessRequests.photoId, photoGuessRequests.promptVersion],
+              set: { state: "working", batchId: null, attempts: sql`${photoGuessRequests.attempts} + 1`, claimedAt: now },
+              setWhere: and(eq(photoGuessRequests.familyId, familyId), claimable(photoGuessRequests, opts)),
+            })
+            .returning({ photoId: photoGuessRequests.photoId })
+            .all();
+          if (r.length > 0) claimed.push(photoId);
+        }
+        return claimed;
+      },
+      async attachBatch(familyId, photoIds, promptVersion, batchId) {
+        if (photoIds.length === 0) return;
+        await db
+          .update(photoGuessRequests)
+          .set({ batchId })
+          .where(
+            and(
+              eq(photoGuessRequests.familyId, familyId),
+              eq(photoGuessRequests.promptVersion, promptVersion),
+              eq(photoGuessRequests.state, "working"),
+              inArray(photoGuessRequests.photoId, photoIds),
+            ),
+          );
+      },
+      async saveGuess(row: PhotoGuessRow) {
+        await runBatch([
+          db.insert(photoGuesses).values(row).onConflictDoNothing({ target: [photoGuesses.photoId, photoGuesses.promptVersion] }),
+          db
+            .delete(photoGuessRequests)
+            .where(
+              and(
+                eq(photoGuessRequests.familyId, row.familyId),
+                eq(photoGuessRequests.photoId, row.photoId),
+                eq(photoGuessRequests.promptVersion, row.promptVersion),
+              ),
+            ),
+        ]);
+      },
+      async release(familyId, photoIds, promptVersion) {
+        if (photoIds.length === 0) return;
+        // 取ったときに足した 1 を戻し、取り直せる状態（failed、回数は上限の内側）にする
+        await db
+          .update(photoGuessRequests)
+          // 試していないので、待たずに取り直せるようにする（claimed_at を 0 に）
+          .set({ state: "failed", batchId: null, attempts: sql`${photoGuessRequests.attempts} - 1`, claimedAt: 0 })
+          .where(
+            and(
+              eq(photoGuessRequests.familyId, familyId),
+              eq(photoGuessRequests.promptVersion, promptVersion),
+              eq(photoGuessRequests.state, "working"),
+              inArray(photoGuessRequests.photoId, photoIds),
+            ),
+          );
+      },
+      async markFailed(familyId, photoIds, promptVersion) {
+        if (photoIds.length === 0) return;
+        await db
+          .update(photoGuessRequests)
+          .set({ state: "failed", batchId: null })
+          .where(
+            and(
+              eq(photoGuessRequests.familyId, familyId),
+              eq(photoGuessRequests.promptVersion, promptVersion),
+              eq(photoGuessRequests.state, "working"),
+              inArray(photoGuessRequests.photoId, photoIds),
+            ),
+          );
+      },
+      async listOpenBatches(familyId) {
+        const where = familyId
+          ? and(isNotNull(photoGuessRequests.batchId), eq(photoGuessRequests.familyId, familyId))
+          : isNotNull(photoGuessRequests.batchId);
+        const rows = await db
+          .selectDistinct({
+            batchId: photoGuessRequests.batchId,
+            familyId: photoGuessRequests.familyId,
+            promptVersion: photoGuessRequests.promptVersion,
+          })
+          .from(photoGuessRequests)
+          .where(and(where, eq(photoGuessRequests.state, "working")))
+          .all();
+        return rows.flatMap((r) => (r.batchId ? [{ batchId: r.batchId, familyId: r.familyId, promptVersion: r.promptVersion }] : []));
+      },
+      async listClaimsByBatch(batchId) {
+        const rows = await db
+          .select()
+          .from(photoGuessRequests)
+          .where(and(eq(photoGuessRequests.batchId, batchId), eq(photoGuessRequests.state, "working")))
+          .all();
+        return rows.map((r) => ({
+          photoId: r.photoId,
+          familyId: r.familyId,
+          promptVersion: r.promptVersion,
+          batchId: r.batchId,
+          attempts: r.attempts,
+        }));
+      },
+      async listByFamily(familyId) {
+        return (await db
+          .select()
+          .from(photoGuesses)
+          .where(eq(photoGuesses.familyId, familyId))
+          .orderBy(asc(photoGuesses.createdAt), asc(photoGuesses.id))
+          .all()) as PhotoGuessRow[];
       },
     },
   };

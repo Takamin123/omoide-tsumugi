@@ -8,6 +8,13 @@
       "when": 1793603180940,
       "tag": "0000_day1",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793654690069,
+      "tag": "0001_photo_guess_requests",
+      "breakpoints": true
     }
   ]
 }
