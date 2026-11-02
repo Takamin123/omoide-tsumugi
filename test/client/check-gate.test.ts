@@ -26,6 +26,9 @@ describe("includeCheckPage: 本番と APP_ENV がないときは入れない", (
 });
 
 describe("vite.config.ts: wrangler.jsonc の環境から __CHECK_PAGE__ を決める", () => {
+  // test/ は Workers の型で検査するので、process は globalThis から any として取る（test/node.ts と同じ理由）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const process = (globalThis as any).process;
   const saved = process.env.CLOUDFLARE_ENV;
   afterEach(() => {
     if (saved === undefined) delete process.env.CLOUDFLARE_ENV;
