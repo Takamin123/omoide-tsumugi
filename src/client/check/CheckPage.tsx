@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { checkTranscribeFieldNames, checkTranscribeModels, type CheckTranscribeResult } from "../../shared/check";
 import { canRecord, preferredTypes, startRecording, type Recording } from "../lib/recorder";
+import { AUDIO_FILE_ACCEPT } from "../lib/voice";
 import { inspectAudio, inspectPhoto } from "./inspect";
 import {
   buildReport,
@@ -322,10 +323,22 @@ export default function CheckPage() {
           {recording ? "止める" : "マイクで録音"}
         </button>
         <label className="button">
-          録音済みファイルを選ぶ
+          録音済みファイルを選ぶ（アプリと同じ accept）
           <input
             type="file"
-            accept="audio/*"
+            accept={AUDIO_FILE_ACCEPT}
+            className="visually-hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void addAudio(f, "file", null).catch((err) => setAudioError(String(err)));
+            }}
+          />
+        </label>
+        <label className="button">
+          録音済みファイルを選ぶ（accept なし）
+          <input
+            type="file"
             className="visually-hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];

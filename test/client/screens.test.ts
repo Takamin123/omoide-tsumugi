@@ -9,6 +9,7 @@ const { renderToStaticMarkup } = await load("react-dom/server");
 const { EntranceView } = await load("../../src/client/parts/EntranceView");
 const { DemoBar } = await load("../../src/client/parts/DemoBar");
 const { words } = await load("../../src/client/words");
+const { AUDIO_FILE_ACCEPT } = await load("../../src/client/lib/voice");
 
 const members = [
   { id: "m-grandma", calledAs: "ばあば", relation: "祖母", role: "elder" },
@@ -45,7 +46,7 @@ describe("デモの帯", () => {
     expect(without).not.toContain(words.demo.sendFile);
     const withFile = renderToStaticMarkup(h(DemoBar, { clock, onAdvanced: () => {}, onAudioFile: () => {} }));
     expect(withFile).toContain(words.demo.sendFile);
-    expect(withFile).toContain('accept="audio/*"');
+    expect(withFile).toContain(`accept="${AUDIO_FILE_ACCEPT}"`);
     expect(withFile).not.toMatch(/<input[^>]*disabled/);
   });
   it("送っている間は、録音済みファイルを選べない", () => {

@@ -3,6 +3,12 @@
 import type { Narration } from "../../shared/api";
 import { api } from "./api";
 
+/**
+ * 録音済みファイルを選ぶ <input> の accept。マイクの録音と同じ流れに乗せるファイルの入口はすべてこれを使う。
+ * iPhone の Safari は "audio/*" だけだと、ファイルアプリに保存したボイスメモ（.m4a）を選べないことがあるので、拡張子も並べる。
+ */
+export const AUDIO_FILE_ACCEPT = "audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm";
+
 export type VoiceTarget = {
   speakerMemberId: string;
   photoId: string;

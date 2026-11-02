@@ -4,6 +4,7 @@ import type { Clock } from "../../shared/api";
 import { api } from "../lib/api";
 import { errorText } from "../lib/errors";
 import { formatClock } from "../lib/pure";
+import { AUDIO_FILE_ACCEPT } from "../lib/voice";
 import { words } from "../words";
 import { ErrorLine } from "./ErrorLine";
 
@@ -48,7 +49,7 @@ export function DemoBar({ clock, onAdvanced, onAudioFile, audioDisabled }: Props
           {words.demo.sendFile}
           <input
             type="file"
-            accept="audio/*"
+            accept={AUDIO_FILE_ACCEPT}
             className="visually-hidden"
             disabled={audioDisabled}
             onChange={(e) => {
