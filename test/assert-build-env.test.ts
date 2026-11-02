@@ -21,7 +21,11 @@ function tmpDir(): string {
 /** リポジトリの wrangler.jsonc を元に、文字列の置き換えをした写しを作る。 */
 function wranglerJsonc(replacements: Array<[string | RegExp, string]> = []): string {
   let src = fs.readFileSync(path.join(repoRoot, "wrangler.jsonc"), "utf8");
-  src = src.replace("REPLACE_WITH_PRODUCTION_D1_ID", PROD_ID).replace("REPLACE_WITH_PREVIEW_D1_ID", PREVIEW_ID);
+  // 実際の database_id（または仮の値）を、テスト用の ID に置き換える。1つ目が本番、2つ目がプレビュー
+  const ids = [PROD_ID, PREVIEW_ID];
+  let i = 0;
+  src = src.replace(/("database_id"\s*:\s*)"[^"]*"/g, (_m, key: string) => `${key}"${ids[i++] ?? ""}"`);
+  if (i !== 2) throw new Error(`wrangler.jsonc の database_id が2つではありません（${i}）`);
   for (const [from, to] of replacements) src = src.replace(from, to);
   // $schema はリポジトリの node_modules を指す
   return src.replace('"node_modules/wrangler/config-schema.json"', JSON.stringify(path.join(repoRoot, "node_modules/wrangler/config-schema.json")));
