@@ -1,4 +1,4 @@
-// 入り口。初日は Claude を使わない「固定の入り口」だけを作る（docs/_wip/data-model.md「初日の固定の入り口」）。
+// 入り口。初日は Claude を使わない「固定の入り口」だけを作る（選び方は docs/decisions/0009）。
 import type { AppDeps, EntranceRow, FamilyRow, MemberRow, NarrationRow, PhotoRow } from "./ports";
 
 export type EnsureResult = { entrance: EntranceRow; created: boolean } | null;

@@ -52,7 +52,7 @@ export function Elder({ view, me, onSwitch, demo }: Props) {
 
       {load.state === "loading" && <p>{words.loading}</p>}
       {load.state === "error" && <ErrorLine text={load.text} />}
-      {load.state === "ready" && !entrance && <p>{words.elder.noPhoto}</p>}
+      {/* 入り口がないときは何も出さない。祖父母には写真を足す手段がないので、「写真がない」は行き止まりの文になる（0010） */}
       {entrance && (
         <>
           <EntranceView entrance={entrance} members={view.members} />

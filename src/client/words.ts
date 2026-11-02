@@ -85,7 +85,6 @@ export const words = {
     sent: "おくりました",
     sendFailed: "おくれませんでした。もういちど おしてください",
     resend: "おくる",
-    noPhoto: "まだ写真がありません",
     micDenied: "マイクがつかえません",
   },
 
