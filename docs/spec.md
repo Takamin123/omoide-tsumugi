@@ -26,6 +26,7 @@
 ## ブランチとデプロイ
 
 - GitHub とつないで自動でデプロイする。`develop` はプレビュー、`main` は本番
+- プレビューと本番は別の Worker にし、D1・R2 も環境ごとに別のものを使う（`wrangler.jsonc` の `env.preview` とトップレベル）。デプロイは `npm run deploy:preview` / `npm run deploy:production` で行う → [0005](decisions/0005-separate-preview-worker.md)
 - 作業は `develop` で行う。区切りの良いところで `main` に取り込む。Pull Request は使わない
 - 秘密の値は Workers の secret に登録する。リポジトリには入れない
 - 手元の秘密の値は `.dev.vars` に置く。このファイルは git の管理から外してある

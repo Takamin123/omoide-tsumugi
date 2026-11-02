@@ -1,0 +1,50 @@
+// おもいでつむぎの Worker の設定。
+// 本番はトップレベル、プレビューは env.preview。プレビューは別名の Worker（omoide-tsumugi-preview）になり、
+// D1・R2 も本番とは別のものにつなぐ。理由は docs/decisions/0005-separate-preview-worker.md
+//
+// - bindings（d1_databases、r2_buckets、vars）と triggers は環境ごとに書く（環境の間で引き継がれない）
+// - Vite プラグインを使うので、環境はビルドのときに CLOUDFLARE_ENV で決まる（npm run build:preview）
+// - database_id の REPLACE_WITH_... は仮の値。`wrangler d1 create` の結果で置き換える
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "omoide-tsumugi",
+  "main": "./src/server/platform/cloudflare/entry.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // ---- 本番（main ブランチ） ----
+  "vars": { "APP_ENV": "production" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "omoide-tsumugi",
+      "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "omoide-tsumugi" }],
+  // 毎朝 6:00（日本時間）= 21:00 UTC
+  "triggers": { "crons": ["0 21 * * *"] },
+
+  "env": {
+    // ---- プレビュー（develop ブランチ） ----
+    "preview": {
+      "name": "omoide-tsumugi-preview",
+      "vars": { "APP_ENV": "preview" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "omoide-tsumugi-preview",
+          "database_id": "REPLACE_WITH_PREVIEW_D1_ID",
+          "migrations_dir": "drizzle/migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "omoide-tsumugi-preview" }],
+      "triggers": { "crons": ["0 21 * * *"] }
+    }
+  }
+}

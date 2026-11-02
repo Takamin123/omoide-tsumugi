@@ -1,0 +1,35 @@
+{
+  "name": "omoide-tsumugi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "build:preview": "CLOUDFLARE_ENV=preview vite build",
+    "deploy:production": "vite build && node scripts/assert-build-env.mjs production && wrangler deploy",
+    "deploy:preview": "CLOUDFLARE_ENV=preview vite build && node scripts/assert-build-env.mjs preview && wrangler deploy",
+    "typecheck": "npm run cf-typegen && tsc -b",
+    "test": "vitest run",
+    "cf-typegen": "wrangler types src/server/platform/cloudflare/worker-configuration.d.ts",
+    "db:generate": "drizzle-kit generate",
+    "postinstall": "npm run cf-typegen"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.16",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.67.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.156.1"
+  }
+}

@@ -11,8 +11,9 @@ argument-hint: "[local|preview|production]"
 ## 前提
 
 - 環境の名前、データベースの名前、マイグレーションのフォルダは、`wrangler.jsonc` と `drizzle.config.ts` を正とします。以下の `<DB>` と `--env` の値は、そこに書かれた値に読み替えてください
-- 以下の手順は、プレビューを `--env preview`、本番を環境の指定なし（トップレベル）とする想定で書いています。違っていたら、wrangler.jsonc に合わせてください
-- **注意**: プレビューと本番が同じ D1 を指していないか、最初に wrangler.jsonc で確かめてください。同じなら、プレビューへの適用が本番への適用になります。その場合は止めて、人間に知らせてください
+- プレビューは `--env preview`、本番は環境の指定なし（トップレベル）です。`<DB>` には、どちらの環境でも同じバインディングの名前 `DB` を使えます（データベースの名前は環境ごとに違う: `omoide-tsumugi-preview` / `omoide-tsumugi`）
+- `wrangler d1 …` は、元の `wrangler.jsonc` を読み、`--env` に従います（ビルドの出力の設定は読みません）。一方、ビルドの後の `wrangler deploy` は `--env` を無視するので、デプロイには `npm run deploy:preview` / `npm run deploy:production` を使ってください（`docs/decisions/0005`）
+- **注意**: プレビューと本番が同じ D1 を指していないか、最初に wrangler.jsonc で確かめてください（`database_id` が違うこと）。同じなら、プレビューへの適用が本番への適用になります。その場合は止めて、人間に知らせてください
 
 ## 1. マイグレーションのファイルを作る
 

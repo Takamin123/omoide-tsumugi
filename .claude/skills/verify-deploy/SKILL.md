@@ -11,8 +11,9 @@ argument-hint: "[preview|production]"
 ## 0. 準備
 
 - URL は `wrangler.jsonc` と Cloudflare のダッシュボードを正とします。分からなければ人間に聞いてください
-  - preview: develop のプレビューの URL
-  - production: 本番の URL
+  - preview: develop をデプロイした Worker `omoide-tsumugi-preview` の URL
+  - production: main をデプロイした Worker `omoide-tsumugi` の URL
+  - プレビューと本番は別の Worker で、D1・R2 も別（`docs/decisions/0005`）
 - デプロイが終わっているかを確かめる。終わっていなければ、終わるまで待つ
   - `npx wrangler deployments list`（preview のときは `--env preview`）で、最新のデプロイが今のコミットであることを確かめる
   - 本番の確かめでは、書き込みをしない。読み取りと、ヘルスチェックだけにする
@@ -29,6 +30,7 @@ argument-hint: "[preview|production]"
 | 4 | Claude の呼び出しが通る | ヘルスチェックの API（例: `/api/health/deep`）で、Claude が応答する |
 | 5 | 文字起こしの呼び出しが通る | 同じヘルスチェックで、OpenAI の文字起こしが応答する |
 | 6 | 毎朝の処理が登録されている | `wrangler.jsonc` の `triggers.crons` があり、ダッシュボードの Cron Triggers に出ている |
+| 7 | 環境を取り違えていない | ダッシュボードで、その Worker のバインディングの D1・R2 が、その環境のもの（preview なら `omoide-tsumugi-preview`）になっている |
 
 - 2 と 3 は、デモの家族で確かめます。実際の家族の合言葉は使いません
 - 4 と 5 のヘルスチェックの API がまだない場合は、backend-developer に作ってもらいます。そのときの約束は次のとおりです

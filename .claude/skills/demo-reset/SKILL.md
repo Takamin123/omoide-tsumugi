@@ -31,17 +31,17 @@ argument-hint: "[local|preview|production]"
 - アップロードする
 
 ```bash
-npx wrangler r2 object put <BUCKET>/demo/seed/<ファイル名> --file ~/omoide-demo-seed/<ファイル名>        # 本番
+npx wrangler r2 object put <BUCKET>/demo/seed/<ファイル名> --file ~/omoide-demo-seed/<ファイル名> --remote # 本番
 npx wrangler r2 object put <BUCKET>/demo/seed/<ファイル名> --file ~/omoide-demo-seed/<ファイル名> --local # 手元
 ```
 
-- `<BUCKET>` は wrangler.jsonc を正とする。preview では `--env preview` を付ける
+- `<BUCKET>` は wrangler.jsonc を正とする（本番は `omoide-tsumugi`、プレビューは `omoide-tsumugi-preview`）。preview では `--env preview --remote` を付ける
 
 ### 2. 初期化を呼ぶ
 
 ```bash
-# local（開発サーバーを動かしておく）
-curl -sS -X POST http://localhost:8787/api/demo/reset -H "Authorization: Bearer $DEMO_RESET_TOKEN"
+# local（npm run dev で開発サーバーを動かしておく。Vite の既定のポートは 5173）
+curl -sS -X POST http://localhost:5173/api/demo/reset -H "Authorization: Bearer $DEMO_RESET_TOKEN"
 
 # preview / production
 curl -sS -X POST <URL>/api/demo/reset -H "Authorization: Bearer $DEMO_RESET_TOKEN"
