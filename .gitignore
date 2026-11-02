@@ -68,6 +68,9 @@ Thumbs.db
 # Claude Code の個人設定
 .claude/settings.local.json
 
+# direnv の個人設定
+.envrc
+
 # wrangler types が作る型（npm install と npm run typecheck のたびに作り直す）。
 # 生成物の中の `password: ...` がコミット前の検査に当たるため、コミットしない
 src/server/platform/cloudflare/worker-configuration.d.ts
