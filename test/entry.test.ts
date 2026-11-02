@@ -120,6 +120,12 @@ describe("createCloudflareDeps の設定", () => {
     expect(await createCloudflareDeps(env, fakeCtx()).claude.createBatch({ prompt, schema: z.object({}), items: [] })).toEqual({ ok: false, reason: "rejected" });
   });
 
+  it("読み上げの確かめ（speechProbe）も、OpenAI のキーがあるときだけ作る", () => {
+    expect(createCloudflareDeps(fakeEnv(), fakeCtx()).speechProbe).toBeNull();
+    const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", OPENAI_API_KEY: "fake-key" } as unknown as Env;
+    expect(createCloudflareDeps(env, fakeCtx()).speechProbe).not.toBeNull();
+  });
+
   it("秘密の値を env から読む", () => {
     const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", CREATE_FAMILY_TOKEN: "t" } as unknown as Env;
     expect(createCloudflareDeps(env, fakeCtx()).config).toEqual({ appEnv: "preview", createFamilyToken: "t" });
