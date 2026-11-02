@@ -1,8 +1,16 @@
 import { Hono, type Context } from "hono";
 import type { AppDeps } from "./core/ports";
+import { requireInvite } from "./routes/auth";
+import { entrances } from "./routes/entrances";
+import type { AppEnv } from "./routes/env";
+import { family } from "./routes/family";
 import { health } from "./routes/health";
+import { fail } from "./routes/http";
+import { members } from "./routes/members";
+import { narrations } from "./routes/narrations";
+import { photos } from "./routes/photos";
 
-export type AppEnv = { Variables: { deps: AppDeps } };
+export type { AppEnv } from "./routes/env";
 
 /**
  * Hono のアプリを作る。実行環境のことは知らない。
@@ -17,10 +25,24 @@ export function createApp<B extends object = object>(
     c.set("deps", makeDeps(c));
     await next();
   });
+  // 合言葉の確認。/api/* はすべてここを通る（確認しない入り口は routes/auth.ts の PUBLIC_ROUTES だけ）
+  app.use("*", requireInvite);
 
-  const api = new Hono<AppEnv>().route("/health", health);
+  const api = new Hono<AppEnv>()
+    .route("/health", health)
+    .route("/", family)
+    .route("/", members)
+    .route("/", photos)
+    .route("/", narrations)
+    .route("/", entrances);
   app.route("/api", api);
-  app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
+  app.all("/api/*", (c) => fail(c, "not_found"));
+
+  app.onError((err, c) => {
+    // 外のエラーの本文は入力を含むことがあるので、種類だけを出す
+    console.error(JSON.stringify({ event: "request_error", path: c.req.routePath, kind: err.name }));
+    return fail(c, "internal");
+  });
 
   return app;
 }

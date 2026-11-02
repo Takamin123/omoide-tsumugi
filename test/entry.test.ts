@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppDeps } from "../src/server/core/ports";
 
-const runMorning = vi.fn(async (_deps: AppDeps, _now?: Date) => {});
+const runMorning = vi.fn(async (_deps: AppDeps, _now?: Date, _opts?: { familyId?: string }) => {});
 vi.mock("../src/server/core/morning", () => ({ runMorning }));
 
 const { default: worker, createCloudflareDeps } = await import("../src/server/platform/cloudflare/entry");
@@ -74,9 +74,9 @@ describe("fetch（Workers の入り口から）", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
-  it("知らない /api/* は 404 JSON", async () => {
-    const res = await worker.fetch(new Request("https://example.test/api/photos/x"), fakeEnv(), fakeCtx());
-    expect(res.status).toBe(404);
+  it("合言葉のない /api/* は 401 JSON", async () => {
+    const res = await worker.fetch(new Request("https://example.test/api/photos/x/image"), fakeEnv(), fakeCtx());
+    expect(res.status).toBe(401);
     expect(res.headers.get("content-type")).toMatch(/application\/json/);
   });
 });
@@ -91,5 +91,20 @@ describe("createCloudflareDeps と R2 の保存", () => {
     expect(new Uint8Array(await new Response(got!.body).arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]));
     await deps.photos.delete("test/a");
     expect(await deps.photos.get("test/a")).toBeNull();
+  });
+});
+
+describe("createCloudflareDeps の設定", () => {
+  it("APP_ENV がなければ本番とみなす。OpenAI のキーがなければ文字起こしは not_configured で失敗する", async () => {
+    const env = { DB: {}, BUCKET: fakeBucket() } as unknown as Env;
+    const deps = createCloudflareDeps(env, fakeCtx());
+    expect(deps.config.appEnv).toBe("production");
+    expect(deps.config.createFamilyToken).toBeNull();
+    expect(await deps.transcriber.transcribe({ audio: new Blob([]), dialectRegion: null })).toEqual({ ok: false, reason: "not_configured" });
+  });
+
+  it("秘密の値を env から読む", () => {
+    const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", CREATE_FAMILY_TOKEN: "t" } as unknown as Env;
+    expect(createCloudflareDeps(env, fakeCtx()).config).toEqual({ appEnv: "preview", createFamilyToken: "t" });
   });
 });

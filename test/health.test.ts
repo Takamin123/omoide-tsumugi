@@ -10,10 +10,10 @@ describe("GET /api/health", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
-  it("知らない API は 404 を JSON で返す（SPA の index.html を返さない）", async () => {
+  it("知らない API は JSON で返す（SPA の index.html を返さない）", async () => {
     const app = createApp(() => fakeDeps());
     const res = await app.request("/api/nope");
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not_found" });
+    expect(res.headers.get("content-type")).toMatch(/application\/json/);
+    expect(await res.json()).toEqual({ error: "unauthorized" });
   });
 });

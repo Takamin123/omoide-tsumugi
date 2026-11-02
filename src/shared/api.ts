@@ -54,7 +54,9 @@ export type Member = {
 };
 
 export type FamilyView = {
-  family: { id: string; isDemo: boolean; clock: Clock }; // clock は本当の家族では今の日本時間から作る
+  // clock は時計を持たない家族では今の日本時間から作る。
+  // canAdvanceClock: デモの時計を進められるか（本番ではデモの家族だけ、手元・プレビューではどの家族も）
+  family: { id: string; isDemo: boolean; clock: Clock; canAdvanceClock: boolean };
   members: Member[];
 };
 
@@ -127,6 +129,8 @@ export const narrationMetaSchema = z
     entranceId: z.string().nullable(),
     replyToId: z.string().nullable(), // 家族同士のやり取りで、どの語りへの返事か
     text: z.string().trim().min(1).max(2000).nullable(), // kind = text のとき
+    // 語り一つごとにクライアントが作る UUID。同じ requestId の再送には、作ってある語りを 202 で返す
+    requestId: z.uuid().optional(),
   })
   .refine((n) => (n.kind === "text") === (n.text !== null), { path: ["text"] });
 export type NarrationMeta = z.infer<typeof narrationMetaSchema>;
@@ -168,5 +172,8 @@ export type Entrance = {
 
 // ---- デモ ----
 
-/** POST /api/demo/clock/advance → { clock }。朝→昼→夜→翌朝。翌朝になったら毎朝の処理と同じ関数を呼ぶ。デモの家族だけ */
+/**
+ * POST /api/demo/clock/advance → { clock }。朝→昼→夜→翌朝。翌朝になったら毎朝の処理と同じ関数を呼ぶ。
+ * 使えるのは FamilyView.family.canAdvanceClock が真の家族だけ。ほかは 404 { error: "not_demo" }
+ */
 export type AdvanceClockResult = { clock: Clock };

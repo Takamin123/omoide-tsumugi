@@ -9,3 +9,5 @@ R2_SECRET_ACCESS_KEY=
 CREATE_FAMILY_TOKEN=
 DEMO_RESET_TOKEN=
 HEALTHCHECK_TOKEN=
+# 秘密ではない。手元では本番の設定（APP_ENV=production）を上書きし、どの家族でもデモの時計を進められるようにする
+APP_ENV=development

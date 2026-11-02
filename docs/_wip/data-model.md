@@ -17,7 +17,7 @@ ID は `crypto.randomUUID()` の文字列。時刻は UTC のミリ秒（整数�
 | id | text PK | |
 | name | text | 家族の呼び名（例「鈴木家」）。ログに出さない |
 | is_demo | integer(bool) | デモの家族。初期化で消してよいのはこれが真の家族だけ |
-| clock_date / clock_slot | text / text, null | デモの時計。`clock_slot` は `morning`/`noon`/`night`。null なら本当の時刻で動く |
+| clock_date / clock_slot | text / text, null | デモの時計。`clock_slot` は `morning`/`noon`/`night`。null なら本当の時刻で動く。進められるのは、手元とプレビューではどの家族でも、本番ではデモの家族だけ |
 | created_at | integer | |
 
 ### invite_links（招待リンク）
@@ -76,6 +76,7 @@ ID は `crypto.randomUUID()` の文字列。時刻は UTC のミリ秒（整数�
 | photo_id | text FK | どの写真について |
 | entrance_id | text null | どの入り口から語られたか |
 | reply_to_id | text null | 家族同士のやり取りで、どの語りへの返事か |
+| request_id | text null | 再送を見分ける、クライアントが語り一つごとに作る UUID。`(family_id, request_id)` を一意に（0009） |
 | kind | text | `voice` / `text` |
 | audio_key / audio_content_type | text null | 声の録音（R2） |
 | duration_ms | integer null | 録音の長さ |
@@ -148,7 +149,7 @@ ID は `crypto.randomUUID()` の文字列。時刻は UTC のミリ秒（整数�
 
 - 「次の時間帯へ進める」: 朝 → 昼 → 夜 → 翌朝。翌朝になったときに `runMorning(deps, now, { familyId })` を呼ぶ（Cron と同じ関数）
 - 昼・夜は時計を進めるだけ（今日は画面の出し分けに使わない）
-- 本当の家族は `clock_*` が null で、本当の時刻で動く
+- 時計を進められるのは、手元とプレビューではどの家族でも、本番ではデモの家族だけ（APP_ENV で判断）。`clock_*` が null の家族は本当の時刻で動く
 
 ## 初日の固定の入り口
 

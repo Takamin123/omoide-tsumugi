@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "./env";
 
 // 秘密の値を使わない、通ったことだけを返すヘルスチェック。
 // Claude や文字起こしまで確かめるもの（/api/health/deep）は、秘密の値で守って別に作る。
