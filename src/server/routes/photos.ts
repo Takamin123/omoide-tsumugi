@@ -1,5 +1,6 @@
 // 写真。縮小済みの JPEG を受け取り、保存先へ流す。同じ持ち主・同じ content_hash は一つにまとめる。
 import { Hono } from "hono";
+import { PHOTO_GUESS_BACKGROUND_BUDGET_MS, runPhotoGuesses } from "../core/photo-guess";
 import { photoMetaSchema, type PhotoMeta, type UploadPhotoResult } from "../../shared/api";
 import type { AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm } from "./http";
@@ -68,6 +69,8 @@ export const photos = new Hono<AppEnv>()
       if (!winner) return fail(c, "internal");
       return c.json({ photo: photoView(winner), duplicate: true } satisfies UploadPhotoResult, 200);
     }
+    // 写っている内容の説明（推測。家族には見せない）を、応答の後に作る。失敗しても登録は失敗させない
+    deps.runInBackground(runPhotoGuesses(deps, familyId, { budgetMs: PHOTO_GUESS_BACKGROUND_BUDGET_MS }));
     return c.json({ photo: photoView(row), duplicate: false } satisfies UploadPhotoResult, 201);
   })
 

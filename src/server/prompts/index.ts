@@ -6,10 +6,10 @@
 import type { ClaudePrompt, ClaudePurpose } from "../core/ports";
 import cleanTranscriptText from "./clean_transcript/v0.md?raw";
 import entranceText from "./entrance/v0.md?raw";
-import photoGuessText from "./photo_guess/v0.md?raw";
+import photoGuessText from "./photo_guess/v1.md?raw";
 
 export const PROMPTS: Record<ClaudePurpose, ClaudePrompt> = {
-  photo_guess: { purpose: "photo_guess", version: "photo_guess/v0", text: photoGuessText },
+  photo_guess: { purpose: "photo_guess", version: "photo_guess/v1", text: photoGuessText },
   clean_transcript: { purpose: "clean_transcript", version: "clean_transcript/v0", text: cleanTranscriptText },
   entrance: { purpose: "entrance", version: "entrance/v0", text: entranceText },
 };
