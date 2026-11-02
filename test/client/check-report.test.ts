@@ -196,13 +196,19 @@ describe("小さな関数とひな形", () => {
     expect(checkTranscribeFieldNames).toContain(UNSPOKEN_KEYWORD[0]);
   });
 
-  it("「本番と同じ」は今の本番の欄と同じ", async () => {
-    const { transcribePrompt } = await load("../../src/server/adapters/openai-transcriber");
+  it("「本番と同じ」は、本番の文字起こしが実際に送る欄と同じ（keywords は例の呼ばれ方）", async () => {
+    const { createOpenAITranscriber, TRANSCRIBE_MODEL } = await load("../../src/server/adapters/openai-transcriber");
     const prod = FIELD_TEMPLATES.find((t: any) => t.label === "本番と同じ");
-    expect(prod.fields).toEqual([
-      ["language", "ja"],
-      ["response_format", "json"],
-      ["prompt", transcribePrompt(null)],
-    ]);
+    const keywords = prod.fields.filter(([n]: [string]) => n === "keywords[]").map(([, v]: [string, string]) => v);
+    let sent: [string, string][] = [];
+    const fakeFetch = async (_url: string, init: { body: FormData }) => {
+      sent = [...init.body.entries()]
+        .filter(([n]) => n !== "file" && n !== "model")
+        .map(([n, v]) => [n, String(v)] as [string, string]);
+      return new Response(JSON.stringify({ text: "x" }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    await createOpenAITranscriber("k", fakeFetch).transcribe({ audio: new Blob(["a"], { type: "audio/webm" }), dialectRegion: null, keywords });
+    expect(prod.model).toBe(TRANSCRIBE_MODEL);
+    expect(prod.fields).toEqual(sent);
   });
 });

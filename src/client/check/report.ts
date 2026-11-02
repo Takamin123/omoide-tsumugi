@@ -118,7 +118,9 @@ const PROD_PROMPT = "家族が写真を見ながら思い出を語っていま�
 
 /**
  * 欄のひな形。公式ドキュメント（developers.openai.com/api/docs/guides/speech-to-text）の書き方を実機で試す。
- * 「本番と同じ」は src/server/adapters/openai-transcriber.ts の今の欄（prompt は transcribePrompt(null) と同じ文）。
+ * 「本番と同じ」は src/server/adapters/openai-transcriber.ts の今の欄と同じ順（prompt は transcribePrompt(null) と同じ文）。
+ * 本番の keywords[] は家族の呼ばれ方（0013）。このページは家族を読まないので、例の呼ばれ方を入れている。
+ * 本番の欄を変えたら、ここも変える（test/client/check-report.test.ts が本物の送り方と照らして気づく）。
  * サーバーのコードはここから読めないので、prompt の文とモデル名（TRANSCRIBE_MODEL）を写している。
  * どのひな形もモデルを決める（前に押したひな形のモデルが残ると、別のモデルで送ってしまうため）。
  */
@@ -127,9 +129,10 @@ export const FIELD_TEMPLATES: { label: string; model: Model; fields: Field[] }[]
     label: "本番と同じ",
     model: "gpt-transcribe",
     fields: [
-      ["language", "ja"],
+      ["languages[]", "ja"],
       ["response_format", "json"],
       ["prompt", PROD_PROMPT],
+      ["keywords[]", "ばあば"],
     ],
   },
   {
