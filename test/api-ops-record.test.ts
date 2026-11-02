@@ -38,6 +38,7 @@ async function seed(t: TestApp) {
     kind: "voice",
     audioKey: `families/${f.familyId}/audio/${narrationId}`,
     audioContentType: "audio/mp4",
+    durationMs: 12800,
     transcript: "えー あの日は 海へ 行きました 浜で 貝を 拾いました",
     transcriptStatus: "done",
     cleanedText: cleaned,
@@ -163,7 +164,7 @@ describe("運営の記録: 中身", () => {
     });
 
     const n = r.narrations.find((x) => x.id === narrationId)!;
-    expect(n).toMatchObject({ speakerMemberId: child.id, kind: "voice", hasAudio: true, transcriptStatus: "done" });
+    expect(n).toMatchObject({ speakerMemberId: child.id, kind: "voice", hasAudio: true, durationMs: 12800, transcriptStatus: "done" });
     expect(n.transcript).toContain("えー");
     expect(n.cleaned).toEqual({
       text: cleaned,
@@ -183,6 +184,7 @@ describe("運営の記録: 中身", () => {
       width: 10,
       height: 10,
       takenAt: null,
+      createdAt: expect.any(Number),
       imageUrl: `/api/ops/families/${f.familyId}/photos/${photo.id}/image`,
     });
     const text = JSON.stringify(r);
@@ -252,6 +254,10 @@ describe("運営の記録: 中身", () => {
     expect(quoteOf(textEntrance)).toMatchObject({ rawText: typed.slice(0, 6), shownText: typed.slice(0, 6) });
     expect(quoteOf(voiceEntrance)).toMatchObject({ rawText: null, shownText: null });
     expect(quoteOf(textWhole)).toMatchObject({ rawText: typed, shownText: typed });
+    // 声の長さは、文字の語りと、長さの分からない声では null（0 や undefined にしない）
+    const narrationOf = (id: string) => r.narrations.find((n) => n.id === id)!;
+    expect(narrationOf(textId).durationMs).toBeNull();
+    expect(narrationOf(voiceId).durationMs).toBeNull();
   });
 
   it("声の語りで整えた文字があっても、印が読めなければ範囲つきの原文は取り出さない（家族の画面に出た文字と同じく null）", async () => {

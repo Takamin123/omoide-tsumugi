@@ -1,51 +1,164 @@
 // 開発用（運営）の記録の画面（/ops/record）。見るのは運営と開発だけ。家族の画面からはつながない（0017、0025）。
 // 家族向けの画面ではないので、言葉は words.ts に入れずここに置く（0014 と同じ考え方）。
-// 家族が語ったもの（出所つき）と、Claude が決めたこと・推測を、見出しと枠で分ける。
-import { useEffect, useState, type FormEvent } from "react";
-import type { OpsEntrance, OpsFamilyRecord, OpsNarration, OpsPhoto, OpsRect } from "../../shared/ops";
+// 家族が語ったもの（出所つき。青の実線、明朝）と、Claude が決めたこと・推測（茶の点線）と、家族の画面に出た形（墨の実線）を枠で分ける。
+// 見方は二つ: 日付と人で見る（既定）／写真で見る。URL の view で切り替え、再読み込みで保つ。外のフォントは読み込まない。
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import type { OpsFamilyRecord, OpsNarration } from "../../shared/ops";
+import { DateView, onPlainClick, type Names } from "./DateView";
+import { PhotoCache, PhotoCacheContext } from "./parts";
+import { PhotoView } from "./PhotoView";
 import {
+  entranceDates,
   fetchRecord,
-  headSegments,
-  inputNarrations,
   loadOpsKey,
-  NARRATION_HEAD_CHARS,
+  monthDay,
   narrationAnchor,
+  parseRoute,
+  photoUsage,
+  pickDate,
+  pickPhoto,
+  routeSearch,
   saveOpsKey,
-  splitMarked,
-  type MarkedSegment,
+  shortId,
+  type OpsRoute,
 } from "./record";
 
-/** このページだけの見た目。ふだんの画面の styles.css には入れない */
+/** このページだけの見た目。ふだんの画面の styles.css には入れない（そちらの main や button の決まりを、ここで打ち消す） */
 const opsCss = `
-.ops { font-size: 1rem; max-width: 56rem; }
-.ops h1 { font-size: 1.4rem; }
-.ops h2 { font-size: 1.2rem; margin-top: 1.5rem; border-bottom: 2px solid #444; }
-.ops h3 { font-size: 1.05rem; }
-.ops h4 { font-size: 0.95rem; margin: 0 0 0.3rem; }
-.ops input, .ops button { font-size: 1rem; min-height: 2.75rem; }
-.ops form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-.ops form input { flex: 1; min-width: 12rem; }
-.ops .card { border: 1px solid #999; border-radius: 0.5rem; padding: 0.6rem; margin: 0.8rem 0; background: #fff; }
-.ops .told { border: 2px solid #2b6a3a; border-radius: 0.4rem; padding: 0.5rem; margin: 0.5rem 0; background: #f2f8f3; }
-.ops .guessed { border: 2px dashed #7a3f99; border-radius: 0.4rem; padding: 0.5rem; margin: 0.5rem 0; background: #f8f3fb; }
-.ops .meta { font-size: 0.85rem; color: #444; }
-.ops .ids { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }
-.ops pre { white-space: pre-wrap; word-break: break-word; margin: 0.3rem 0; font-family: inherit; }
-.ops mark.uncertain { background: #ffe08a; color: inherit; text-decoration: underline wavy #8a5a00; }
-.ops .photo-frame { position: relative; display: inline-block; max-width: 100%; }
-.ops .photo-frame img { display: block; max-width: 100%; max-height: 24rem; }
-.ops .focus { position: absolute; border: 3px solid #fff; outline: 3px dashed #d0002a; box-sizing: border-box; }
-.ops .focus span { position: absolute; top: 0; left: 0; background: #d0002a; color: #fff; font-size: 0.75rem; padding: 0 0.25rem; }
-.ops .error { color: #a1170f; font-weight: bold; }
-.ops .banner { background: #222; color: #fff; padding: 0.4rem 0.6rem; font-weight: bold; position: sticky; top: 0; z-index: 1; }
-.ops .shown { border: 1px solid #555; border-radius: 0.4rem; padding: 0.5rem; margin: 0.5rem 0; }
-.ops .inputs { list-style: none; padding: 0; margin: 0; }
-.ops .inputs li { border-top: 1px solid #b9d3bf; padding: 0.4rem 0; }
-.ops .inputs li:first-child { border-top: none; }
-.ops .quote-mark { background: #2b6a3a; color: #fff; font-size: 0.8rem; padding: 0 0.3rem; border-radius: 0.2rem; margin-right: 0.3rem; }
-.ops summary { cursor: pointer; }
-.ops details[open] > summary .when-closed, .ops details:not([open]) > summary .when-open { display: none; }
-.ops .card:target { outline: 3px solid #2b6a3a; }
+.ops {
+  --ink: #1C2024; --sub: #59616A; --rule: #D5D9DD; --line: #7D858D;
+  --told: #1F5FA8; --told-bg: #EDF3FA; --told-hover: #163F70;
+  --guess: #A24C0B; --guess-head: #7A3908; --guess-bg: #FBF1E7;
+  --mincho: "Shippori Mincho", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif;
+  --gothic: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  max-width: none; margin: 0; padding: 0; min-height: 100vh;
+  background: #FFFFFF; color: var(--ink); font-family: var(--gothic); font-size: 1rem; line-height: 1.6;
+}
+.ops *, .ops *::before, .ops *::after { box-sizing: border-box; }
+.ops a { color: var(--told); }
+.ops a:hover { color: var(--told-hover); }
+.ops :focus-visible { outline: 3px solid var(--told); outline-offset: 2px; }
+.ops h1, .ops h2, .ops h3 { margin: 0; line-height: 1.4; }
+.ops h1 { font-size: 1.375rem; }
+.ops h2 { font-size: 1.25rem; }
+.ops h3 { font-size: 0.9375rem; }
+.ops p { margin: 0; }
+.ops .sub { font-size: 0.875rem; color: var(--sub); }
+.ops .ids { font-family: ui-monospace, monospace; font-size: 0.8125rem; word-break: break-all; color: var(--sub); }
+.ops .pre { white-space: pre-wrap; }
+.ops label { display: inline; font-size: 0.9375rem; }
+.ops input, .ops button { font: inherit; font-size: 0.9375rem; line-height: 1.4; }
+.ops input { min-height: 2.75rem; padding: 0.4rem 0.6rem; border: 2px solid var(--line); border-radius: 4px; flex: 1 1 14rem; min-width: 0; }
+.ops button { min-height: 2.75rem; min-width: 2.75rem; padding: 0.5rem 1rem; border: 2px solid var(--line); border-radius: 4px; background: #FFFFFF; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ops summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; }
+.ops summary::marker, .ops summary::-webkit-details-marker { display: none; }
+.ops summary::before { content: "▸"; margin-right: 0.4rem; }
+.ops details[open] > summary::before { content: "▾"; }
+.ops .error { color: #A1170F; font-weight: 700; }
+
+.ops header { border-bottom: 1px solid var(--rule); padding: 1rem 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: baseline; }
+.ops .axis { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ops .axis a { font-size: 0.875rem; padding: 0.5rem 0.75rem; min-height: 2.75rem; display: inline-flex; align-items: center; border: 2px solid var(--line); border-radius: 4px; text-decoration: none; color: var(--ink); }
+.ops .axis a[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: #FFFFFF; font-weight: 700; }
+.ops .body { max-width: 74rem; margin: 0 auto; padding: 1.25rem 1.5rem 4rem; display: flex; flex-direction: column; gap: 1.75rem; }
+.ops form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.ops .access { display: flex; flex-direction: column; gap: 0.75rem; }
+.ops .access-inner { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0 0.25rem; }
+
+.ops .bar { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: center; }
+.ops .dates { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ops .dates button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #FFFFFF; font-weight: 700; }
+.ops .legend { margin: 0 0 0 auto; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; font-size: 0.875rem; }
+.ops .legend li { display: flex; gap: 0.5rem; align-items: center; }
+.ops .legend .swatch { width: 1.375rem; height: 0.875rem; border-radius: 2px; flex: none; }
+.ops .legend .told-text { font-weight: 600; line-height: 1.4; }
+
+.ops .told { border: 2px solid var(--told); background: var(--told-bg); border-radius: 4px; padding: 0.5rem 0.625rem; }
+.ops .guessed { border: 2px dashed var(--guess); background: var(--guess-bg); border-radius: 4px; padding: 0.625rem 0.875rem; display: flex; flex-direction: column; gap: 0.5rem; line-height: 1.8; }
+.ops .guessed > summary, .ops .guessed-head { font-weight: 700; color: var(--guess-head); font-size: 0.9375rem; }
+.ops details.guessed { padding-top: 0; padding-bottom: 0; }
+.ops details.guessed[open] { padding-bottom: 0.625rem; }
+.ops .guessed.small { font-size: 0.8125rem; line-height: 1.6; padding: 0 0.625rem; }
+.ops .guessed.small > summary { font-weight: 400; color: var(--ink); font-size: 0.8125rem; }
+.ops .guessed.small[open] { padding-bottom: 0.5rem; }
+.ops .shown { border: 2px solid var(--ink); border-radius: 4px; padding: 0.75rem 0.875rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.ops .question { font-size: 1.0625rem; line-height: 1.7; font-weight: 700; }
+.ops .told-text { font-family: var(--mincho); font-weight: 500; font-size: 1rem; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ops .told-head { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8125rem; color: var(--told); font-weight: 700; }
+.ops .quote { margin: 0; }
+.ops .quote blockquote { margin: 0; }
+.ops .quote figcaption { margin-top: 0.25rem; font-size: 0.8125rem; color: var(--told); }
+.ops .quote .raw { font-size: 0.8125rem; }
+.ops mark.uncertain { background: #FFE08A; color: inherit; text-decoration: underline wavy #8A5A00; }
+
+.ops .facts { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.125rem 0.75rem; font-size: 0.8125rem; line-height: 1.6; }
+.ops .facts div { display: contents; }
+.ops .facts dt { color: var(--sub); }
+.ops .facts dd { margin: 0; overflow-wrap: anywhere; }
+
+.ops .person { border-top: 2px solid var(--ink); padding-top: 0.875rem; display: flex; flex-direction: column; gap: 1rem; }
+.ops .person-head { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; align-items: baseline; }
+.ops .push { margin-left: auto; }
+.ops .cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+.ops .col { min-width: 0; display: flex; flex-direction: column; gap: 0.625rem; }
+@media (min-width: 64rem) {
+  .ops .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.5rem; }
+  .ops .col + .col { border-left: 1px solid var(--rule); padding-left: 1.5rem; }
+}
+@media (max-width: 63.99rem) {
+  .ops .col + .col { border-top: 1px solid var(--rule); padding-top: 1rem; }
+}
+.ops .chip-wrap { position: relative; }
+.ops .chip { width: 100%; text-align: left; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0.25rem; border-color: var(--told); background: var(--told-bg); padding: 0.5rem 0.625rem; }
+.ops .chip .told-text { font-size: 0.9375rem; line-height: 1.85; }
+.ops .chip .used { margin-left: auto; color: var(--ink); }
+.ops .chip.missing { border: 1px solid var(--rule); border-radius: 4px; padding: 0.5rem 0.625rem; }
+.ops .pop { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); background: #FFFFFF; border: 1px solid var(--ink); border-radius: 4px; padding: 0.75rem 0.875rem; display: flex; flex-direction: column; gap: 0.625rem; box-shadow: 0 2px 8px rgba(28, 32, 36, 0.18); }
+.ops .entrance { display: flex; flex-wrap: wrap; gap: 0.875rem; align-items: flex-start; }
+.ops .entrance-photo { margin: 0; flex: 0 1 12.5rem; max-width: 100%; display: flex; flex-direction: column; gap: 0.375rem; }
+.ops .entrance .shown { flex: 1 1 13.75rem; min-width: 0; }
+.ops .reply { display: flex; flex-direction: column; gap: 0.375rem; }
+
+.ops .photo { position: relative; overflow: hidden; width: 100%; background: #C8D1D8; display: flex; align-items: center; justify-content: center; text-align: center; }
+.ops .photo img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ops .focus { position: absolute; border: 2px dashed var(--guess); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85); }
+.ops .focus-label, .ops .frame-no { font-size: 0.75rem; line-height: 1.4; background: var(--guess); color: #FFFFFF; padding: 0.0625rem 0.375rem; min-width: 1.5rem; text-align: center; font-weight: 700; }
+.ops .focus-label { position: absolute; left: 0; top: 0; }
+.ops .frame-names { list-style: none; margin: 0.375rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; color: var(--ink); }
+.ops .frame-names li { display: flex; gap: 0.375rem; align-items: center; }
+.ops a.go { display: inline-flex; align-items: center; min-height: 2.75rem; }
+
+.ops .photo-axis { display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-start; }
+.ops .photo-list { flex: 1 1 12.5rem; max-width: 15rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.ops .photo-list h2 { font-size: 0.9375rem; margin-bottom: 0.5rem; }
+.ops .photo-list a { display: flex; gap: 0.625rem; align-items: center; text-decoration: none; color: var(--ink); padding: 0.5rem; border: 2px solid transparent; border-radius: 4px; min-height: 2.75rem; }
+.ops .photo-list a[aria-current="page"] { border-color: var(--ink); }
+.ops .photo-list .thumb { width: 3.5rem; flex: none; font-size: 0; }
+.ops .photo-list-text { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.ops .photo-list-name { font-size: 0.9375rem; font-weight: 700; overflow-wrap: anywhere; }
+.ops .photo-main { flex: 999 1 37.5rem; min-width: 0; display: flex; flex-direction: column; gap: 1.75rem; }
+.ops .photo-top { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+.ops .photo-big { margin: 0; flex: 0 1 22.5rem; max-width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
+.ops .photo-side { flex: 1 1 16rem; min-width: 0; display: flex; flex-direction: column; gap: 0.875rem; }
+.ops .photo-side > .facts { font-size: 0.875rem; gap: 0.375rem 0.875rem; }
+.ops .history { border-top: 2px solid var(--ink); padding-top: 0.875rem; }
+.ops .history h2 { font-size: 1.125rem; margin-bottom: 1rem; }
+.ops .history ol { list-style: none; margin: 0; padding: 0; }
+.ops .history li { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; padding: 0.875rem 0; border-bottom: 1px solid var(--rule); scroll-margin-top: 1rem; }
+.ops .history li:target, .ops .history li:focus { outline: 3px solid var(--told); outline-offset: 2px; }
+.ops .when { flex: 0 0 5.25rem; font-size: 0.875rem; color: var(--sub); padding-top: 0.25rem; }
+.ops .what { flex: 1 1 26rem; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.ops .pair { display: flex; flex-wrap: wrap; gap: 0.625rem; align-items: flex-start; }
+.ops .pair .shown { flex: 1.4 1 16rem; min-width: 0; }
+.ops .pair .guessed { flex: 1 1 12.5rem; min-width: 0; font-size: 0.875rem; line-height: 1.7; }
+@media (max-width: 40rem) {
+  .ops header, .ops .body { padding-left: 1rem; padding-right: 1rem; }
+  .ops .axis, .ops .legend, .ops .push { margin-left: 0; }
+  .ops .photo-list { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ops *, .ops *::before, .ops *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
 `;
 
 // 鍵が違うときと家族が見つからないときは、同じ言葉にする（家族の ID の有無を探れないように）
@@ -56,48 +169,102 @@ const reasonText = {
   failed: "読み込めませんでした。",
 } as const;
 
-type View =
+type Load =
   | { state: "idle" }
   | { state: "loading" }
   | { state: "ready"; record: OpsFamilyRecord }
   | { state: "error"; reason: keyof typeof reasonText };
 
-function familyIdFromQuery(): string {
+const currentRoute = (): OpsRoute => {
   try {
-    return new URLSearchParams(location.search).get("family") ?? "";
+    return parseRoute(location.search);
   } catch {
-    return "";
+    return { family: "", view: "date", date: null, photo: null };
   }
-}
+};
+const currentAnchor = (): string | null => {
+  try {
+    return location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : null;
+  } catch {
+    return null;
+  }
+};
+const hrefOf = (r: OpsRoute, anchor?: string) => `/ops/record${routeSearch(r)}${anchor ? `#${anchor}` : ""}`;
 
 export default function RecordPage() {
   const [key, setKey] = useState<string | null>(() => loadOpsKey());
   const [keyInput, setKeyInput] = useState("");
-  const [familyInput, setFamilyInput] = useState(familyIdFromQuery);
-  const [view, setView] = useState<View>({ state: "idle" });
+  const [route, setRoute] = useState<OpsRoute>(currentRoute);
+  const [familyInput, setFamilyInput] = useState(() => route.family);
+  const [load, setLoad] = useState<Load>({ state: "idle" });
+  const [anchor, setAnchor] = useState<string | null>(currentAnchor);
+  // URL を書き換えるのは、state の更新関数の外で一度だけ（StrictMode で二度呼ばれても履歴が増えないように）
+  const routeRef = useRef(route);
+  const moveTo = (next: OpsRoute, how: "push" | "replace", toAnchor?: string) => {
+    routeRef.current = next;
+    if (how === "push") history.pushState(null, "", hrefOf(next, toAnchor));
+    else history.replaceState(null, "", hrefOf(next, toAnchor));
+    setRoute(next);
+  };
 
   const open = async (familyId: string, k: string) => {
-    setView({ state: "loading" });
+    setLoad({ state: "loading" });
     const r = await fetchRecord(familyId, k);
     if (r.ok) {
-      setView({ state: "ready", record: r.record });
-      // 家族の ID だけを URL に残す（鍵は載せない）
-      history.replaceState(null, "", `/ops/record?family=${encodeURIComponent(familyId)}`);
+      setLoad({ state: "ready", record: r.record });
+      // 家族の ID と見ている所だけを URL に残す（鍵は載せない）。別の家族を開いたら、選んでいた日付と写真は捨てる
+      const prev = routeRef.current;
+      const next = prev.family === familyId ? prev : { family: familyId, view: prev.view, date: null, photo: null };
+      moveTo(next, "replace", currentAnchor() ?? undefined);
       return;
     }
     if (r.reason === "unauthorized") {
       saveOpsKey(null);
       setKey(null);
     }
-    setView({ state: "error", reason: r.reason });
+    setLoad({ state: "error", reason: r.reason });
   };
 
   useEffect(() => {
-    const id = familyIdFromQuery();
-    if (key && id) void open(id, key);
+    if (key && route.family) void open(route.family, key);
     // 最初の一回だけ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 戻る・進むで、見ている所を URL に合わせる
+  useEffect(() => {
+    const onPop = () => {
+      const r = currentRoute();
+      const otherFamily = r.family !== routeRef.current.family;
+      routeRef.current = r;
+      setRoute(r);
+      setAnchor(currentAnchor());
+      // 別の家族の URL に戻ったら、その家族を読み直す（URL と画面を食い違わせない）
+      if (otherFamily) {
+        setFamilyInput(r.family);
+        const k = loadOpsKey();
+        if (k && r.family) void open(r.family, k);
+        else setLoad({ state: "idle" });
+      }
+    };
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
+  }, []);
+
+  const go = (patch: Partial<OpsRoute>, toAnchor?: string) => {
+    moveTo({ ...routeRef.current, ...patch }, "push", toAnchor);
+    setAnchor(toAnchor ?? null);
+    if (!toAnchor && patch.view !== undefined) scrollTo({ top: 0 });
+  };
+
+  // 語りの記録へ移ったら、その欄を見せる（写真は縦横比で場所を取ってあるので、読み込みで位置はずれない）
+  useEffect(() => {
+    if (!anchor || load.state !== "ready") return;
+    const el = document.getElementById(anchor);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.focus({ preventScroll: true });
+  }, [anchor, load, route]);
 
   const onKey = (e: FormEvent) => {
     e.preventDefault();
@@ -114,400 +281,191 @@ export default function RecordPage() {
     if (key && familyInput.trim()) void open(familyInput.trim(), key);
   };
 
+  const forgetKey = () => {
+    saveOpsKey(null);
+    setKey(null);
+    setLoad({ state: "idle" });
+  };
+
+  const ready = load.state === "ready" && key !== null ? load.record : null;
+
+  const access =
+    key === null ? (
+      <form onSubmit={onKey}>
+        <label htmlFor="ops-key">運営の鍵</label>
+        <input id="ops-key" type="password" autoComplete="off" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} />
+        <button type="submit">鍵を入れる</button>
+      </form>
+    ) : (
+      <>
+        <form onSubmit={onFamily}>
+          <label htmlFor="ops-family">家族の ID</label>
+          <input id="ops-family" type="text" value={familyInput} onChange={(e) => setFamilyInput(e.target.value)} />
+          <button type="submit">開く</button>
+        </form>
+        <p>
+          <button type="button" onClick={forgetKey}>
+            鍵を消す
+          </button>
+        </p>
+      </>
+    );
+
   return (
     <main className="ops">
       <style>{opsCss}</style>
-      <p className="banner">運営・開発用。家族には見せない画面</p>
-      <h1>記録</h1>
-      <p className="meta">鍵はこのタブの中だけに持ち、タブを閉じると消えます。</p>
-
-      {key === null ? (
-        <form onSubmit={onKey}>
-          <label htmlFor="ops-key">運営の鍵</label>
-          <input
-            id="ops-key"
-            type="password"
-            autoComplete="off"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-          />
-          <button type="submit">鍵を入れる</button>
-        </form>
-      ) : (
-        <>
-          <form onSubmit={onFamily}>
-            <label htmlFor="ops-family">家族の ID</label>
-            <input id="ops-family" type="text" value={familyInput} onChange={(e) => setFamilyInput(e.target.value)} />
-            <button type="submit">開く</button>
-          </form>
-          <p>
-            <button
-              type="button"
-              onClick={() => {
-                saveOpsKey(null);
-                setKey(null);
-                setView({ state: "idle" });
-              }}
-            >
-              鍵を消す
-            </button>
+      <header>
+        <h1>記録</h1>
+        <p className="sub">運営と開発だけが見る画面です。家族には出しません。</p>
+        {ready && (
+          <p className="sub">
+            {ready.family.isDemo ? "試しの家族" : "家族"} {shortId(ready.family.id)}
           </p>
-        </>
-      )}
+        )}
+        {ready && (
+          <nav className="axis" aria-label="見方">
+            <a
+              href={hrefOf({ ...route, view: "date" })}
+              aria-current={route.view === "date" ? "page" : undefined}
+              onClick={onPlainClick(() => go({ view: "date" }))}
+            >
+              日付と人で見る
+            </a>
+            <a
+              href={hrefOf({ ...route, view: "photo" })}
+              aria-current={route.view === "photo" ? "page" : undefined}
+              onClick={onPlainClick(() => go({ view: "photo" }))}
+            >
+              写真で見る
+            </a>
+          </nav>
+        )}
+      </header>
 
-      {view.state === "loading" && <p>読み込んでいます</p>}
-      {view.state === "error" && (
-        <p className="error" role="alert">
-          {reasonText[view.reason]}
-        </p>
-      )}
-      {view.state === "ready" && key !== null && <Record record={view.record} opsKey={key} />}
+      <div className="body">
+        {ready ? (
+          <details className="access">
+            <summary className="sub">家族の ID と鍵</summary>
+            <div className="access-inner">{access}</div>
+          </details>
+        ) : (
+          <div className="access">
+            <p className="sub">鍵はこのタブの中だけに持ち、タブを閉じると消えます。</p>
+            {access}
+          </div>
+        )}
+
+        {load.state === "loading" && <p>読み込んでいます</p>}
+        {load.state === "error" && (
+          <p className="error" role="alert">
+            {reasonText[load.reason]}
+          </p>
+        )}
+        {ready && key !== null && <Record record={ready} opsKey={key} route={route} go={go} />}
+      </div>
     </main>
   );
 }
 
-function Record({ record, opsKey }: { record: OpsFamilyRecord; opsKey: string }) {
-  const nameOf = (id: string | null) => {
-    if (!id) return "（不明）";
-    const m = record.members.find((x) => x.id === id);
-    return m ? `${m.calledAs}（${m.relation}）` : "（不明）";
-  };
-  const photoOf = new Map(record.photos.map((p) => [p.id, p]));
-  const guessesByPhoto = new Map<string, typeof record.photoGuesses>();
-  for (const g of record.photoGuesses) guessesByPhoto.set(g.photoId, [...(guessesByPhoto.get(g.photoId) ?? []), g]);
-
+function Legend() {
   return (
-    <>
-      <p className="meta ids">
-        家族 {record.family.id}
-        {record.family.isDemo ? "（デモ）" : ""} ／ 人 {record.members.length} ／ 写真 {record.photos.length} ／ 入り口{" "}
-        {record.entrances.length} ／ 語り {record.narrations.length}
-      </p>
-
-      <h2>入り口</h2>
-      {record.entrances.length === 0 && <p>まだありません。</p>}
-      {record.entrances.map((e) => (
-        <EntranceCard
-          key={e.id}
-          e={e}
-          photo={photoOf.get(e.photoId) ?? null}
-          narrations={record.narrations}
-          nameOf={nameOf}
-          opsKey={opsKey}
-        />
-      ))}
-
-      <h2>語り</h2>
-      {record.narrations.length === 0 && <p>まだありません。</p>}
-      {record.narrations.map((n) => (
-        <NarrationCard key={n.id} n={n} nameOf={nameOf} />
-      ))}
-
-      <h2>写真の説明（Claude の推測）</h2>
-      {record.photos.length === 0 && <p>写真はまだありません。</p>}
-      {record.photos.map((p) => (
-        <div className="card" key={p.id}>
-          <p className="meta ids">
-            写真 {p.id} ／ 持ち主 {nameOf(p.ownerMemberId)} ／ 撮影日 {p.takenAt ?? "なし"}
-          </p>
-          <div className="guessed">
-            <h4>Claude の推測（家族には見せない）</h4>
-            {(guessesByPhoto.get(p.id) ?? []).length === 0 && <p className="meta">説明はまだありません。</p>}
-            {(guessesByPhoto.get(p.id) ?? []).map((g) => (
-              <div key={g.id}>
-                <pre>{g.description}</pre>
-                <p className="meta">
-                  {g.model} ／ 版 {g.promptVersion}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </>
+    <ul className="legend" aria-label="枠の見方">
+      <li>
+        <span className="swatch" aria-hidden="true" style={{ border: "2px solid var(--told)", background: "var(--told-bg)" }} />
+        <span className="told-text">家族が語った言葉</span>
+      </li>
+      <li>
+        <span className="swatch" aria-hidden="true" style={{ border: "2px dashed var(--guess)", background: "var(--guess-bg)" }} />
+        <span>Claude が決めた・推測</span>
+      </li>
+      <li>
+        <span className="swatch" aria-hidden="true" style={{ border: "2px solid var(--ink)" }} />
+        <span>家族の画面に出た形</span>
+      </li>
+    </ul>
   );
 }
 
-function EntranceCard({
-  e,
-  photo,
-  narrations,
-  nameOf,
+function Record({
+  record,
   opsKey,
+  route,
+  go,
 }: {
-  e: OpsEntrance;
-  photo: OpsPhoto | null;
-  narrations: readonly OpsNarration[];
-  nameOf: (id: string | null) => string;
+  record: OpsFamilyRecord;
   opsKey: string;
+  route: OpsRoute;
+  go: (patch: Partial<OpsRoute>, anchor?: string) => void;
 }) {
-  const q = e.told.quote;
-  const g = e.guessed;
-  return (
-    <div className="card">
-      <h3>
-        {e.forDate} ／ {nameOf(e.memberId)} へ ／ {e.kind === "claude" ? "Claude" : "固定"}
-      </h3>
-      <p className="meta ids">
-        入り口 {e.id} ／ 写真 {e.photoId} ／ 見せた時刻 {e.shownAt === null ? "まだ" : new Date(e.shownAt).toLocaleString()}
-      </p>
-      {photo && <FocusedPhoto photo={photo} focus={g.focus} opsKey={opsKey} />}
-
-      <div className="shown">
-        <h4>家族に見えた形</h4>
-        {q?.shownText && (
-          <pre>
-            「{q.shownText}」— {nameOf(q.speakerMemberId)}
-          </pre>
-        )}
-        <pre>{g.question ?? "（固定の一文）"}</pre>
-      </div>
-
-      <div className="told">
-        <h4>家族が語ったこと（添えた言葉）</h4>
-        {q === null ? (
-          <p className="meta">添えた言葉はありません。</p>
-        ) : (
-          <>
-            <p className="meta">
-              {nameOf(q.speakerMemberId)} が語った ／ 範囲 {q.start === null ? "全文" : `${q.start}–${q.end}`}
-            </p>
-            <p className="meta ids">語り {q.narrationId}</p>
-            <p className="meta">切り出した文字（印はそのまま）</p>
-            <pre>{q.rawText ?? "（取り出せません）"}</pre>
-            <p className="meta">家族の画面に出た文字</p>
-            <pre>{q.shownText ?? "（引用されません）"}</pre>
-          </>
-        )}
-      </div>
-
-      <div className="guessed">
-        <h4>Claude が決めたこと・推測（理由は家族には見せない）</h4>
-        <p className="meta">選んだ理由</p>
-        <pre>{g.reason ?? "（なし）"}</pre>
-        <p className="meta">
-          どこから見せたか:{" "}
-          {g.focus ? `x ${fmt(g.focus.x)} y ${fmt(g.focus.y)} w ${fmt(g.focus.w)} h ${fmt(g.focus.h)}` : "全体（なし）"}
-        </p>
-        <p className="meta">
-          {g.model ?? "モデルなし"} ／ 版 {g.promptVersion ?? "なし"} ／ トークン 入 {g.inputTokens ?? "-"} 出{" "}
-          {g.outputTokens ?? "-"}
-        </p>
-      </div>
-
-      <InputNarrations
-        items={inputNarrations(g.inputNarrationIds, narrations, q?.narrationId ?? null)}
-        nameOf={nameOf}
-      />
-    </div>
-  );
-}
-
-/**
- * 入り口の材料にした語り（Claude に渡した語り）。家族が語ったそのまま（transcript）は実線の枠に、
- * Claude の整形と印は点線の枠に model と版を付けて置く（0025 の分け方を崩さない）
- */
-function InputNarrations({
-  items,
-  nameOf,
-}: {
-  items: ReturnType<typeof inputNarrations>;
-  nameOf: (id: string | null) => string;
-}) {
-  return (
-    <div className="shown">
-      <h4>材料にした語り（Claude に渡したもの {items.length} 件）</h4>
-      {items.length === 0 ? (
-        <p className="meta">なし</p>
-      ) : (
-        <ul className="inputs">
-          {items.map(({ id, narration: n, isQuote }, i) => (
-            <li key={`${i}-${id}`}>
-              <p className="meta">
-                {isQuote && <span className="quote-mark">引用元</span>}
-                {n ? (
-                  <>
-                    {nameOf(n.speakerMemberId)} ／ {n.kind === "voice" ? "声" : "文字"} ／ {n.forDate} ／{" "}
-                    <a href={`#${narrationAnchor(n.id)}`}>語りの欄へ</a>
-                  </>
-                ) : (
-                  "見つからない語り"
-                )}
-              </p>
-              {n && <InputNarrationBody n={n} />}
-              <p className="meta ids">{id}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function InputNarrationBody({ n }: { n: OpsNarration }) {
-  const marked = n.cleaned ? splitMarked(n.cleaned.text, n.cleaned.uncertainSpans) : null;
-  return (
-    <>
-      <div className="told">
-        <p className="meta">家族が語ったこと（そのまま）</p>
-        {n.transcript ? <Excerpt segments={[{ text: n.transcript, uncertain: false }]} /> : <p className="meta">（まだありません）</p>}
-      </div>
-      {n.cleaned && marked && (
-        <div className="guessed">
-          <p className="meta">
-            Claude の整形（推測）{marked.broken ? "。印は読めません" : "。［? ?］は聞き間違いの印"}
-          </p>
-          <Excerpt segments={marked.segments} />
-          <p className="meta">
-            {n.cleaned.model ?? "モデルなし"} ／ 版 {n.cleaned.promptVersion ?? "なし"}
-          </p>
-        </div>
-      )}
-    </>
-  );
-}
-
-/** 本文の頭。長ければ先頭だけ出し、開くと全文（開いている間は頭を隠す） */
-function Excerpt({ segments }: { segments: readonly MarkedSegment[] }) {
-  const head = headSegments(segments, NARRATION_HEAD_CHARS);
-  if (!head.truncated) {
-    return (
-      <pre>
-        <Marked segments={segments} />
-      </pre>
-    );
-  }
-  return (
-    <details>
-      <summary>
-        <span className="when-closed">
-          <Marked segments={head.segments} />
-          …（開くと全文）
-        </span>
-        <span className="when-open">閉じる</span>
-      </summary>
-      <pre>
-        <Marked segments={segments} />
-      </pre>
-    </details>
-  );
-}
-
-/** 聞き間違いの印を、色と［? ?］と波線で見せる */
-function Marked({ segments }: { segments: readonly MarkedSegment[] }) {
-  return (
-    <>
-      {segments.map((s, i) =>
-        s.uncertain ? (
-          <mark className="uncertain" key={i}>
-            ［?{s.text}?］
-          </mark>
-        ) : (
-          <span key={i}>{s.text}</span>
-        ),
-      )}
-    </>
-  );
-}
-
-const fmt = (v: number) => v.toFixed(2);
-
-function NarrationCard({ n, nameOf }: { n: OpsNarration; nameOf: (id: string | null) => string }) {
-  const marked = n.cleaned ? splitMarked(n.cleaned.text, n.cleaned.uncertainSpans) : null;
-  return (
-    <div className="card" id={narrationAnchor(n.id)}>
-      <p className="meta ids">
-        語り {n.id} ／ 写真 {n.photoId}
-        {n.entranceId ? ` ／ 入り口 ${n.entranceId}` : ""}
-      </p>
-      <div className="told">
-        <h4>
-          家族が語ったこと: {nameOf(n.speakerMemberId)}（{n.kind === "voice" ? "声" : "文字"}
-          {n.hasAudio ? "、録音あり" : ""}）
-        </h4>
-        <p className="meta">
-          {n.forDate} ／ 文字起こし {statusText[n.transcriptStatus]}
-        </p>
-        <p className="meta">そのまま</p>
-        <pre>{n.transcript ?? "（まだありません）"}</pre>
-      </div>
-      {n.kind === "voice" && (
-        <div className="guessed">
-          <h4>Claude の整形と、聞き間違いの印（推測。印の範囲は家族には見せない）</h4>
-          {n.cleaned === null || marked === null ? (
-            <p className="meta">整えた文字はありません（家族の画面には文字起こしのまま出ます）。</p>
-          ) : (
-            <>
-              <pre>
-                <Marked segments={marked.segments} />
-              </pre>
-              <p className="meta">
-                印 {n.cleaned.uncertainSpans === null ? "読めない" : n.cleaned.uncertainSpans.length + " か所"}
-                {marked.broken ? "（範囲が壊れているため、家族の画面には文字起こしのまま出ます）" : ""}
-                ：［? ?］で囲んだ部分は、家族の画面では「……」になります
-              </p>
-              <p className="meta">
-                {n.cleaned.model ?? "モデルなし"} ／ 版 {n.cleaned.promptVersion ?? "なし"}
-              </p>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const statusText = { pending: "待ち", done: "済み", failed: "失敗" } as const;
-
-/** 写真に focus の枠を重ねる。写真は鍵を Authorization に付けて読み、blob の URL で出す（img の src に鍵を載せない） */
-function FocusedPhoto({ photo, focus, opsKey }: { photo: OpsPhoto; focus: OpsRect | null; opsKey: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  // 写真は、開いている家族と鍵の間だけ使い回す
+  const [cache, setCache] = useState<PhotoCache | null>(null);
   useEffect(() => {
-    let alive = true;
-    let made: string | null = null;
-    setUrl(null);
-    setFailed(false);
-    (async () => {
-      try {
-        const res = await fetch(photo.imageUrl, {
-          headers: { Authorization: `Bearer ${opsKey}` },
-          credentials: "omit",
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error(String(res.status));
-        const blob = await res.blob();
-        if (!alive) return;
-        made = URL.createObjectURL(blob);
-        setUrl(made);
-      } catch {
-        if (alive) setFailed(true);
-      }
-    })();
-    return () => {
-      alive = false;
-      if (made) URL.revokeObjectURL(made);
-    };
-  }, [photo.imageUrl, opsKey]);
+    const c = new PhotoCache(opsKey);
+    setCache(c);
+    return () => c.close();
+  }, [opsKey, record]);
 
-  if (failed) return <p className="meta">写真を読み込めませんでした。</p>;
-  if (!url) return <p className="meta">写真を読み込んでいます</p>;
+  const names = useMemo<Names>(() => {
+    const byId = new Map(record.members.map((m) => [m.id, m]));
+    return {
+      who: (id) => (id ? (byId.get(id)?.calledAs ?? "（不明）") : "（不明）"),
+      role: (id) => byId.get(id)?.relation ?? "",
+    };
+  }, [record]);
+
+  const dates = useMemo(() => entranceDates(record.entrances), [record]);
+  const usage = useMemo(() => photoUsage(record), [record]);
+  const date = pickDate(dates, route.date);
+  const photoId = pickPhoto(record.photos, usage, route.photo);
+
+  const photoRoute = (id: string): OpsRoute => ({ ...route, view: "photo", photo: id });
+  const photoHref = (id: string) => hrefOf(photoRoute(id));
+  const goPhoto = (id: string) => go({ view: "photo", photo: id });
+  const narrationHref = (n: OpsNarration) => hrefOf(photoRoute(n.photoId), narrationAnchor(n.id));
+  const goNarration = (n: OpsNarration) => go({ view: "photo", photo: n.photoId }, narrationAnchor(n.id));
+
   return (
-    <div className="photo-frame">
-      <img src={url} alt="入り口の写真" />
-      {focus && (
-        <div
-          className="focus"
-          style={{
-            left: `${focus.x * 100}%`,
-            top: `${focus.y * 100}%`,
-            width: `${focus.w * 100}%`,
-            height: `${focus.h * 100}%`,
-          }}
-        >
-          <span>最初に見せる範囲</span>
-        </div>
+    <PhotoCacheContext.Provider value={cache}>
+      {route.view === "date" ? (
+        <>
+          <div className="bar">
+            {dates.length > 0 && (
+              <div className="dates" role="group" aria-label="日付">
+                {dates.map((d) => (
+                  <button key={d} type="button" aria-pressed={d === date} onClick={() => go({ date: d })}>
+                    {monthDay(d)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Legend />
+          </div>
+          {date === null ? (
+            <p className="sub">入り口はまだありません。</p>
+          ) : (
+            <DateView
+              record={record}
+              date={date}
+              names={names}
+              goNarration={goNarration}
+              narrationHref={narrationHref}
+              photoHref={photoHref}
+              goPhoto={goPhoto}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <div className="bar">
+            <Legend />
+          </div>
+          {photoId === null ? (
+            <p className="sub">写真はまだありません。</p>
+          ) : (
+            <PhotoView record={record} photoId={photoId} usage={usage} names={names} photoHref={photoHref} goPhoto={goPhoto} />
+          )}
+        </>
       )}
-    </div>
+    </PhotoCacheContext.Provider>
   );
 }

@@ -12,6 +12,8 @@ export type OpsPhoto = {
   width: number;
   height: number;
   takenAt: string | null;
+  /** 登録した時刻（ミリ秒） */
+  createdAt: number;
   /** 運営の鍵で開く写真。Authorization を付けて読む（img の src に鍵を載せない） */
   imageUrl: string;
 };
@@ -57,6 +59,8 @@ export type OpsNarration = {
   entranceId: string | null;
   kind: "voice" | "text";
   hasAudio: boolean;
+  /** 声の長さ（ミリ秒）。文字の語りと、分からないものは null */
+  durationMs: number | null;
   forDate: string;
   createdAt: number;
   transcriptStatus: "pending" | "done" | "failed";
