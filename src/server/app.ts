@@ -9,6 +9,7 @@ import { health } from "./routes/health";
 import { fail } from "./routes/http";
 import { members } from "./routes/members";
 import { narrations } from "./routes/narrations";
+import { ops } from "./routes/ops";
 import { photos } from "./routes/photos";
 
 export type { AppEnv } from "./routes/env";
@@ -26,7 +27,7 @@ export function createApp<B extends object = object>(
     c.set("deps", makeDeps(c));
     await next();
   });
-  // 合言葉の確認。/api/* はすべてここを通る（確認しない入り口は routes/auth.ts の PUBLIC_ROUTES だけ）
+  // 合言葉の確認。/api/* はすべてここを通る（確認しない入り口は routes/auth.ts の PUBLIC_ROUTES だけ。/api/ops/* は合言葉の代わりに運営の鍵）
   app.use("*", requireInvite);
 
   const api = new Hono<AppEnv>()
@@ -36,7 +37,8 @@ export function createApp<B extends object = object>(
     .route("/", photos)
     .route("/", narrations)
     .route("/", entrances)
-    .route("/", check);
+    .route("/", check)
+    .route("/", ops);
   app.route("/api", api);
   app.all("/api/*", (c) => fail(c, "not_found"));
 

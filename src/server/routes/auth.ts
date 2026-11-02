@@ -3,7 +3,7 @@
 // 一覧が変わったら test/auth.test.ts が気づく。
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { hashToken } from "../core/secrets";
+import { hashToken, timingSafeEqual } from "../core/secrets";
 import type { AppEnv } from "./env";
 import { fail } from "./http";
 
@@ -28,9 +28,32 @@ function isApiPath(path: string): boolean {
   return p === "/api" || p.startsWith("/api/");
 }
 
+/**
+ * 合言葉ではなく、運営の鍵（CREATE_FAMILY_TOKEN の Bearer）で守る入り口の頭。運営の記録の画面だけ（0025）。
+ * 家族の合言葉の cookie では開かない。PUBLIC_ROUTES とは違い、確認を飛ばすのではなく、別の鍵で確かめる
+ */
+export const OPS_PATH_PREFIX = "/api/ops/";
+
+/** 運営の鍵で守る入り口か（大文字・小文字によらない） */
+export function isOpsPath(path: string): boolean {
+  const p = path.toLowerCase();
+  return p === "/api/ops" || p.startsWith(OPS_PATH_PREFIX);
+}
+
+/** Authorization: Bearer の値が、運営の鍵と同じか。鍵の設定がなければ誰も通さない */
+export async function hasOpsKey(c: Context<AppEnv>): Promise<boolean> {
+  const expected = c.get("deps").config.createFamilyToken;
+  const header = c.req.header("authorization") ?? "";
+  const given = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
+  if (!expected || !given || given.length > 500) return false;
+  return timingSafeEqual(given, expected);
+}
+
 /** すべての要求に掛ける（app.use("*")）。/api の下で PUBLIC_ROUTES にないものは、合言葉がなければ 401 */
 export const requireInvite: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!isApiPath(c.req.path) || isPublicRoute(c.req.method, c.req.path)) return next();
+  // 運営の入り口は合言葉では開かない。運営の鍵だけで確かめる（family は置かない）
+  if (isOpsPath(c.req.path)) return (await hasOpsKey(c)) ? next() : fail(c, "unauthorized");
   const token = getCookie(c, INVITE_COOKIE);
   if (!token || token.length > 200) return fail(c, "unauthorized");
   const family = await c.get("deps").repos.families.findByActiveInviteHash(await hashToken(token));

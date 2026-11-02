@@ -1,0 +1,242 @@
+// 運営の記録の画面の入り口（GET /api/ops/families/:familyId/record と写真）。0017、0025。
+// - 運営の鍵（CREATE_FAMILY_TOKEN の Bearer）がなければ 401。家族の合言葉の cookie では開かない
+// - 見つからない家族、ほかの家族の写真は 404。本番では鍵が合っていても 404
+// - 理由（reason）と写真の説明は、運営の入り口にだけ出る（家族向けの入り口には出ない）
+// 架空の家族と架空の文だけを使う。
+import { drizzle } from "drizzle-orm/d1";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import * as schema from "../src/server/db/schema";
+import type { OpsFamilyRecord } from "../src/shared/ops";
+import { addMember, addPhoto, CREATE_TOKEN, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
+
+let d1: D1Database;
+let dispose: () => Promise<void>;
+beforeAll(async () => {
+  ({ d1, dispose } = await startD1());
+}, 60_000);
+afterAll(() => dispose());
+
+const SECRET_REASON = "架空の理由_REASON_7f3";
+const SECRET_GUESS = "架空の説明_GUESS_9c1";
+const bearer = (key = CREATE_TOKEN) => ({ Authorization: `Bearer ${key}` });
+const recordUrl = (familyId: string) => `/api/ops/families/${familyId}/record`;
+
+/** 入り口（Claude、理由つき）・整形済みの声の語り・写真の説明を一つずつ持つ家族 */
+async function seed(t: TestApp) {
+  const f = await createFamily(t, true);
+  const elder = await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "おばあちゃん" });
+  const child = await addMember(t, f.cookie);
+  const photo = await addPhoto(t, f.cookie, child.id, 1);
+  const db = drizzle(d1, { schema });
+  const narrationId = crypto.randomUUID();
+  const cleaned = "あの日は海へ行きました。浜で貝を拾いました。";
+  await db.insert(schema.narrations).values({
+    id: narrationId,
+    familyId: f.familyId,
+    speakerMemberId: child.id,
+    photoId: photo.id,
+    kind: "voice",
+    audioKey: `families/${f.familyId}/audio/${narrationId}`,
+    audioContentType: "audio/mp4",
+    transcript: "えー あの日は 海へ 行きました 浜で 貝を 拾いました",
+    transcriptStatus: "done",
+    cleanedText: cleaned,
+    cleanedModel: "claude-haiku-fake",
+    cleanedPromptVersion: "clean_transcript/v2",
+    uncertainSpans: JSON.stringify([{ start: 14, end: 15 }]),
+    forDate: "2026-11-02",
+    createdAt: 1,
+  });
+  const entranceId = crypto.randomUUID();
+  await db.insert(schema.entrances).values({
+    id: entranceId,
+    familyId: f.familyId,
+    memberId: elder.id,
+    forDate: "2026-11-03",
+    photoId: photo.id,
+    focus: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 },
+    quoteNarrationId: narrationId,
+    quoteStart: 0,
+    quoteEnd: 16,
+    question: "この日のことを聞かせてください",
+    reason: SECRET_REASON,
+    kind: "claude",
+    model: "claude-sonnet-fake",
+    promptVersion: "entrance/v0",
+    inputNarrationIds: [narrationId],
+    inputTokens: 1234,
+    outputTokens: 56,
+    createdAt: 2,
+  });
+  await t.deps.repos.photoGuesses.saveGuess({
+    id: crypto.randomUUID(),
+    photoId: photo.id,
+    familyId: f.familyId,
+    description: SECRET_GUESS,
+    model: "claude-haiku-fake",
+    promptVersion: "photo_guess/v1",
+    createdAt: 3,
+  });
+  return { f, elder, child, photo, narrationId, entranceId, cleaned };
+}
+
+describe("運営の記録: 鍵", () => {
+  it("鍵がないと 401、違う鍵も 401、鍵の設定がなければ誰も開けない", async () => {
+    const t = makeTestApp(d1);
+    const { f, photo } = await seed(t);
+    for (const url of [recordUrl(f.familyId), `/api/ops/families/${f.familyId}/photos/${photo.id}/image`]) {
+      expect((await t.app.request(url)).status, url).toBe(401);
+      expect((await t.app.request(url, { headers: bearer("wrong") })).status, url).toBe(401);
+      expect((await t.app.request(url, { headers: { Authorization: CREATE_TOKEN } })).status, url).toBe(401);
+    }
+    t.deps.config.createFamilyToken = null;
+    expect((await t.app.request(recordUrl(f.familyId), { headers: bearer() })).status).toBe(401);
+  });
+
+  it("家族の合言葉の cookie では、自分の家族の記録も開けない", async () => {
+    const t = makeTestApp(d1);
+    const { f, photo } = await seed(t);
+    const res = await t.app.request(recordUrl(f.familyId), { headers: { Cookie: f.cookie } });
+    expect(res.status).toBe(401);
+    expect(await res.text()).not.toContain(SECRET_REASON);
+    const img = await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: { Cookie: f.cookie } });
+    expect(img.status).toBe(401);
+  });
+
+  it("大文字・小文字を変えても、合言葉の cookie では開かない", async () => {
+    const t = makeTestApp(d1);
+    const { f } = await seed(t);
+    for (const p of [`/API/ops/families/${f.familyId}/record`, `/api/OPS/families/${f.familyId}/record`]) {
+      const res = await t.app.request(p, { headers: { Cookie: f.cookie } });
+      expect([401, 404], p).toContain(res.status);
+      expect(await res.text()).not.toContain(SECRET_REASON);
+    }
+  });
+
+  it("運営の鍵では、家族向けの入り口は開かない（合言葉の代わりにならない）", async () => {
+    const t = makeTestApp(d1);
+    expect((await t.app.request("/api/family", { headers: bearer() })).status).toBe(401);
+    expect((await t.app.request("/api/feed", { headers: bearer() })).status).toBe(401);
+  });
+
+  it("本番（APP_ENV=production）では、鍵が合っていても 404", async () => {
+    const t = makeTestApp(d1, { appEnv: "production" });
+    const { f, photo } = await seed(t);
+    const res = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain(SECRET_REASON);
+    expect((await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: bearer() })).status).toBe(404);
+  });
+});
+
+describe("運営の記録: 中身", () => {
+  it("入り口・語り・写真の説明を、出所と推測に分けて返す", async () => {
+    const t = makeTestApp(d1);
+    const { f, elder, child, photo, narrationId, entranceId, cleaned } = await seed(t);
+    const res = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    const r = (await res.json()) as OpsFamilyRecord;
+
+    expect(r.family).toMatchObject({ id: f.familyId, isDemo: true });
+    expect(r.entrances).toHaveLength(1);
+    const e = r.entrances[0]!;
+    expect(e).toMatchObject({ id: entranceId, memberId: elder.id, kind: "claude", photoId: photo.id, forDate: "2026-11-03" });
+    expect(e.told.quote).toEqual({
+      narrationId,
+      speakerMemberId: child.id,
+      start: 0,
+      end: 16,
+      rawText: cleaned.slice(0, 16),
+      // 家族の画面に出た形（印は「……」）
+      shownText: cleaned.slice(0, 14) + "……" + cleaned.slice(15, 16),
+    });
+    expect(e.guessed).toEqual({
+      focus: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 },
+      question: "この日のことを聞かせてください",
+      reason: SECRET_REASON,
+      model: "claude-sonnet-fake",
+      promptVersion: "entrance/v0",
+      inputNarrationIds: [narrationId],
+      inputTokens: 1234,
+      outputTokens: 56,
+    });
+
+    const n = r.narrations.find((x) => x.id === narrationId)!;
+    expect(n).toMatchObject({ speakerMemberId: child.id, kind: "voice", hasAudio: true, transcriptStatus: "done" });
+    expect(n.transcript).toContain("えー");
+    expect(n.cleaned).toEqual({
+      text: cleaned,
+      uncertainSpans: [{ start: 14, end: 15 }],
+      model: "claude-haiku-fake",
+      promptVersion: "clean_transcript/v2",
+    });
+    expect(n).not.toHaveProperty("audioUrl");
+
+    expect(r.photoGuesses).toEqual([
+      expect.objectContaining({ photoId: photo.id, description: SECRET_GUESS, model: "claude-haiku-fake", promptVersion: "photo_guess/v1" }),
+    ]);
+    // 写真は運営の鍵で開く URL。緯度経度と保存先のキーは返さない
+    expect(r.photos[0]).toEqual({
+      id: photo.id,
+      ownerMemberId: child.id,
+      width: 10,
+      height: 10,
+      takenAt: null,
+      imageUrl: `/api/ops/families/${f.familyId}/photos/${photo.id}/image`,
+    });
+    const text = JSON.stringify(r);
+    expect(text).not.toContain("latitude");
+    expect(text).not.toContain("storageKey");
+    expect(text).not.toContain("audioKey");
+  });
+
+  it("写真は鍵で返す（private, no-store）。録音を返す入り口はない", async () => {
+    const t = makeTestApp(d1);
+    const { f, photo, narrationId } = await seed(t);
+    const img = await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: bearer() });
+    expect(img.status).toBe(200);
+    expect(img.headers.get("cache-control")).toBe("private, no-store");
+    expect(img.headers.get("content-type")).toBe("image/jpeg");
+    const audio = await t.app.request(`/api/ops/families/${f.familyId}/narrations/${narrationId}/audio`, { headers: bearer() });
+    expect(audio.status).toBe(404);
+  });
+
+  it("見つからない家族は 404。ほかの家族の写真を、この家族の道で引いても 404", async () => {
+    const t = makeTestApp(d1);
+    const a = await seed(t);
+    const b = await seed(t);
+    expect((await t.app.request(recordUrl("no-such-family"), { headers: bearer() })).status).toBe(404);
+    const cross = await t.app.request(`/api/ops/families/${a.f.familyId}/photos/${b.photo.id}/image`, { headers: bearer() });
+    expect(cross.status).toBe(404);
+    // 一つの家族の記録に、ほかの家族のものは混ざらない
+    const r = (await (await t.app.request(recordUrl(a.f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    expect(r.entrances.map((e) => e.id)).toEqual([a.entranceId]);
+    expect(r.narrations.map((n) => n.id)).toEqual([a.narrationId]);
+    expect(r.photos.map((p) => p.id)).toEqual([a.photo.id]);
+  });
+
+  it("理由と写真の説明は、家族向けの入り口（合言葉）には出ない", async () => {
+    const t = makeTestApp(d1);
+    const { f, elder, photo } = await seed(t);
+    // 入り口の日付に合わせて、今日を 2026-11-03（日本時間）にする
+    t.setNow(new Date("2026-11-03T00:00:00Z"));
+    const urls = [
+      "/api/family",
+      "/api/photos",
+      "/api/feed",
+      "/api/narrations",
+      `/api/narrations?photoId=${photo.id}`,
+      `/api/entrances/today?memberId=${elder.id}`,
+    ];
+    for (const url of urls) {
+      const res = await t.app.request(url, { headers: { Cookie: f.cookie } });
+      const text = await res.text();
+      expect(text, url).not.toContain(SECRET_REASON);
+      expect(text, url).not.toContain(SECRET_GUESS);
+      expect(text, url).not.toContain("reason");
+      expect(text, url).not.toContain("inputNarrationIds");
+      expect(text, url).not.toContain("uncertainSpans");
+    }
+  });
+});

@@ -10,7 +10,7 @@ import {
   type CheckSpeechFailure,
   type CheckTranscribeResult,
 } from "../../shared/check";
-import type { AppEnv } from "./env";
+import { devToolsOpen, type AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm, readJson } from "./http";
 import { isAcceptableAudio, MAX_AUDIO_BYTES } from "./narrations";
 
@@ -19,7 +19,7 @@ const MAX_SPEECH_REQUEST_BYTES = 16 * 1024;
 
 export const check = new Hono<AppEnv>().post("/check/transcribe", async (c) => {
   const deps = c.get("deps");
-  if (deps.config.appEnv === "production") return fail(c, "not_found");
+  if (!devToolsOpen(deps.config)) return fail(c, "not_found");
 
   const size = checkContentLength(c, MAX_AUDIO_BYTES);
   if (size === "too_large") return fail(c, "too_large");
@@ -65,7 +65,7 @@ export const check = new Hono<AppEnv>().post("/check/transcribe", async (c) => {
 // 問いかけの読み上げ（0019 の試し）。人が入れた文と設定をそのまま OpenAI に送り、音声をそのまま返す。家族のデータは読まない
 .post("/check/speech", async (c) => {
   const deps = c.get("deps");
-  if (deps.config.appEnv === "production") return fail(c, "not_found");
+  if (!devToolsOpen(deps.config)) return fail(c, "not_found");
 
   const size = checkContentLength(c, MAX_SPEECH_REQUEST_BYTES);
   if (size === "too_large") return fail(c, "too_large");

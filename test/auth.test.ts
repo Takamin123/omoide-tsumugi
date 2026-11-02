@@ -2,7 +2,7 @@
 // 確認しない入り口の一覧をここで固定する。入り口を足したら、ここが気づく。
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/server/app";
-import { PUBLIC_ROUTES } from "../src/server/routes/auth";
+import { isOpsPath, PUBLIC_ROUTES } from "../src/server/routes/auth";
 import { fakeDeps } from "./helpers";
 
 const app = createApp(() => fakeDeps());
@@ -33,6 +33,8 @@ describe("合言葉の確認", () => {
       "GET /api/health",
       "GET /api/narrations",
       "GET /api/narrations/:id/audio",
+      "GET /api/ops/families/:familyId/photos/:photoId/image",
+      "GET /api/ops/families/:familyId/record",
       "GET /api/photos",
       "GET /api/photos/:id/image",
       "PATCH /api/members/:id",
@@ -45,6 +47,13 @@ describe("合言葉の確認", () => {
       "POST /api/narrations",
       "POST /api/photos",
       "POST /api/session",
+    ]);
+  });
+
+  it("合言葉の代わりに運営の鍵で守る入り口は、/api/ops/ の下の読み取り 2 つだけ（0025）", () => {
+    expect(apiRoutes.filter((r) => isOpsPath(r.split(" ")[1]!))).toEqual([
+      "GET /api/ops/families/:familyId/photos/:photoId/image",
+      "GET /api/ops/families/:familyId/record",
     ]);
   });
 

@@ -21,6 +21,8 @@ import { words } from "./words";
  * 本番のビルドでは __CHECK_PAGE__ が false になり、chunk ごと入らない。/check はほかの知らない道と同じ扱いになる（0014）
  */
 const CheckPage = __CHECK_PAGE__ ? lazy(() => import("./check/CheckPage")) : null;
+/** 運営の記録の画面。/check と同じ規則で、本番のビルドには入らない（0025） */
+const OpsRecordPage = __CHECK_PAGE__ ? lazy(() => import("./ops/RecordPage")) : null;
 
 type Load =
   | { state: "loading" }
@@ -49,7 +51,8 @@ export function App() {
 
   const joinToken = tokenFromJoinPath(path);
   const isCheck = CheckPage !== null && path === "/check";
-  const needsFamily = !joinToken && path !== "/start" && !isCheck;
+  const isOps = OpsRecordPage !== null && path === "/ops/record";
+  const needsFamily = !joinToken && path !== "/start" && !isOps && !isCheck;
   useEffect(() => {
     if (needsFamily) void reload();
   }, [needsFamily, reload]);
@@ -58,6 +61,13 @@ export function App() {
     return (
       <Suspense fallback={<main><p>{words.loading}</p></main>}>
         <CheckPage />
+      </Suspense>
+    );
+  }
+  if (isOps) {
+    return (
+      <Suspense fallback={<main><p>{words.loading}</p></main>}>
+        <OpsRecordPage />
       </Suspense>
     );
   }
