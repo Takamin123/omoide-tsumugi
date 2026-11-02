@@ -191,6 +191,114 @@ describe("運営の記録: 中身", () => {
     expect(text).not.toContain("audioKey");
   });
 
+  it("引用の原文は、文字の語りなら transcript の位置、声で整形がなければ範囲つきでは取り出さない（quoteSource と同じ規則）", async () => {
+    const t = makeTestApp(d1);
+    const { f, elder, child, photo } = await seed(t);
+    const db = drizzle(d1, { schema });
+    const typed = "庭の柿がよく実った年でした。";
+    const textId = crypto.randomUUID();
+    const voiceId = crypto.randomUUID();
+    await db.insert(schema.narrations).values([
+      {
+        id: textId,
+        familyId: f.familyId,
+        speakerMemberId: child.id,
+        photoId: photo.id,
+        kind: "text",
+        transcript: typed,
+        transcriptStatus: "done",
+        forDate: "2026-11-02",
+        createdAt: 10,
+      },
+      {
+        id: voiceId,
+        familyId: f.familyId,
+        speakerMemberId: child.id,
+        photoId: photo.id,
+        kind: "voice",
+        audioKey: `families/${f.familyId}/audio/${voiceId}`,
+        audioContentType: "audio/mp4",
+        transcript: "えー 縁側で お茶を 飲みました",
+        transcriptStatus: "done",
+        forDate: "2026-11-02",
+        createdAt: 11,
+      },
+    ]);
+    const entrance = (id: string, narrationId: string, start: number | null, end: number | null, forDate: string) => ({
+      id,
+      familyId: f.familyId,
+      memberId: elder.id,
+      forDate,
+      photoId: photo.id,
+      quoteNarrationId: narrationId,
+      quoteStart: start,
+      quoteEnd: end,
+      question: "この日のことを聞かせてください",
+      kind: "claude" as const,
+      model: "claude-sonnet-fake",
+      promptVersion: "entrance/v0",
+      createdAt: 20,
+    });
+    const textEntrance = crypto.randomUUID();
+    const voiceEntrance = crypto.randomUUID();
+    const textWhole = crypto.randomUUID();
+    await db.insert(schema.entrances).values([
+      entrance(textEntrance, textId, 0, 6, "2026-11-04"),
+      entrance(voiceEntrance, voiceId, 0, 4, "2026-11-05"),
+      entrance(textWhole, textId, null, null, "2026-11-06"),
+    ]);
+    const r = (await (await t.app.request(recordUrl(f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    const quoteOf = (id: string) => r.entrances.find((e) => e.id === id)!.told.quote!;
+    expect(quoteOf(textEntrance)).toMatchObject({ rawText: typed.slice(0, 6), shownText: typed.slice(0, 6) });
+    expect(quoteOf(voiceEntrance)).toMatchObject({ rawText: null, shownText: null });
+    expect(quoteOf(textWhole)).toMatchObject({ rawText: typed, shownText: typed });
+  });
+
+  it("声の語りで整えた文字があっても、印が読めなければ範囲つきの原文は取り出さない（家族の画面に出た文字と同じく null）", async () => {
+    const t = makeTestApp(d1);
+    const { f, elder, child, photo } = await seed(t);
+    const db = drizzle(d1, { schema });
+    const voiceId = crypto.randomUUID();
+    const cleaned = "縁側でお茶を飲みました。";
+    await db.insert(schema.narrations).values({
+      id: voiceId,
+      familyId: f.familyId,
+      speakerMemberId: child.id,
+      photoId: photo.id,
+      kind: "voice",
+      audioKey: `families/${f.familyId}/audio/${voiceId}`,
+      audioContentType: "audio/mp4",
+      transcript: "えー 縁側で お茶を 飲みました",
+      transcriptStatus: "done",
+      cleanedText: cleaned,
+      cleanedModel: "claude-haiku-fake",
+      cleanedPromptVersion: "clean_transcript/v2",
+      // 印が読めない（壊れている）整形。quoteSource は使わない
+      uncertainSpans: null,
+      forDate: "2026-11-02",
+      createdAt: 12,
+    });
+    const entranceId = crypto.randomUUID();
+    await db.insert(schema.entrances).values({
+      id: entranceId,
+      familyId: f.familyId,
+      memberId: elder.id,
+      forDate: "2026-11-07",
+      photoId: photo.id,
+      quoteNarrationId: voiceId,
+      quoteStart: 0,
+      quoteEnd: 3,
+      question: "この日のことを聞かせてください",
+      kind: "claude",
+      model: "claude-sonnet-fake",
+      promptVersion: "entrance/v0",
+      createdAt: 21,
+    });
+    const r = (await (await t.app.request(recordUrl(f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    const q = r.entrances.find((e) => e.id === entranceId)!.told.quote!;
+    expect(q).toMatchObject({ narrationId: voiceId, rawText: null, shownText: null });
+  });
+
   it("写真は鍵で返す（private, no-store）。録音を返す入り口はない", async () => {
     const t = makeTestApp(d1);
     const { f, photo, narrationId } = await seed(t);

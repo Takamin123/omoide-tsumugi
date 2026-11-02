@@ -5,7 +5,7 @@
 // 本文・説明・理由はログに出さない。
 import { Hono, type MiddlewareHandler } from "hono";
 import type { OpsEntrance, OpsFamilyRecord, OpsNarration } from "../../shared/ops";
-import { quoteText } from "../core/clean-transcript";
+import { quoteSource, quoteText } from "../core/clean-transcript";
 import type { NarrationRow, OpsEntranceRow } from "../core/ports";
 import { hasOpsKey } from "./auth";
 import { devToolsOpen, type AppEnv } from "./env";
@@ -19,14 +19,17 @@ const requireOpsKey: MiddlewareHandler<AppEnv> = async (c, next) => {
   return next();
 };
 
-/** 引用の範囲を cleaned_text からそのまま切り出す（範囲がなければ全文。整形がなければ transcript）。印は置き換えない */
+/**
+ * 引用の範囲を、位置を数える文字（quoteSource。文字の語りは transcript、声の語りは cleaned_text）からそのまま切り出す。印は置き換えない。
+ * 範囲がなければ全文（整えた文字があればそれ、なければ transcript）。
+ * 範囲があるのに位置を数える文字がない（声で整形がない・印が壊れている）か、範囲が外れていれば、ほかの文字を切らずに null
+ */
 function rawSlice(n: NarrationRow, start: number | null, end: number | null): string | null {
-  // 範囲は cleaned_text の位置（0017、0018）。範囲があるのに整形がなければ、ほかの文字を切らずに null
   if (start === null || end === null) return n.cleanedText ?? n.transcript;
-  const base = n.cleanedText;
-  if (base === null) return null;
-  if (start < 0 || end <= start || end > base.length) return null;
-  return base.slice(start, end);
+  const c = quoteSource(n);
+  if (!c) return null;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > c.text.length) return null;
+  return c.text.slice(start, end);
 }
 
 function entranceRecord(e: OpsEntranceRow, byId: Map<string, NarrationRow>): OpsEntrance {

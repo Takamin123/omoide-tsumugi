@@ -3,7 +3,17 @@
 // 家族が語ったもの（出所つき）と、Claude が決めたこと・推測を、見出しと枠で分ける。
 import { useEffect, useState, type FormEvent } from "react";
 import type { OpsEntrance, OpsFamilyRecord, OpsNarration, OpsPhoto, OpsRect } from "../../shared/ops";
-import { fetchRecord, loadOpsKey, saveOpsKey, splitMarked } from "./record";
+import {
+  fetchRecord,
+  headSegments,
+  inputNarrations,
+  loadOpsKey,
+  NARRATION_HEAD_CHARS,
+  narrationAnchor,
+  saveOpsKey,
+  splitMarked,
+  type MarkedSegment,
+} from "./record";
 
 /** このページだけの見た目。ふだんの画面の styles.css には入れない */
 const opsCss = `
@@ -29,6 +39,13 @@ const opsCss = `
 .ops .error { color: #a1170f; font-weight: bold; }
 .ops .banner { background: #222; color: #fff; padding: 0.4rem 0.6rem; font-weight: bold; position: sticky; top: 0; z-index: 1; }
 .ops .shown { border: 1px solid #555; border-radius: 0.4rem; padding: 0.5rem; margin: 0.5rem 0; }
+.ops .inputs { list-style: none; padding: 0; margin: 0; }
+.ops .inputs li { border-top: 1px solid #b9d3bf; padding: 0.4rem 0; }
+.ops .inputs li:first-child { border-top: none; }
+.ops .quote-mark { background: #2b6a3a; color: #fff; font-size: 0.8rem; padding: 0 0.3rem; border-radius: 0.2rem; margin-right: 0.3rem; }
+.ops summary { cursor: pointer; }
+.ops details[open] > summary .when-closed, .ops details:not([open]) > summary .when-open { display: none; }
+.ops .card:target { outline: 3px solid #2b6a3a; }
 `;
 
 // 鍵が違うときと家族が見つからないときは、同じ言葉にする（家族の ID の有無を探れないように）
@@ -170,7 +187,14 @@ function Record({ record, opsKey }: { record: OpsFamilyRecord; opsKey: string })
       <h2>入り口</h2>
       {record.entrances.length === 0 && <p>まだありません。</p>}
       {record.entrances.map((e) => (
-        <EntranceCard key={e.id} e={e} photo={photoOf.get(e.photoId) ?? null} nameOf={nameOf} opsKey={opsKey} />
+        <EntranceCard
+          key={e.id}
+          e={e}
+          photo={photoOf.get(e.photoId) ?? null}
+          narrations={record.narrations}
+          nameOf={nameOf}
+          opsKey={opsKey}
+        />
       ))}
 
       <h2>語り</h2>
@@ -207,11 +231,13 @@ function Record({ record, opsKey }: { record: OpsFamilyRecord; opsKey: string })
 function EntranceCard({
   e,
   photo,
+  narrations,
   nameOf,
   opsKey,
 }: {
   e: OpsEntrance;
   photo: OpsPhoto | null;
+  narrations: readonly OpsNarration[];
   nameOf: (id: string | null) => string;
   opsKey: string;
 }) {
@@ -267,9 +293,120 @@ function EntranceCard({
           {g.model ?? "モデルなし"} ／ 版 {g.promptVersion ?? "なし"} ／ トークン 入 {g.inputTokens ?? "-"} 出{" "}
           {g.outputTokens ?? "-"}
         </p>
-        <p className="meta ids">材料にした語り: {g.inputNarrationIds?.join(", ") || "なし"}</p>
       </div>
+
+      <InputNarrations
+        items={inputNarrations(g.inputNarrationIds, narrations, q?.narrationId ?? null)}
+        nameOf={nameOf}
+      />
     </div>
+  );
+}
+
+/**
+ * 入り口の材料にした語り（Claude に渡した語り）。家族が語ったそのまま（transcript）は実線の枠に、
+ * Claude の整形と印は点線の枠に model と版を付けて置く（0025 の分け方を崩さない）
+ */
+function InputNarrations({
+  items,
+  nameOf,
+}: {
+  items: ReturnType<typeof inputNarrations>;
+  nameOf: (id: string | null) => string;
+}) {
+  return (
+    <div className="shown">
+      <h4>材料にした語り（Claude に渡したもの {items.length} 件）</h4>
+      {items.length === 0 ? (
+        <p className="meta">なし</p>
+      ) : (
+        <ul className="inputs">
+          {items.map(({ id, narration: n, isQuote }, i) => (
+            <li key={`${i}-${id}`}>
+              <p className="meta">
+                {isQuote && <span className="quote-mark">引用元</span>}
+                {n ? (
+                  <>
+                    {nameOf(n.speakerMemberId)} ／ {n.kind === "voice" ? "声" : "文字"} ／ {n.forDate} ／{" "}
+                    <a href={`#${narrationAnchor(n.id)}`}>語りの欄へ</a>
+                  </>
+                ) : (
+                  "見つからない語り"
+                )}
+              </p>
+              {n && <InputNarrationBody n={n} />}
+              <p className="meta ids">{id}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function InputNarrationBody({ n }: { n: OpsNarration }) {
+  const marked = n.cleaned ? splitMarked(n.cleaned.text, n.cleaned.uncertainSpans) : null;
+  return (
+    <>
+      <div className="told">
+        <p className="meta">家族が語ったこと（そのまま）</p>
+        {n.transcript ? <Excerpt segments={[{ text: n.transcript, uncertain: false }]} /> : <p className="meta">（まだありません）</p>}
+      </div>
+      {n.cleaned && marked && (
+        <div className="guessed">
+          <p className="meta">
+            Claude の整形（推測）{marked.broken ? "。印は読めません" : "。［? ?］は聞き間違いの印"}
+          </p>
+          <Excerpt segments={marked.segments} />
+          <p className="meta">
+            {n.cleaned.model ?? "モデルなし"} ／ 版 {n.cleaned.promptVersion ?? "なし"}
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** 本文の頭。長ければ先頭だけ出し、開くと全文（開いている間は頭を隠す） */
+function Excerpt({ segments }: { segments: readonly MarkedSegment[] }) {
+  const head = headSegments(segments, NARRATION_HEAD_CHARS);
+  if (!head.truncated) {
+    return (
+      <pre>
+        <Marked segments={segments} />
+      </pre>
+    );
+  }
+  return (
+    <details>
+      <summary>
+        <span className="when-closed">
+          <Marked segments={head.segments} />
+          …（開くと全文）
+        </span>
+        <span className="when-open">閉じる</span>
+      </summary>
+      <pre>
+        <Marked segments={segments} />
+      </pre>
+    </details>
+  );
+}
+
+/** 聞き間違いの印を、色と［? ?］と波線で見せる */
+function Marked({ segments }: { segments: readonly MarkedSegment[] }) {
+  return (
+    <>
+      {segments.map((s, i) =>
+        s.uncertain ? (
+          <mark className="uncertain" key={i}>
+            ［?{s.text}?］
+          </mark>
+        ) : (
+          <span key={i}>{s.text}</span>
+        ),
+      )}
+    </>
   );
 }
 
@@ -278,7 +415,7 @@ const fmt = (v: number) => v.toFixed(2);
 function NarrationCard({ n, nameOf }: { n: OpsNarration; nameOf: (id: string | null) => string }) {
   const marked = n.cleaned ? splitMarked(n.cleaned.text, n.cleaned.uncertainSpans) : null;
   return (
-    <div className="card">
+    <div className="card" id={narrationAnchor(n.id)}>
       <p className="meta ids">
         語り {n.id} ／ 写真 {n.photoId}
         {n.entranceId ? ` ／ 入り口 ${n.entranceId}` : ""}
@@ -302,15 +439,7 @@ function NarrationCard({ n, nameOf }: { n: OpsNarration; nameOf: (id: string | n
           ) : (
             <>
               <pre>
-                {marked.segments.map((s, i) =>
-                  s.uncertain ? (
-                    <mark className="uncertain" key={i}>
-                      ［?{s.text}?］
-                    </mark>
-                  ) : (
-                    <span key={i}>{s.text}</span>
-                  ),
-                )}
+                <Marked segments={marked.segments} />
               </pre>
               <p className="meta">
                 印 {n.cleaned.uncertainSpans === null ? "読めない" : n.cleaned.uncertainSpans.length + " か所"}

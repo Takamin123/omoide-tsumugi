@@ -31,7 +31,7 @@ export type OpsEntrance = {
       speakerMemberId: string | null;
       start: number | null;
       end: number | null;
-      /** cleaned_text（なければ transcript）の [start, end) をそのまま切り出したもの。印は置き換えない */
+      /** 引用の位置を数える文字（文字の語りは transcript、声の語りは cleaned_text）の [start, end) をそのまま切り出したもの。印は置き換えない */
       rawText: string | null;
       /** 家族の画面に出た文字（印は「……」）。引用できなければ null */
       shownText: string | null;

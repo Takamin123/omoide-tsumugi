@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 import { fs, path, repoRoot } from "../node";
 
 const load = (name: string): Promise<any> => import(name);
-const { fetchRecord, loadOpsKey, OPS_KEY_STORAGE, saveOpsKey, splitMarked } = await load("../../src/client/ops/record");
+const { fetchRecord, headSegments, inputNarrations, loadOpsKey, narrationAnchor, OPS_KEY_STORAGE, saveOpsKey, splitMarked } =
+  await load("../../src/client/ops/record");
 
 function memoryStore() {
   const m = new Map<string, string>();
@@ -114,5 +115,58 @@ describe("splitMarked: 印の範囲で切り分ける", () => {
     [[{ start: 0.5, end: 1 }]],
   ])("壊れた範囲（%j）は全体を印なしで返す", (spans) => {
     expect(splitMarked("あいうえ", spans)).toEqual({ segments: [{ text: "あいうえ", uncertain: false }], broken: true });
+  });
+});
+
+describe("材料にした語り", () => {
+  const narration = (over: Record<string, unknown>) => ({
+    id: "n-1",
+    photoId: "p-1",
+    speakerMemberId: "m-1",
+    entranceId: null,
+    kind: "voice",
+    hasAudio: true,
+    forDate: "2026-11-02",
+    createdAt: 1,
+    transcriptStatus: "done",
+    transcript: "えー 海へ 行きました",
+    cleaned: null,
+    ...over,
+  });
+
+  it("ID を同じ記録の語りと結ぶ。一覧にない ID は narration が null。引用元に印", () => {
+    const a = narration({ id: "a" });
+    const b = narration({ id: "b" });
+    expect(inputNarrations(["b", "x", "a"], [a, b], "a")).toEqual([
+      { id: "b", narration: b, isQuote: false },
+      { id: "x", narration: null, isQuote: false },
+      { id: "a", narration: a, isQuote: true },
+    ]);
+    expect(inputNarrations(null, [a], null)).toEqual([]);
+  });
+
+  it("頭だけ切るときは、印の区切りを保ち、字はコードポイントで数える", () => {
+    const segs = [
+      { text: "あい", uncertain: false },
+      { text: "うえ", uncertain: true },
+      { text: "お", uncertain: false },
+    ];
+    expect(headSegments(segs, 3)).toEqual({
+      segments: [
+        { text: "あい", uncertain: false },
+        { text: "う", uncertain: true },
+      ],
+      truncated: true,
+    });
+    expect(headSegments(segs, 4)).toEqual({ segments: segs.slice(0, 2), truncated: true });
+    expect(headSegments(segs, 5)).toEqual({ segments: segs, truncated: false });
+    expect(headSegments([{ text: "𠮷野家", uncertain: false }], 1)).toEqual({
+      segments: [{ text: "𠮷", uncertain: false }],
+      truncated: true,
+    });
+  });
+
+  it("語りの欄のアンカー", () => {
+    expect(narrationAnchor("abc")).toBe("narration-abc");
   });
 });

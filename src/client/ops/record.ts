@@ -1,5 +1,5 @@
 // 開発用（運営）の記録の画面（/ops/record）の、画面に頼らない部分。鍵の持ち方と、印の範囲の切り分け。
-import type { OpsFamilyRecord } from "../../shared/ops";
+import type { OpsFamilyRecord, OpsNarration } from "../../shared/ops";
 
 /** 運営の鍵を持つ sessionStorage の名前。そのタブを閉じれば消える。localStorage には置かない */
 export const OPS_KEY_STORAGE = "omoide_ops_key";
@@ -56,6 +56,42 @@ export function splitMarked(
   if (pos < text.length) out.push({ text: text.slice(pos), uncertain: false });
   return { segments: out, broken: false };
 }
+
+/** 材料にした語りの本文の頭に出す字数（印の［? ?］は数えない）。超えたら開くと全文 */
+export const NARRATION_HEAD_CHARS = 60;
+
+/** 切り分けた本文の先頭 limit 字だけを返す。印の区切りは保つ */
+export function headSegments(segments: readonly MarkedSegment[], limit: number): { segments: MarkedSegment[]; truncated: boolean } {
+  const out: MarkedSegment[] = [];
+  let left = limit;
+  for (const s of segments) {
+    if (left <= 0) return { segments: out, truncated: true };
+    // サロゲートペアを割らないよう、コードポイントで数える
+    const chars = Array.from(s.text);
+    if (chars.length > left) {
+      out.push({ text: chars.slice(0, left).join(""), uncertain: s.uncertain });
+      return { segments: out, truncated: true };
+    }
+    out.push(s);
+    left -= chars.length;
+  }
+  return { segments: out, truncated: false };
+}
+
+export type InputNarration = { id: string; narration: OpsNarration | null; isQuote: boolean };
+
+/** 入り口の材料にした語りの ID を、同じ記録の語りと結ぶ。一覧にない ID（ほかの家族、消えた語り）は narration が null */
+export function inputNarrations(
+  ids: readonly string[] | null,
+  narrations: readonly OpsNarration[],
+  quoteNarrationId: string | null,
+): InputNarration[] {
+  const byId = new Map(narrations.map((n) => [n.id, n]));
+  return (ids ?? []).map((id) => ({ id, narration: byId.get(id) ?? null, isQuote: id === quoteNarrationId }));
+}
+
+/** ページの中の語りの欄のアンカー */
+export const narrationAnchor = (id: string) => `narration-${id}`;
 
 export type RecordLoad =
   | { ok: true; record: OpsFamilyRecord }
