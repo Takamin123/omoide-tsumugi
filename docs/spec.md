@@ -6,7 +6,7 @@
 
 | 役割 | 使うもの | 理由 |
 |---|---|---|
-| 実行環境 | Cloudflare Workers | [0002](decisions/0002-cloudflare-workers.md) |
+| 実行環境 | Cloudflare Workers（有料プラン前提。一回の処理で外へ出せるリクエストが 10,000 まで。無料の 50 では毎朝の処理が収まらない。2026-11-03 人間が決定） | [0002](decisions/0002-cloudflare-workers.md) |
 | バックエンド | Hono | |
 | フロントエンド | React（スマホ向け Web アプリ） | |
 | データベース | Cloudflare D1 + drizzle-orm | |
