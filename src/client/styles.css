@@ -1,0 +1,308 @@
+/*
+ * 高齢の人の画面の最低ライン（docs/implementation-policy.md 1）の数値は、ここの定数にだけ置く。
+ * 数値は上げてよいが、下げない。rem で指定し、ブラウザの文字の大きさの設定を妨げない。
+ */
+:root {
+  --font-main: 1.375rem; /* 語り・問いかけ・ボタン: 22px（最低 20px） */
+  --font-sub: 1.0625rem; /* 補助の文字: 17px（最低 16px） */
+  --font-title: 1.625rem;
+  --line-height: 1.6; /* 最低 1.5 */
+  --tap-min: 3.25rem; /* 押せる場所: 52px（最低 48px） */
+  --tap-gap: 0.75rem; /* 隣との間: 12px（最低 8px） */
+  --primary-height: 4.5rem; /* 主な動作: 72px（最低 64px） */
+  --mic-size: 9rem;
+  --page-pad: 1rem;
+  --radius: 0.75rem;
+
+  /* 色（白地に対し文字は 4.5:1 以上、輪郭は 3:1 以上） */
+  --bg: #fbf8f3;
+  --surface: #ffffff;
+  --text: #2a2522; /* 白地で約 15:1 */
+  --text-sub: #5b524b; /* 白地で約 7.6:1 */
+  --border: #7d726a; /* 白地で約 4.8:1 */
+  --accent: #8a3b12; /* 白地で約 8:1。白文字をのせる */
+  --accent-text: #ffffff;
+  --recording: #a1170f; /* 白文字で約 7:1 */
+  --focus: #1f4fa3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: var(--font-main);
+  line-height: var(--line-height);
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--page-pad);
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2 {
+  font-size: var(--font-title);
+  line-height: 1.4;
+  margin: 0.5rem 0 1rem;
+}
+
+h3 {
+  font-size: var(--font-main);
+  margin: 0.5rem 0;
+}
+
+p {
+  margin: 0.5rem 0;
+}
+
+.sub {
+  font-size: var(--font-sub);
+  color: var(--text-sub);
+}
+
+button,
+.button,
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: var(--font-main);
+  line-height: var(--line-height);
+}
+
+button,
+.button {
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.primary {
+  display: flex;
+  width: 100%;
+  min-height: var(--primary-height);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: bold;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tap-gap);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+  align-items: center;
+}
+
+.wide {
+  width: 100%;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+fieldset {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem 1rem;
+  margin: 0;
+}
+
+legend {
+  padding: 0 0.25rem;
+}
+
+.choice {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: var(--tap-min);
+}
+
+.choice input {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+}
+
+input[type="text"],
+input[type="password"],
+textarea {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+textarea {
+  min-height: 7rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: var(--radius);
+  background: #e9e3da;
+}
+
+.quote {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid var(--border);
+}
+
+.question {
+  font-size: var(--font-main);
+  font-weight: bold;
+}
+
+.narration {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.narration.reply {
+  margin-left: 1.5rem;
+}
+
+audio {
+  width: 100%;
+  min-height: var(--tap-min);
+}
+
+.mic {
+  width: var(--mic-size);
+  height: var(--mic-size);
+  border-radius: 50%;
+  border-width: 3px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-size: var(--font-title);
+  font-weight: bold;
+  align-self: center;
+}
+
+.mic.recording {
+  background: var(--recording);
+  border-color: var(--recording);
+}
+
+.speakers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.speakers button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--surface);
+  border-color: var(--text);
+  font-weight: bold;
+}
+
+.demo {
+  margin-top: 2rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: var(--font-sub);
+}
+
+.demo button,
+.demo .button {
+  font-size: var(--font-sub);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.invite-url {
+  font-size: var(--font-sub);
+  word-break: break-all;
+  user-select: all;
+}
+
+nav.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+  margin-bottom: 1rem;
+}
+
+.foot {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0 var(--page-pad) var(--page-pad);
+}
+
+.elapsed {
+  font-size: var(--font-title);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  margin: 0;
+}
+
+.speaker-now {
+  text-align: center;
+  font-weight: bold;
+}
