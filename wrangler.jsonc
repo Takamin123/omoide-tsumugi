@@ -4,7 +4,6 @@
 //
 // - bindings（d1_databases、r2_buckets、vars）と triggers は環境ごとに書く（環境の間で引き継がれない）
 // - Vite プラグインを使うので、環境はビルドのときに CLOUDFLARE_ENV で決まる（npm run build:preview）
-// - database_id の REPLACE_WITH_... は仮の値。`wrangler d1 create` の結果で置き換える
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "omoide-tsumugi",
@@ -22,7 +21,7 @@
     {
       "binding": "DB",
       "database_name": "omoide-tsumugi",
-      "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
+      "database_id": "0abdff27-235c-4909-ab9c-5da036f200d8",
       "migrations_dir": "drizzle/migrations"
     }
   ],
@@ -39,7 +38,7 @@
         {
           "binding": "DB",
           "database_name": "omoide-tsumugi-preview",
-          "database_id": "REPLACE_WITH_PREVIEW_D1_ID",
+          "database_id": "69e49329-2cba-4bab-b69f-4ffd03271d67",
           "migrations_dir": "drizzle/migrations"
         }
       ],
