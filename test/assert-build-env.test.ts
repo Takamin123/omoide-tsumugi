@@ -24,7 +24,7 @@ function wranglerJsonc(replacements: Array<[string | RegExp, string]> = []): str
   // 実際の database_id（または仮の値）を、テスト用の ID に置き換える。1つ目が本番、2つ目がプレビュー
   const ids = [PROD_ID, PREVIEW_ID];
   let i = 0;
-  src = src.replace(/("database_id"\s*:\s*)"[^"]*"/g, (_m, key: string) => `${key}"${ids[i++] ?? ""}"`);
+  src = src.replace(/("database_id"\s*:\s*)"[^"]*"/g, (_m: string, key: string) => `${key}"${ids[i++] ?? ""}"`);
   if (i !== 2) throw new Error(`wrangler.jsonc の database_id が2つではありません（${i}）`);
   for (const [from, to] of replacements) src = src.replace(from, to);
   // $schema はリポジトリの node_modules を指す

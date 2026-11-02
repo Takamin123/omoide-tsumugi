@@ -6,6 +6,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:preview": "CLOUDFLARE_ENV=preview vite build",
+    "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
     "deploy:production": "vite build && node scripts/assert-build-env.mjs production && wrangler deploy",
     "deploy:preview": "CLOUDFLARE_ENV=preview vite build && node scripts/assert-build-env.mjs preview && wrangler deploy",
     "typecheck": "npm run cf-typegen && tsc -b",
