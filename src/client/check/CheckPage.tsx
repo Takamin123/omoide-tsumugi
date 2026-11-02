@@ -1,7 +1,16 @@
 // 開発用の確かめページ（/check）。家族向けの画面ではないので、言葉は words.ts に入れずここに置く。
 // 人がスマホで開き、結果を「記録を写す」で写して docs/decisions/ に残す。
 import { useEffect, useRef, useState } from "react";
-import { checkTranscribeFieldNames, checkTranscribeModels, type CheckTranscribeResult } from "../../shared/check";
+import {
+  checkSpeechFormats,
+  checkSpeechModels,
+  checkSpeechVoices,
+  checkSpeechVoicesNotForTts1,
+  checkTranscribeFieldNames,
+  checkTranscribeModels,
+  type CheckSpeechParams,
+  type CheckTranscribeResult,
+} from "../../shared/check";
 import { canRecord, preferredTypes, startRecording, type Recording } from "../lib/recorder";
 import { AUDIO_FILE_ACCEPT } from "../lib/voice";
 import { inspectAudio, inspectPhoto } from "./inspect";
@@ -9,9 +18,13 @@ import {
   buildReport,
   FIELD_TEMPLATES,
   pickTimings,
+  QUESTION_SAMPLES,
   SPEECH_RATES,
   SPEECH_SAMPLES,
   TRANSCRIBE_SAMPLE,
+  TTS_DEFAULT_INSTRUCTIONS,
+  TTS_DISCLOSURE,
+  TTS_SPEEDS,
   UNSPOKEN_KEYWORD,
   type AudioRow,
   type Field,
@@ -20,12 +33,15 @@ import {
   type PhotoRow,
   type TimingRow,
   type TranscribeRow,
+  type TtsRow,
   type VoiceRow,
 } from "./report";
+import { requestSpeech } from "./speech";
 
 type PhotoView = { id: number; row: PhotoRow; location: { latitude: number; longitude: number } | null };
 type AudioView = { id: number; row: AudioRow; blob: Blob; url: string };
 type FieldName = (typeof checkTranscribeFieldNames)[number];
+type TtsView = { id: number; row: TtsRow; url: string | null };
 
 let nextId = 1;
 
@@ -39,6 +55,7 @@ const checkCss = `
 .check .row input[type="text"] { flex: 1; min-width: 6rem; }
 .check audio { max-width: 12rem; }
 .check-result { border-top: 1px solid #ccc; padding-top: 0.5rem; }
+.check .disclosure { font-size: 1rem; font-weight: bold; }
 `;
 
 function recorderSupport(): { type: string; supported: boolean | null }[] {
@@ -191,6 +208,49 @@ export default function CheckPage() {
     speechSynthesis.speak(u);
   }
 
+  // ---- 問いかけの読み上げ（OpenAI、0019 の試し） ----
+  const [ttsParams, setTtsParams] = useState<CheckSpeechParams>({
+    model: "gpt-4o-mini-tts",
+    input: QUESTION_SAMPLES[0]!,
+    voice: "marin",
+    instructions: TTS_DEFAULT_INSTRUCTIONS,
+    speed: 1.0,
+    response_format: "mp3",
+  });
+  const [ttsRuns, setTtsRuns] = useState<TtsView[]>([]);
+  const [ttsBusy, setTtsBusy] = useState(false);
+  const [ttsNote, setTtsNote] = useState<string | null>(null);
+  const lastTtsAudio = useRef<HTMLAudioElement | null>(null);
+  const setTts = <K extends keyof CheckSpeechParams>(k: K, v: CheckSpeechParams[K]) => setTtsParams((p) => ({ ...p, [k]: v }));
+  const tts1 = ttsParams.model !== "gpt-4o-mini-tts";
+
+  async function makeSpeech() {
+    setTtsBusy(true);
+    setTtsNote(null);
+    try {
+      const { row, audio } = await requestSpeech(ttsParams);
+      if (row.httpStatus === 401) setTtsNote("家族の合言葉で入った端末で開いてください");
+      else if (row.httpStatus === 404) setTtsNote("本番では使えません");
+      let url: string | null = null;
+      if (audio) {
+        url = URL.createObjectURL(audio);
+        urls.current.push(url);
+      }
+      setTtsRuns((r) => [...r, { id: nextId++, row, url }]);
+    } catch (e) {
+      setTtsNote(`届かなかった: ${String(e)}`);
+    } finally {
+      setTtsBusy(false);
+    }
+  }
+
+  // 作った音声をその場で鳴らす（端末が止めたら、下の再生の部品で押して聞く）
+  const lastTtsId = ttsRuns[ttsRuns.length - 1]?.id;
+  useEffect(() => {
+    if (lastTtsId == null) return;
+    lastTtsAudio.current?.play().catch(() => {});
+  }, [lastTtsId]);
+
   // ---- 記録 ----
   const [memo, setMemo] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
@@ -216,6 +276,7 @@ export default function CheckPage() {
       audios: audios.map((a) => a.row),
       transcribes,
       voices: voiceRows,
+      ttsRuns: ttsRuns.map((t) => t.row),
       memo,
     });
     setFallback(null);
@@ -486,6 +547,113 @@ export default function CheckPage() {
             </span>
           </div>
         ))}
+      </section>
+
+      <section className="stack">
+        <h2>5. 問いかけの読み上げ（OpenAI）</h2>
+        <p className="disclosure">{TTS_DISCLOSURE}</p>
+        <p className="sub">
+          0019 の試し。例文だけを送る（家族の言葉は送らない）。速さ、落ち着き（相づちや感情が乗っていないか）、日本語の自然さ、端末の間の差を聞く。
+        </p>
+        <label>
+          例文{" "}
+          <select
+            value={QUESTION_SAMPLES.indexOf(ttsParams.input)}
+            onChange={(e) => {
+              const i = Number(e.target.value);
+              if (i >= 0) setTts("input", QUESTION_SAMPLES[i]!);
+            }}
+          >
+            {QUESTION_SAMPLES.indexOf(ttsParams.input) < 0 && <option value={-1}>（書き換えた文）</option>}
+            {QUESTION_SAMPLES.map((q, i) => (
+              <option key={q} value={i}>
+                {q}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="stack">
+          文
+          <textarea rows={2} value={ttsParams.input} onChange={(e) => setTts("input", e.target.value)} />
+        </label>
+        <label>
+          model{" "}
+          <select value={ttsParams.model} onChange={(e) => setTts("model", e.target.value as CheckSpeechParams["model"])}>
+            {checkSpeechModels.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          voice{" "}
+          <select value={ttsParams.voice} onChange={(e) => setTts("voice", e.target.value as CheckSpeechParams["voice"])}>
+            {checkSpeechVoices.map((v) => (
+              <option key={v} value={v}>
+                {v}
+                {checkSpeechVoicesNotForTts1.includes(v) ? "（tts-1 系では使えない）" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="stack">
+          instructions（空なら送らない）
+          <textarea rows={3} value={ttsParams.instructions} onChange={(e) => setTts("instructions", e.target.value)} />
+        </label>
+        {tts1 && ttsParams.instructions.trim() !== "" && (
+          <p className="sub">tts-1 / tts-1-hd は instructions を受けない（公式）。そのまま送るので、断られるか無視されるかを見る。</p>
+        )}
+        <div className="row">
+          speed
+          {TTS_SPEEDS.map((v) => (
+            <button key={v} type="button" className={ttsParams.speed === v ? "primary" : undefined} onClick={() => setTts("speed", v)}>
+              {v.toFixed(1)}
+            </button>
+          ))}
+        </div>
+        <label>
+          response_format{" "}
+          <select
+            value={ttsParams.response_format}
+            onChange={(e) => setTts("response_format", e.target.value as CheckSpeechParams["response_format"])}
+          >
+            {checkSpeechFormats.map((f) => (
+              <option key={f}>{f}</option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="primary" onClick={() => void makeSpeech()} disabled={ttsBusy || ttsParams.input.trim() === ""}>
+          {ttsBusy ? "作っています…" : "作って聞く"}
+        </button>
+        {ttsNote && <p role="alert">{ttsNote}</p>}
+        {ttsRuns
+          .map((t, i) => ({ t, n: i + 1 }))
+          .reverse()
+          .map(({ t, n }) => (
+            <div className="stack check-result" key={t.id}>
+              <h3>
+                {n}. {t.row.params.model} / {t.row.params.voice} / {t.row.params.response_format} / speed {t.row.params.speed}
+              </h3>
+              <p>{t.row.params.input}</p>
+              {t.url ? (
+                <>
+                  <p>
+                    サーバー {t.row.serverMs ?? "-"} ms（OpenAI の応答の頭まで）/ 端末 {t.row.totalMs} ms（受け取り終わるまで）/{" "}
+                    {t.row.size == null ? "-" : kb(t.row.size)}（{t.row.size ?? "-"} バイト）/ {t.row.contentType ?? "-"}
+                  </p>
+                  <p className="disclosure">{TTS_DISCLOSURE}</p>
+                  <audio controls src={t.url} ref={t.id === lastTtsId ? lastTtsAudio : undefined} />
+                </>
+              ) : (
+                <>
+                  <p>
+                    失敗 HTTP {t.row.httpStatus} / OpenAI {t.row.openaiStatus ?? "-"}
+                    {t.row.networkError ? ` / ${t.row.networkError}` : ""} / 端末 {t.row.totalMs} ms
+                  </p>
+                  <pre>{typeof t.row.body === "string" ? t.row.body : JSON.stringify(t.row.body, null, 2)}</pre>
+                </>
+              )}
+            </div>
+          ))}
       </section>
 
       <section className="stack">

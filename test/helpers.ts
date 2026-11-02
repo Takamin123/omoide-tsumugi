@@ -1,7 +1,7 @@
 import { createAnthropicClaude, type AnthropicClaudeOptions } from "../src/server/adapters/anthropic-claude";
 import { createApp } from "../src/server/app";
 import { notConfiguredClaude } from "../src/server/core/claude";
-import type { AppDeps, ClaudeClient, PhotoStore, Repositories, Transcriber, TranscribeInput, TranscribeProbe } from "../src/server/core/ports";
+import type { AppDeps, ClaudeClient, ClaudePurpose, PhotoStore, Repositories, SpeechProbe, Transcriber, TranscribeInput, TranscribeProbe } from "../src/server/core/ports";
 import { createD1Repositories } from "../src/server/platform/cloudflare/d1-repositories";
 import { INVITE_COOKIE } from "../src/server/routes/auth";
 import { fs, path, repoRoot } from "./node";
@@ -45,6 +45,7 @@ export function fakeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     transcriber: fakeTranscriber(),
     claude: notConfiguredClaude,
     transcribeProbe: null,
+    speechProbe: null,
     runInBackground: () => {},
     config: { appEnv: "development", createFamilyToken: null },
     now: () => new Date(),
@@ -189,6 +190,19 @@ export function fakeClaudeFetch(script: FakeClaudeScript = {}): { fetch: typeof 
   return { fetch: fetchImpl, requests };
 }
 
+/**
+ * 一つの用途の call だけを claude に通し、ほかの用途と Batch はキーなし（not_configured）にする。
+ * 写真の登録で背景の写真の整理が走っても、台本の応答を食わないようにする
+ */
+export function onlyPurpose(claude: ClaudeClient, purpose: ClaudePurpose): ClaudeClient {
+  return {
+    call: (req) => (req.prompt.purpose === purpose ? claude.call(req) : notConfiguredClaude.call(req)),
+    createBatch: (req) => notConfiguredClaude.createBatch(req),
+    getBatch: (id) => notConfiguredClaude.getBatch(id),
+    getBatchResults: (req) => notConfiguredClaude.getBatchResults(req),
+  };
+}
+
 /** 偽の API につないだ本物の実装。待ち時間は記録するだけで実際には待たない */
 export function fakeClaude(
   script: FakeClaudeScript = {},
@@ -244,6 +258,7 @@ export function makeTestApp(
     transcriber?: ReturnType<typeof fakeTranscriber>;
     claude?: ClaudeClient;
     transcribeProbe?: TranscribeProbe;
+    speechProbe?: SpeechProbe;
     now?: Date;
   } = {},
 ): TestApp {
@@ -257,6 +272,7 @@ export function makeTestApp(
     transcriber,
     claude: opts.claude ?? notConfiguredClaude,
     transcribeProbe: opts.transcribeProbe ?? null,
+    speechProbe: opts.speechProbe ?? null,
     runInBackground: (t) => void background.push(t),
     config: { appEnv: opts.appEnv ?? "development", createFamilyToken: CREATE_TOKEN },
     now: () => now,

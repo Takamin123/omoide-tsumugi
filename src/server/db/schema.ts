@@ -69,16 +69,43 @@ export const photos = sqliteTable(
   ],
 );
 
-/** Claude による写っている内容の説明（推測）。家族には見せない。 */
-export const photoGuesses = sqliteTable("photo_guesses", {
-  id: text("id").primaryKey(),
-  photoId: text("photo_id").notNull().references(() => photos.id),
-  familyId: text("family_id").notNull().references(() => families.id),
-  description: text("description").notNull(),
-  model: text("model").notNull(),
-  promptVersion: text("prompt_version").notNull(),
-  createdAt: integer("created_at").notNull(),
-});
+/** Claude による写っている内容の説明（推測）。家族には見せない。同じ写真・同じ版の説明は一つ。 */
+export const photoGuesses = sqliteTable(
+  "photo_guesses",
+  {
+    id: text("id").primaryKey(),
+    photoId: text("photo_id").notNull().references(() => photos.id),
+    familyId: text("family_id").notNull().references(() => families.id),
+    description: text("description").notNull(),
+    model: text("model").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("photo_guesses_photo_version").on(t.photoId, t.promptVersion), index("photo_guesses_family").on(t.familyId)],
+);
+
+/**
+ * 写真の説明を作っている途中の記録（作業の表。推測そのものは持たない）。
+ * 写真・版ごとに一行。行を「取った」処理だけが Claude を呼ぶ（同じ写真を二度呼ばない・二度 Batch に入れない）。
+ * 説明ができたら行を消す。失敗は state = 'failed' で残し、attempts が上限に届いたら取り直さない。
+ */
+export const photoGuessRequests = sqliteTable(
+  "photo_guess_requests",
+  {
+    photoId: text("photo_id").notNull().references(() => photos.id),
+    promptVersion: text("prompt_version").notNull(),
+    familyId: text("family_id").notNull().references(() => families.id),
+    state: text("state", { enum: ["working", "failed"] }).notNull(),
+    batchId: text("batch_id"), // Batch に入れたもの。一枚ずつ呼んでいるものは null
+    attempts: integer("attempts").notNull(),
+    claimedAt: integer("claimed_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.photoId, t.promptVersion] }),
+    index("photo_guess_requests_batch").on(t.batchId),
+    index("photo_guess_requests_family").on(t.familyId),
+  ],
+);
 
 export const narrations = sqliteTable(
   "narrations",

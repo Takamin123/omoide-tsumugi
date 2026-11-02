@@ -23,6 +23,7 @@ import {
   fakeClaude,
   fakeTranscriber,
   makeTestApp,
+  onlyPurpose,
   postForm,
   startD1,
   type FakeClaudeReply,
@@ -283,7 +284,7 @@ const ok = (marked: string): FakeClaudeReply => ({ kind: "json", value: { marked
 
 async function setup(replies: FakeClaudeReply[], transcript: { ok: true; text: string } | { ok: false; reason: "upstream" } = { ok: true, text: TRANSCRIPT }) {
   const fc = fakeClaude({ replies });
-  const t = makeTestApp(d1, { claude: fc.claude, transcriber: fakeTranscriber(() => transcript) });
+  const t = makeTestApp(d1, { claude: onlyPurpose(fc.claude, "clean_transcript"), transcriber: fakeTranscriber(() => transcript) });
   const f = await createFamily(t);
   const m = await addMember(t, f.cookie, { calledAs: "ばあば", role: "elder", relation: "祖母", speechStyle: "dialect", dialectRegion: "広島" });
   const p = await addPhoto(t, f.cookie, m.id, 1);

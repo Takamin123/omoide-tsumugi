@@ -1,6 +1,6 @@
 // 開発用の確かめページ（/check）の、DOM なしで確かめられる部分。家族に見せる言葉ではないので words.ts には入れない。
 // 記録（Markdown）には緯度経度・写真や録音のファイル名を入れない。組み立てる関数が、決めた欄だけを拾う。
-import { AUDIO_TYPE_PATTERN, type CheckTranscribeParams } from "../../shared/check";
+import { AUDIO_TYPE_PATTERN, type CheckSpeechParams, type CheckTranscribeParams } from "../../shared/check";
 
 export type Field = CheckTranscribeParams["fields"][number];
 export type Model = CheckTranscribeParams["model"];
@@ -50,6 +50,27 @@ export type TranscribeRow = {
 
 export type VoiceRow = { name: string; lang: string; localService: boolean; default: boolean };
 
+/** 問いかけの読み上げ（OpenAI）を一回作った記録。文は例文なので残してよい（家族の言葉ではない） */
+export type TtsRow = {
+  params: CheckSpeechParams;
+  /** /api/check/speech の HTTP status（401、404 など） */
+  httpStatus: number;
+  /** 音声が返ったか */
+  ok: boolean;
+  /** OpenAI の HTTP status（音声のときは 200）。届かなかったときは null */
+  openaiStatus: number | null;
+  networkError: string | null;
+  /** サーバーで測った、OpenAI の応答の頭が届くまでの時間 */
+  serverMs: number | null;
+  /** 端末で測った、押してから音声を受け取り終わるまでの時間 */
+  totalMs: number;
+  /** 受け取った音声の大きさ（バイト） */
+  size: number | null;
+  contentType: string | null;
+  /** 失敗のときの本文 */
+  body: unknown;
+};
+
 export type Report = {
   device: { userAgent: string; screenWidth: number; innerWidth: number; devicePixelRatio: number; at: string };
   recorderSupport: { type: string; supported: boolean | null }[];
@@ -57,6 +78,8 @@ export type Report = {
   audios: AudioRow[];
   transcribes: TranscribeRow[];
   voices: VoiceRow[];
+  /** 問いかけの読み上げ（OpenAI）。古い呼び方のために省略できる */
+  ttsRuns?: TtsRow[];
   memo: string;
 };
 
@@ -113,6 +136,26 @@ export const SPEECH_SAMPLES = [
 ];
 
 export const SPEECH_RATES = [0.8, 0.9, 1.0] as const;
+
+/**
+ * 問いかけの読み上げ（OpenAI、0019）の例文。0017 の検査に合う形にしている:
+ * 60 字以内、文は一つ、末尾は「か」か「ください」、禁止語（覚えて、誰ですか、写真を など）を含まない、推測を入れない。
+ */
+export const QUESTION_SAMPLES = [
+  "この日のことで、心に残っていることを聞かせてください。",
+  "このころの暮らしで、よく思い出す場面はありますか。",
+  "ばあばの言葉を読んで、浮かんだことを聞かせてください。",
+];
+
+/** 声への指示の初期値（0019: ゆっくり、落ち着いて、感情を足さない。文だけを読む） */
+export const TTS_DEFAULT_INSTRUCTIONS =
+  "日本語で、ゆっくり、落ち着いた声で読んでください。感情を込めたり抑揚を大きくしたりせず、書かれた文だけをそのまま読み、前置きや相づちを足さないでください。";
+
+/** 速さの候補（公式の範囲は 0.25〜4.0、既定は 1.0） */
+export const TTS_SPEEDS = [0.8, 0.9, 1.0, 1.1] as const;
+
+/** 欄のそばにいつも出す明示の文（0019） */
+export const TTS_DISCLOSURE = "AI の声で読みます";
 
 const PROD_PROMPT = "家族が写真を見ながら思い出を語っています。";
 
@@ -281,6 +324,36 @@ export function buildReport(r: Report): string {
     ),
     "",
   );
+
+  out.push("## 問いかけの読み上げ（OpenAI）", "");
+  const tts = r.ttsRuns ?? [];
+  out.push(
+    table(
+      ["#", "model", "voice", "形式", "speed", "結果", "サーバー", "端末", "大きさ", "type"],
+      tts.map((t, i) => [
+        String(i + 1),
+        t.params.model,
+        t.params.voice,
+        t.params.response_format,
+        String(t.params.speed),
+        t.ok
+          ? "音声"
+          : `失敗 HTTP ${t.httpStatus} / OpenAI ${t.openaiStatus ?? "-"}${t.networkError ? ` / ${t.networkError}` : ""}`,
+        t.serverMs == null ? "-" : `${t.serverMs} ms`,
+        `${t.totalMs} ms`,
+        t.size == null ? "-" : kb(t.size),
+        t.contentType ?? "-",
+      ]),
+    ),
+    "",
+  );
+  tts.forEach((t, i) => {
+    out.push(`### 読み上げ ${i + 1}`, "");
+    out.push(`- 文: ${t.params.input}`);
+    out.push(`- 声への指示: ${t.params.instructions.trim() ? JSON.stringify(t.params.instructions) : "（送らない）"}`);
+    if (!t.ok) out.push("", "```json", bodyText(t.body), "```");
+    out.push("");
+  });
 
   out.push("## メモ", "", r.memo.trim() || "（なし）", "");
   return out.join("\n");

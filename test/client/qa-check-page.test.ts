@@ -158,10 +158,10 @@ const stripComments = (src: string) =>
     .replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
 
 describe("確かめページは写真の情報を外へ送らず、console にも出さない", () => {
-  it("外へ送る口は fetch(\"/api/check/transcribe\") の一か所だけ", () => {
+  it("外へ送る口は fetch(\"/api/check/transcribe\") と fetchImpl(\"/api/check/speech\") だけ", () => {
     const all = checkSources.map((f) => stripComments(f.src)).join("\n");
-    const fetches = [...all.matchAll(/\bfetch\s*\(\s*([^,)]*)/g)].map((m) => m[1]!.trim());
-    expect(fetches).toEqual(['"/api/check/transcribe"']);
+    const fetches = [...all.matchAll(/\bfetch(?:Impl)?\s*\(\s*([^,)]*)/g)].map((m) => m[1]!.trim());
+    expect(fetches.sort()).toEqual(['"/api/check/speech"', '"/api/check/transcribe"']);
     for (const word of ["XMLHttpRequest", "sendBeacon", "WebSocket", "EventSource", "/lib/api", "localStorage", "sessionStorage", "indexedDB"]) {
       expect(all).not.toContain(word);
     }
