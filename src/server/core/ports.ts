@@ -201,6 +201,43 @@ export interface TranscribeProbeResult {
   body: unknown;
 }
 
+// ---- 読み上げ（試しの段階。0019） ----
+
+/**
+ * 開発用の確かめ（POST /api/check/speech）で、読み上げを生のまま呼ぶ。人が入れた値をそのまま送る。
+ * 音声はメモリに載せず、ストリームのまま返す。失敗の応答は検証せずに人に見せる。
+ */
+export interface SpeechProbe {
+  probe(input: SpeechProbeInput): Promise<SpeechProbeResult>;
+}
+export interface SpeechProbeInput {
+  model: string;
+  input: string;
+  voice: string;
+  /** null なら送らない */
+  instructions: string | null;
+  speed: number;
+  responseFormat: string;
+}
+export type SpeechProbeResult =
+  | {
+      ok: true;
+      status: number;
+      /** 応答の頭が届くまでの時間 */
+      elapsedMs: number;
+      contentType: string;
+      audio: ReadableStream<Uint8Array>;
+    }
+  | {
+      ok: false;
+      /** HTTP status。届かなかったときは null */
+      status: number | null;
+      networkError: string | null;
+      elapsedMs: number;
+      /** JSON なら解釈したもの、そうでなければ文字列（先頭だけ） */
+      body: unknown;
+    };
+
 // ---- 設定と依存 ----
 
 export interface AppConfig {
@@ -220,6 +257,8 @@ export interface AppDeps {
   transcriber: Transcriber;
   /** 開発用の確かめ。キーがなければ null */
   transcribeProbe: TranscribeProbe | null;
+  /** 開発用の読み上げの確かめ。キーがなければ null */
+  speechProbe: SpeechProbe | null;
   runInBackground: RunInBackground;
   config: AppConfig;
   now: () => Date;

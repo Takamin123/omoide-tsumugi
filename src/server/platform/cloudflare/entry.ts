@@ -1,5 +1,6 @@
 // Workers の入り口。Workers 専用の API（env.DB、env.BUCKET、ExecutionContext）を使うのは、この層だけにする。
 import { createOpenAITranscribeProbe, createOpenAITranscriber } from "../../adapters/openai-transcriber";
+import { createOpenAISpeechProbe } from "../../adapters/openai-speech";
 import { createApp } from "../../app";
 import type { AppDeps } from "../../core/ports";
 import { runMorning } from "../../core/morning";
@@ -18,6 +19,7 @@ export function createCloudflareDeps(env: Env, ctx: Pick<ExecutionContext, "wait
     photos: createR2PhotoStore(env.BUCKET),
     transcriber: secrets.OPENAI_API_KEY ? createOpenAITranscriber(secrets.OPENAI_API_KEY) : notConfiguredTranscriber,
     transcribeProbe: secrets.OPENAI_API_KEY ? createOpenAITranscribeProbe(secrets.OPENAI_API_KEY) : null,
+    speechProbe: secrets.OPENAI_API_KEY ? createOpenAISpeechProbe(secrets.OPENAI_API_KEY) : null,
     runInBackground: (task) => ctx.waitUntil(task),
     config: {
       // 分からないときは本番とみなす（時計を使える家族を狭い側に倒す）

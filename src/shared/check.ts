@@ -51,3 +51,68 @@ export type CheckTranscribeResult = {
   /** 応答の本文。JSON なら解釈したもの、そうでなければ文字列（長すぎるものは切る） */
   body: unknown;
 };
+
+// ---- 問いかけの読み上げ（POST /api/check/speech）。0019 の試し。毎朝の処理の仕組みではない ----
+// 公式（2026-11-03 に確かめた）:
+//   https://developers.openai.com/api/docs/guides/text-to-speech
+//   https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create
+// tts-1、tts-1-hd、gpt-4o-mini-tts は 2027-01-06 に終了する（0019 の見直す条件）。
+
+/** 確かめで呼んでよい読み上げのモデル */
+export const checkSpeechModels = ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"] as const;
+
+/**
+ * 公式の声の一覧（13）。ballad、verse、marin、cedar は tts-1 / tts-1-hd では使えない。
+ * 組み合わせの検査はしない（OpenAI が断るかどうかも確かめのうちなので、そのまま送る）。
+ */
+export const checkSpeechVoices = [
+  "marin",
+  "cedar",
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+  "verse",
+] as const;
+
+/** tts-1 / tts-1-hd で使えない声（画面で印を付けるため） */
+export const checkSpeechVoicesNotForTts1: readonly (typeof checkSpeechVoices)[number][] = ["ballad", "verse", "marin", "cedar"];
+
+/** 返してもらう形式。pcm はヘッダーのない生の音で、ブラウザの audio で鳴らせないので入れない */
+export const checkSpeechFormats = ["mp3", "aac", "opus", "wav", "flac"] as const;
+
+/** 公式の上限は 4096 字。問いかけは 60 字以内（0017）なので、確かめでも短く抑える */
+export const CHECK_SPEECH_MAX_INPUT = 500;
+export const CHECK_SPEECH_MAX_INSTRUCTIONS = 1_000;
+
+export const checkSpeechParamsSchema = z.object({
+  model: z.enum(checkSpeechModels),
+  input: z.string().trim().min(1).max(CHECK_SPEECH_MAX_INPUT),
+  voice: z.enum(checkSpeechVoices),
+  /** 空なら送らない（tts-1 / tts-1-hd は instructions を受けない） */
+  instructions: z.string().max(CHECK_SPEECH_MAX_INSTRUCTIONS),
+  /** 公式の範囲は 0.25〜4.0 */
+  speed: z.number().min(0.25).max(4),
+  response_format: z.enum(checkSpeechFormats),
+});
+export type CheckSpeechParams = z.infer<typeof checkSpeechParamsSchema>;
+
+/** 応答の種類を表すヘッダー。audio なら本文は音声、failure なら CheckSpeechFailure の JSON */
+export const CHECK_SPEECH_RESULT_HEADER = "x-check-speech";
+/** OpenAI が応答の頭を返すまでの時間（ミリ秒）。音声のときだけ付ける */
+export const CHECK_SPEECH_ELAPSED_HEADER = "x-check-elapsed-ms";
+
+/** POST /api/check/speech で、OpenAI が音声を返さなかったとき（200 で返す）。status と本文をそのまま見せる */
+export type CheckSpeechFailure = {
+  /** OpenAI の HTTP status。届かなかったときは null */
+  status: number | null;
+  networkError: string | null;
+  elapsedMs: number;
+  body: unknown;
+};

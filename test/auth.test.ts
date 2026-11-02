@@ -36,6 +36,7 @@ describe("合言葉の確認", () => {
       "GET /api/photos",
       "GET /api/photos/:id/image",
       "PATCH /api/members/:id",
+      "POST /api/check/speech",
       "POST /api/check/transcribe",
       "POST /api/demo/clock/advance",
       "POST /api/families",
