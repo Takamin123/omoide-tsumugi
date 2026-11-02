@@ -119,11 +119,13 @@ const PROD_PROMPT = "家族が写真を見ながら思い出を語っていま�
 /**
  * 欄のひな形。公式ドキュメント（developers.openai.com/api/docs/guides/speech-to-text）の書き方を実機で試す。
  * 「本番と同じ」は src/server/adapters/openai-transcriber.ts の今の欄（prompt は transcribePrompt(null) と同じ文）。
- * サーバーのコードはここから読めないので、文を写している。model があるひな形は、モデルも切り替える。
+ * サーバーのコードはここから読めないので、prompt の文とモデル名（TRANSCRIBE_MODEL）を写している。
+ * どのひな形もモデルを決める（前に押したひな形のモデルが残ると、別のモデルで送ってしまうため）。
  */
-export const FIELD_TEMPLATES: { label: string; model?: Model; fields: Field[] }[] = [
+export const FIELD_TEMPLATES: { label: string; model: Model; fields: Field[] }[] = [
   {
     label: "本番と同じ",
+    model: "gpt-transcribe",
     fields: [
       ["language", "ja"],
       ["response_format", "json"],
@@ -132,6 +134,7 @@ export const FIELD_TEMPLATES: { label: string; model?: Model; fields: Field[] }[
   },
   {
     label: "公式の書き方",
+    model: "gpt-transcribe",
     fields: [
       ["languages[]", "ja"],
       ["prompt", PROD_PROMPT],
@@ -161,6 +164,7 @@ export const FIELD_TEMPLATES: { label: string; model?: Model; fields: Field[] }[
   },
   {
     label: "keywords 括弧なし",
+    model: "gpt-transcribe",
     fields: [
       ["languages[]", "ja"],
       ["keywords", "鶴見川"],

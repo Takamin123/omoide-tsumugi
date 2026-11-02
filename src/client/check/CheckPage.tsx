@@ -402,7 +402,7 @@ export default function CheckPage() {
               type="button"
               onClick={() => {
                 setFields(t.fields.map((f) => [...f] as Field));
-                if (t.model) setModel(t.model);
+                setModel(t.model);
               }}
             >
               {t.label}

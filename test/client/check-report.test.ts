@@ -190,7 +190,7 @@ describe("小さな関数とひな形", () => {
 
   it("ひな形の欄の名前とモデルは、約束の一覧にある", () => {
     for (const t of FIELD_TEMPLATES) {
-      if (t.model) expect(checkTranscribeModels).toContain(t.model);
+      expect(checkTranscribeModels).toContain(t.model);
       for (const [name] of t.fields) expect(checkTranscribeFieldNames).toContain(name);
     }
     expect(checkTranscribeFieldNames).toContain(UNSPOKEN_KEYWORD[0]);
