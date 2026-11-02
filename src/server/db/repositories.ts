@@ -2,7 +2,7 @@
 // 実行環境ごとに違うのは「drizzle のデータベース」と「いくつかの文を一度に行う方法」だけで、入り口の層が渡す。
 // - D1: db.batch()（対話的なトランザクションは使えない）
 // - better-sqlite3: db.transaction() の中で順に run する
-import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { BatchItem as DrizzleBatchItem } from "drizzle-orm/batch";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type {
@@ -11,6 +11,7 @@ import type {
   FamilyRow,
   MemberRow,
   NarrationRow,
+  OpsEntranceRow,
   PhotoGuessRow,
   PhotoRow,
   Repositories,
@@ -466,6 +467,28 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .where(eq(photoGuesses.familyId, familyId))
           .orderBy(asc(photoGuesses.createdAt), asc(photoGuesses.id))
           .all()) as PhotoGuessRow[];
+      },
+    },
+
+    opsRecords: {
+      async listEntrances(familyId) {
+        const rows = await db
+          .select()
+          .from(entrances)
+          .where(eq(entrances.familyId, familyId))
+          .orderBy(desc(entrances.forDate), asc(entrances.memberId))
+          .all();
+        return rows.map(
+          (r): OpsEntranceRow => ({
+            ...toEntrance(r),
+            reason: r.reason,
+            model: r.model,
+            promptVersion: r.promptVersion,
+            inputNarrationIds: r.inputNarrationIds,
+            inputTokens: r.inputTokens,
+            outputTokens: r.outputTokens,
+          }),
+        );
       },
     },
   };

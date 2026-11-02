@@ -247,6 +247,26 @@ export interface PhotoGuessRepository {
   listByFamily(familyId: string): Promise<PhotoGuessRow[]>;
 }
 
+// ---- 運営の記録の画面（運営と開発だけが見る。家族向けの API には使わない） ----
+
+/**
+ * 入り口の行の全部（Claude の推測の側も含む）。名前は schema.ts の entrances の列に合わせる。
+ * reason・model などは家族に見せない（0017）。運営の記録の画面だけが読む
+ */
+export interface OpsEntranceRow extends EntranceRow {
+  reason: string | null;
+  model: string | null;
+  promptVersion: string | null;
+  inputNarrationIds: string[] | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+export interface OpsRecordRepository {
+  /** その家族の入り口をすべて（日付の新しい順） */
+  listEntrances(familyId: string): Promise<OpsEntranceRow[]>;
+}
+
 /** データベースのリポジトリの集まり。 */
 export interface Repositories {
   families: FamilyRepository;
@@ -255,6 +275,7 @@ export interface Repositories {
   narrations: NarrationRepository;
   entrances: EntranceRepository;
   photoGuesses: PhotoGuessRepository;
+  opsRecords: OpsRecordRepository;
 }
 
 // ---- 文字起こし ----
