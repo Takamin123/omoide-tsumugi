@@ -136,7 +136,7 @@ const row = (over: Partial<NarrationRow> = {}): NarrationRow => ({
   transcriptStatus: "done",
   cleanedText: GOOD_CLEANED,
   cleanedModel: CLAUDE_HAIKU,
-  cleanedPromptVersion: "clean_transcript/v1",
+  cleanedPromptVersion: "clean_transcript/v2",
   uncertainSpans: [{ start: 10, end: 12 }],
   forDate: "2026-11-03",
   createdAt: 0,
@@ -318,7 +318,7 @@ describe("文字起こしの後に一度だけ整形する", () => {
       transcript: TRANSCRIPT,
       cleaned_text: GOOD_CLEANED,
       cleaned_model: CLAUDE_HAIKU,
-      cleaned_prompt_version: "clean_transcript/v1",
+      cleaned_prompt_version: "clean_transcript/v2",
       uncertain_spans: JSON.stringify([{ start: 10, end: 12 }]),
     });
     const { raw, body } = await listed(s);
@@ -335,7 +335,7 @@ describe("文字起こしの後に一度だけ整形する", () => {
       const id = await post(s);
       const lines = spy.mock.calls.map((c) => String(c[0]));
       const done = lines.map((l) => JSON.parse(l) as Record<string, unknown>).find((l) => l.event === "clean_transcript_done");
-      expect(done).toMatchObject({ narrationId: id, status: "done", uncertainSpans: 1, attempts: 2, promptVersion: "clean_transcript/v1" });
+      expect(done).toMatchObject({ narrationId: id, status: "done", uncertainSpans: 1, attempts: 2, promptVersion: "clean_transcript/v2" });
       for (const l of lines) {
         expect(l).not.toContain("交番");
         expect(l).not.toContain("式の日");
@@ -345,14 +345,14 @@ describe("文字起こしの後に一度だけ整形する", () => {
     }
   });
 
-  it("Haiku に、v1 のプロンプトと、話し手の話し方・文字起こしを送る", async () => {
+  it("Haiku に、今の版のプロンプトと、話し手の話し方・文字起こしを送る", async () => {
     const s = await setup([ok(GOOD)]);
     await post(s);
     const req = s.fc.requests.find((r) => r.path === "/v1/messages")!;
     const body = req.body as { model: string; system: string; messages: { content: { type: string; text?: string }[] }[] };
     expect(body.model).toBe(CLAUDE_HAIKU);
     expect(body.system).toBe(PROMPTS.clean_transcript.text);
-    expect(PROMPTS.clean_transcript.version).toBe("clean_transcript/v1");
+    expect(PROMPTS.clean_transcript.version).toBe("clean_transcript/v2");
     const text = body.messages[0]!.content[0]!.text!;
     expect(text).toContain("呼ばれ方: ばあば");
     expect(text).toContain("広島の言葉");
@@ -392,7 +392,7 @@ describe("文字起こしの後に一度だけ整形する", () => {
     const changed = await s.t.deps.repos.narrations.setCleaned(s.f.familyId, id, {
       cleanedText: "これは",
       cleanedModel: CLAUDE_HAIKU,
-      cleanedPromptVersion: "clean_transcript/v1",
+      cleanedPromptVersion: "clean_transcript/v2",
       uncertainSpans: [],
     });
     expect(changed).toBe(false);
@@ -408,7 +408,7 @@ describe("文字起こしの後に一度だけ整形する", () => {
     const changed = await s.t.deps.repos.narrations.setCleaned(s.f.familyId, id, {
       cleanedText: "x",
       cleanedModel: CLAUDE_HAIKU,
-      cleanedPromptVersion: "clean_transcript/v1",
+      cleanedPromptVersion: "clean_transcript/v2",
       uncertainSpans: [],
     });
     expect(changed).toBe(false);

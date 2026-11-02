@@ -35,7 +35,7 @@ const row = (over: Partial<NarrationRow> = {}): NarrationRow => ({
   transcriptStatus: "done",
   cleanedText: CLEANED,
   cleanedModel: CLAUDE_HAIKU,
-  cleanedPromptVersion: "clean_transcript/v1",
+  cleanedPromptVersion: "clean_transcript/v2",
   uncertainSpans: [{ start: 10, end: 12 }],
   forDate: "2026-11-03",
   createdAt: 0,
@@ -229,7 +229,7 @@ describe("整形の背景の流れ（QA）", () => {
     const changed = await s.t.deps.repos.narrations.setCleaned(other.familyId, id, {
       cleanedText: "これは",
       cleanedModel: CLAUDE_HAIKU,
-      cleanedPromptVersion: "clean_transcript/v1",
+      cleanedPromptVersion: "clean_transcript/v2",
       uncertainSpans: [],
     });
     expect(changed).toBe(false);

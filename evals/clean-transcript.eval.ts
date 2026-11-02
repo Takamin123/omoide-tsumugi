@@ -1,6 +1,7 @@
 // 文字起こしの整形（clean_transcript）の出し比べ。本物の Haiku を、架空の家族（evals/fixtures/family-a.json）の声の語りで呼ぶ。
 // npm test には入れない。手元で ANTHROPIC_API_KEY があるときだけ動く:
 //   ANTHROPIC_API_KEY=... npm run eval:clean
+//   または .dev.vars の ANTHROPIC_API_KEY（worktree では EVAL_DEV_VARS=<メインの .dev.vars> npm run eval:clean）
 //   EVAL_REPEAT=3 で同じ語りを 3 回ずつ（ぶれを見る）。EVAL_OUT=<path> で書き出し先を変える
 // 結果は docs/_wip/prompt-evals/<日本時間の日付>-clean-transcript.md に書く。
 // アプリと同じ部品（buildCleanInput、checkMarked、parseMarked、displayText、PROMPTS）を使い、検査も同じにする。
@@ -22,12 +23,36 @@ import { fs, path, processEnv, repoRoot } from "../test/node";
 import type { FamilyFixture, FixtureNarration } from "./fixtures/types";
 
 const env = processEnv();
-const apiKey = env.ANTHROPIC_API_KEY;
+
+/**
+ * キーは環境変数か、.dev.vars（リポジトリに入らないファイル）から読む。値は出さない。
+ * worktree で走らせるときは EVAL_DEV_VARS にメインの作業ツリーの .dev.vars を指す
+ */
+function readKey(): string | undefined {
+  if (env.ANTHROPIC_API_KEY) return env.ANTHROPIC_API_KEY;
+  const file = env.EVAL_DEV_VARS ?? path.join(repoRoot, ".dev.vars");
+  if (!fs.existsSync(file)) return undefined;
+  for (const line of (fs.readFileSync(file, "utf8") as string).split(/\r?\n/)) {
+    const m = /^\s*ANTHROPIC_API_KEY\s*=\s*(.*?)\s*$/.exec(line);
+    if (m && m[1]) return m[1].replace(/^(["'])(.*)\1$/, "$2");
+  }
+  return undefined;
+}
+const apiKey = readKey();
 const repeat = Math.max(1, Number(env.EVAL_REPEAT ?? "1") || 1);
 
 function jstDate(d = new Date()): string {
   return new Date(d.getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 }
+
+/**
+ * 削られてはいけない語の回帰（0022）。方言の意味のある語で、言いよどみと同じ音のもの。
+ * 期待値なのでプロンプトには渡さない。残ったか、消えたか、印で隠れたかを数える
+ */
+const MUST_KEEP: Record<string, string[]> = {
+  "n03-new-year-baaba": ["えっと"],
+  "n05-wedding-baaba": ["えーと"],
+};
 
 const quote = (s: string) => s.split("\n").map((l) => `> ${l}`).join("\n");
 
@@ -50,6 +75,8 @@ type Outcome = {
   mishearings: { heard: string; intended: string; result: "印あり" | "印なし" | "消えた" | "整形なし" }[];
   /** 期待した聞き間違いに当たらない印 */
   unexpectedSpans: string[];
+  /** 削られてはいけない語ごとの結果（MUST_KEEP） */
+  mustKeep: { word: string; result: "残った" | "印で隠れた" | "消えた" | "整形なし" }[];
 };
 
 function judge(n: FixtureNarration, cleaned: string | null, spans: { start: number; end: number }[]) {
@@ -62,7 +89,14 @@ function judge(n: FixtureNarration, cleaned: string | null, spans: { start: numb
     return { heard: m.heard, intended: m.intended, result: marked ? ("印あり" as const) : ("印なし" as const) };
   });
   const unexpectedSpans = spanTexts.filter((t) => !n.mishearings.some((m) => t.includes(m.heard) || m.heard.includes(t)));
-  return { spanTexts, mishearings, unexpectedSpans };
+  const mustKeep = (MUST_KEEP[n.id] ?? []).map((word) => {
+    if (!cleaned) return { word, result: "整形なし" as const };
+    const at = cleaned.indexOf(word);
+    if (at < 0) return { word, result: "消えた" as const };
+    const hidden = spans.some((s) => s.start < at + word.length && at < s.end);
+    return { word, result: hidden ? ("印で隠れた" as const) : ("残った" as const) };
+  });
+  return { spanTexts, mishearings, unexpectedSpans, mustKeep };
 }
 
 function report(fixture: FamilyFixture, outcomes: Outcome[]): string {
@@ -86,12 +120,16 @@ function report(fixture: FamilyFixture, outcomes: Outcome[]): string {
   lines.push(`- 整形できた: ${done} / ${outcomes.length}`);
   lines.push(`- 期待した聞き間違い: 印あり ${caught} / ${expected.length}、消えた ${lost}`);
   lines.push(`- 期待にない印: ${unexpected}`);
+  const keep = outcomes.flatMap((o) => o.mustKeep);
+  lines.push(
+    `- 削られてはいけない方言の語（0022）: 残った ${keep.filter((k) => k.result === "残った").length} / ${keep.length}、印で隠れた ${keep.filter((k) => k.result === "印で隠れた").length}、消えた ${keep.filter((k) => k.result === "消えた").length}`,
+  );
   lines.push(`- トークン: 入力 ${tokensIn}、出力 ${tokensOut}`, "");
-  lines.push("| 語り | 回 | 結果 | 試行 | 印 | 期待した聞き間違い | 期待にない印 |", "|---|---|---|---|---|---|---|");
+  lines.push("| 語り | 回 | 結果 | 試行 | 印 | 期待した聞き間違い | 期待にない印 | 削られてはいけない語 |", "|---|---|---|---|---|---|---|---|");
   for (const o of outcomes) {
     const result = o.ok ? "done" : `failed（${o.reason}${o.violation ? ` / ${o.violation}` : ""}）`;
     const mh = o.mishearings.map((m) => `${m.heard}: ${m.result}`).join("、") || "-";
-    lines.push(`| ${o.narration.id} | ${o.run} | ${result} | ${o.attempts} | ${o.spans.length} | ${mh} | ${o.unexpectedSpans.join("、") || "-"} |`);
+    lines.push(`| ${o.narration.id} | ${o.run} | ${result} | ${o.attempts} | ${o.spans.length} | ${mh} | ${o.unexpectedSpans.join("、") || "-"} | ${o.mustKeep.map((k) => `${k.word}: ${k.result}`).join("、") || "-"} |`);
   }
   lines.push("");
 
@@ -153,6 +191,7 @@ describe.skipIf(!apiKey)("出し比べ: clean_transcript", () => {
           spans: j.spanTexts,
           mishearings: j.mishearings,
           unexpectedSpans: j.unexpectedSpans,
+          mustKeep: j.mustKeep,
         });
       }
     }
