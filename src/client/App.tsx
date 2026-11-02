@@ -16,8 +16,11 @@ import { Start } from "./screens/Start";
 import { WhoAreYou } from "./screens/WhoAreYou";
 import { words } from "./words";
 
-/** 開発用の確かめページ。ふだんの画面の読み込みを重くしないよう分ける */
-const CheckPage = lazy(() => import("./check/CheckPage"));
+/**
+ * 開発用の確かめページ。ふだんの画面の読み込みを重くしないよう分ける。
+ * 本番のビルドでは __CHECK_PAGE__ が false になり、chunk ごと入らない。/check はほかの知らない道と同じ扱いになる（0014）
+ */
+const CheckPage = __CHECK_PAGE__ ? lazy(() => import("./check/CheckPage")) : null;
 
 type Load =
   | { state: "loading" }
@@ -45,12 +48,13 @@ export function App() {
   }, []);
 
   const joinToken = tokenFromJoinPath(path);
-  const needsFamily = !joinToken && path !== "/start" && path !== "/check";
+  const isCheck = CheckPage !== null && path === "/check";
+  const needsFamily = !joinToken && path !== "/start" && !isCheck;
   useEffect(() => {
     if (needsFamily) void reload();
   }, [needsFamily, reload]);
 
-  if (path === "/check") {
+  if (isCheck) {
     return (
       <Suspense fallback={<main><p>{words.loading}</p></main>}>
         <CheckPage />

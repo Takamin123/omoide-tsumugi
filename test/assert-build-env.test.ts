@@ -228,7 +228,7 @@ describe("assert-build-env.mjs（設定の写しと、真似たビルドの出�
 // 本物の vite build で、CLOUDFLARE_ENV ごとのバインディングと、assert の結果を確かめる。
 describe("assert-build-env.mjs（一時コピーで本物の vite build をして）", () => {
   const dir = tmpDir();
-  for (const f of ["index.html", "vite.config.ts", "package.json", "tsconfig.json", "tsconfig.base.json", "tsconfig.client.json", "tsconfig.worker.json", "tsconfig.node.json"]) {
+  for (const f of ["index.html", "vite.config.ts", "vite.check-page.ts", "package.json", "tsconfig.json", "tsconfig.base.json", "tsconfig.client.json", "tsconfig.worker.json", "tsconfig.node.json"]) {
     fs.copyFileSync(path.join(repoRoot, f), path.join(dir, f));
   }
   fs.cpSync(path.join(repoRoot, "src"), path.join(dir, "src"), { recursive: true });
@@ -245,6 +245,8 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     const { configPath } = JSON.parse(fs.readFileSync(path.join(dir, ".wrangler/deploy/config.json"), "utf8"));
     return JSON.parse(fs.readFileSync(path.resolve(dir, ".wrangler/deploy", configPath), "utf8"));
   };
+  /** クライアントの出力にある、開発用の /check の chunk（docs/decisions/0014） */
+  const checkChunks = () => (fs.readdirSync(path.join(dir, "dist/client/assets")) as string[]).filter((n) => /^CheckPage-.*\.js$/.test(n));
 
   it("vite build（本番）: 本番のバインディングになり、production は通り preview は止まる", () => {
     const c = build();
@@ -255,6 +257,10 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     expect(c.triggers.crons).toEqual(["0 21 * * *"]);
     expect(run(dir, ["production"]).status).toBe(0);
     expect(run(dir, ["preview"]).status).toBe(1);
+    // 本番のビルドには、開発用の /check の chunk も、その中身も入らない
+    expect(checkChunks()).toEqual([]);
+    const assets = path.join(dir, "dist/client/assets");
+    for (const n of fs.readdirSync(assets) as string[]) expect(fs.readFileSync(path.join(assets, n), "utf8"), n).not.toContain("/api/check/");
   }, 60_000);
 
   it("CLOUDFLARE_ENV=preview vite build: プレビューのバインディングになり、preview は通り production は止まる", () => {
@@ -266,5 +272,7 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     expect(c.triggers.crons).toEqual(["0 21 * * *"]);
     expect(run(dir, ["preview"]).status).toBe(0);
     expect(run(dir, ["production"]).status).toBe(1);
+    // プレビューのビルドには、開発用の /check の chunk が入る
+    expect(checkChunks()).toHaveLength(1);
   }, 60_000);
 });

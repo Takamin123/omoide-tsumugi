@@ -190,8 +190,9 @@ describe("確かめページは写真の情報を外へ送らず、console に�
 describe("App: /check は家族の読み込みをしない", () => {
   it("needsFamily から /check を外し、家族の画面より先に返す", () => {
     const app = stripComments(fs.readFileSync(path.join(repoRoot, "src/client/App.tsx"), "utf8") as string);
-    expect(app).toMatch(/const needsFamily = [^;]*path !== "\/check"/);
-    const checkAt = app.indexOf('if (path === "/check")');
+    expect(app).toMatch(/const isCheck = CheckPage !== null && path === "\/check";/);
+    expect(app).toMatch(/const needsFamily = [^;]*!isCheck;/);
+    const checkAt = app.indexOf("if (isCheck)");
     expect(checkAt).toBeGreaterThan(0);
     expect(checkAt).toBeLessThan(app.indexOf("if (joinToken)"));
   });
