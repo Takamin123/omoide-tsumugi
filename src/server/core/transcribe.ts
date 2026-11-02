@@ -14,11 +14,14 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
   // 録音の形式と大きさ（マイクと録音済みファイルが同じ流れに乗ったかを、ログで見比べるため。本文は出さない）
   let contentType: string | null = narration.audioContentType;
   let audioBytes: number | null = null;
+  let keywordCandidates = 0;
   try {
-    const [speaker, stored] = await Promise.all([
-      repos.members.get(familyId, narration.speakerMemberId),
-      deps.photos.get(narration.audioKey),
-    ]);
+    const [members, stored] = await Promise.all([repos.members.list(familyId), deps.photos.get(narration.audioKey)]);
+    const speaker = members.find((m) => m.id === narration.speakerMemberId);
+    // 綴りの手がかりは、この家族の呼ばれ方だけ（0013）。推測の語や位置から引いた地名は入れない
+    // 上限で切られても話し手の呼ばれ方が残るよう、話し手を先に置く
+    const keywords = [...(speaker ? [speaker] : []), ...members.filter((m) => m !== speaker)].map((m) => m.calledAs);
+    keywordCandidates = keywords.length;
     if (!stored) {
       outcome = { status: "failed", reason: "audio_missing" };
     } else {
@@ -29,6 +32,7 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
       const r = await deps.transcriber.transcribe({
         audio: typed,
         dialectRegion: speaker?.speechStyle === "dialect" ? speaker.dialectRegion : null,
+        keywords,
       });
       outcome = r.ok ? { status: "done", text: r.text } : { status: "failed", reason: r.reason };
     }
@@ -45,6 +49,8 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
       status: outcome.status,
       contentType,
       audioBytes,
+      // 語そのものは出さない。数だけ
+      keywordCandidates,
       ...(outcome.status === "failed" ? { reason: outcome.reason } : {}),
     }),
   );

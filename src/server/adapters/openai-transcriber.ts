@@ -7,6 +7,24 @@ export const TRANSCRIBE_MODEL = "gpt-transcribe";
 const ENDPOINT = "https://api.openai.com/v1/audio/transcriptions";
 const TIMEOUT_MS = 60_000;
 
+/** keywords[] の件数の上限。公式に上限の記述がないので控えめにする（0013） */
+export const MAX_TRANSCRIBE_KEYWORDS = 20;
+// keywords に <、>、改行が入ると、API がリクエスト全体を断る
+const FORBIDDEN_KEYWORD_CHARS = /[<>\r\n]/;
+
+/** 送る keywords。空・禁止文字を含む語を除き、重複をまとめ、上限で切る。 */
+export function transcribeKeywords(words: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const raw of words) {
+    if (FORBIDDEN_KEYWORD_CHARS.test(raw)) continue;
+    const w = raw.trim();
+    if (!w || out.includes(w)) continue;
+    out.push(w);
+    if (out.length >= MAX_TRANSCRIBE_KEYWORDS) break;
+  }
+  return out;
+}
+
 const responseSchema = z.object({ text: z.string() });
 
 /** 方言の地域を、文字起こしの手がかりとして prompt に入れる。家族には見せない。 */
@@ -17,15 +35,18 @@ export function transcribePrompt(dialectRegion: string | null): string {
 
 export function createOpenAITranscriber(apiKey: string, fetchImpl: typeof fetch = fetch): Transcriber {
   return {
-    async transcribe({ audio, dialectRegion }) {
+    async transcribe({ audio, dialectRegion, keywords }) {
+      const sendKeywords = transcribeKeywords(keywords);
       // 時間切れ・429・5xx は一度だけやり直す
       for (let attempt = 0; attempt < 2; attempt++) {
         const form = new FormData();
         form.append("file", audio, fileName(audio.type));
         form.append("model", TRANSCRIBE_MODEL);
-        form.append("language", "ja");
+        // gpt-transcribe の形。whisper 世代の language とは両方送らない（0013）
+        form.append("languages[]", "ja");
         form.append("response_format", "json");
         form.append("prompt", transcribePrompt(dialectRegion));
+        for (const k of sendKeywords) form.append("keywords[]", k);
         let res: Response;
         try {
           res = await fetchImpl(ENDPOINT, {

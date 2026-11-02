@@ -100,7 +100,7 @@ describe("createCloudflareDeps の設定", () => {
     const deps = createCloudflareDeps(env, fakeCtx());
     expect(deps.config.appEnv).toBe("production");
     expect(deps.config.createFamilyToken).toBeNull();
-    expect(await deps.transcriber.transcribe({ audio: new Blob([]), dialectRegion: null })).toEqual({ ok: false, reason: "not_configured" });
+    expect(await deps.transcriber.transcribe({ audio: new Blob([]), dialectRegion: null, keywords: [] })).toEqual({ ok: false, reason: "not_configured" });
   });
 
   it("確かめの入り口（transcribeProbe）は、OpenAI のキーがあるときだけ作る", () => {

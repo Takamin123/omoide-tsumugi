@@ -173,6 +173,11 @@ export interface TranscribeInput {
   audio: Blob;
   /** 方言の地域（「鹿児島」）。標準の話し方なら null */
   dialectRegion: string | null;
+  /**
+   * 綴りを固定したい、家族自身に由来する語（今は members の呼ばれ方だけ。0013）。
+   * Claude の推測や、位置から引いた地名は入れない。API の決まりに合わせた絞り込みは実装が行う。
+   */
+  keywords: string[];
 }
 
 /** 文字起こし。外から来るデータなので、実装は応答を検証してから返す。失敗は投げずに種類で返す。 */

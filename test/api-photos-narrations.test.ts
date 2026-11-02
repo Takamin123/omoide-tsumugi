@@ -1,5 +1,5 @@
 // 写真と語り: 受け取り、冪等、ほかの家族からは見えないこと、返すときのヘッダ、背景の文字起こし。
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   addMember,
   addPhoto,
@@ -163,6 +163,7 @@ describe("POST /api/narrations", () => {
     await t2.flush();
     expect(tr.calls).toHaveLength(1);
     expect(tr.calls[0]!.dialectRegion).toBe("鹿児島");
+    expect(tr.calls[0]!.keywords).toEqual(["ばあば"]);
     const list = (await (await t2.app.request(`/api/narrations?photoId=${p.id}`, { headers: { Cookie: f.cookie } })).json()) as {
       narrations: { transcriptStatus: string; text: string }[];
     };
@@ -172,6 +173,39 @@ describe("POST /api/narrations", () => {
     expect(audio.status).toBe(200);
     expect(audio.headers.get("cache-control")).toBe("private, no-store");
     expect(audio.headers.get("content-type")).toBe("audio/webm;codecs=opus");
+  });
+
+  it("keywords はこの家族の呼ばれ方だけ。ほかの家族の呼ばれ方は混ざらず、ログには数だけ出す", async () => {
+    const tr = fakeTranscriber(() => ({ ok: true, text: "架空の文字起こし" }));
+    const t2 = makeTestApp(d1, { transcriber: tr });
+    const other = await createFamily(t2);
+    await addMember(t2, other.cookie, { calledAs: "よその架空のおばちゃん" });
+    const f = await createFamily(t2);
+    const g = await addMember(t2, f.cookie, { role: "elder", relation: "祖父", calledAs: "架空のじいじ" });
+    await addMember(t2, f.cookie, { calledAs: "架空のけんちゃん" });
+    const p = await addPhoto(t2, f.cookie, g.id, 1);
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    });
+    try {
+      const res = await postForm(t2, "/api/narrations", narrationForm({ ...textMeta(g.id, p.id), kind: "voice", text: null }, fakeAudio), f.cookie);
+      expect(res.status).toBe(202);
+      await t2.flush();
+    } finally {
+      spy.mockRestore();
+    }
+    expect(tr.calls).toHaveLength(1);
+    // 話し手（架空のじいじ）が先。上限で切られても話し手の呼ばれ方が残る
+    expect(tr.calls[0]!.keywords).toEqual(["架空のじいじ", "架空のけんちゃん"]);
+    const done = logs.find((l) => l.includes("transcribe_done"));
+    expect(done).toBeDefined();
+    expect(JSON.parse(done!)).toMatchObject({ keywordCandidates: 2 });
+    for (const l of logs) {
+      expect(l).not.toContain("架空のじいじ");
+      expect(l).not.toContain("架空のけんちゃん");
+      expect(l).not.toContain("よその架空のおばちゃん");
+    }
   });
 
   it("文字起こしが失敗したら（キーがないときを含む）、録音は残し、文字は空のまま failed", async () => {
