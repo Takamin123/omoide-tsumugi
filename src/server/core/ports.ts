@@ -1,6 +1,7 @@
 // アプリが外の世界に頼るもののインターフェース。
 // ハンドラと core はこれだけを見る。D1・R2（Workers）でも、better-sqlite3・ローカルのファイル（VPS）でも実装できる形にする。
 // 理由は docs/decisions/0002-cloudflare-workers.md
+import type { z } from "zod";
 import type { Clock } from "../../shared/api";
 
 /** 写真と録音の保存先。非公開で持つ。返すのは、合言葉を確かめた後だけ。 */
@@ -201,6 +202,116 @@ export interface TranscribeProbeResult {
   body: unknown;
 }
 
+// ---- Claude ----
+// 用途ごとの関数ではなく、汎用の形にする。用途の中身（プロンプト、スキーマ、検査）は呼ぶ側が持つ。
+// 応答は外から来るデータとして、実装が zod で検証してから返す。失敗は投げずに種類で返す。全か無か。
+
+/** Claude を使う用途。用途 → モデルは core/claude.ts の対応表で一か所に持つ */
+export type ClaudePurpose = "photo_guess" | "clean_transcript" | "entrance";
+
+/** プロンプト（system に入れる）。src/server/prompts/ が用途ごとに今の版を一つ持つ */
+export interface ClaudePrompt {
+  purpose: ClaudePurpose;
+  /** 保存に入れる版の文字列。"<用途>/v<N>"（例 "entrance/v1"） */
+  version: string;
+  text: string;
+}
+
+/** user の一通に入れるもの。画像は縮小済みのバイト列を base64 にしたもの（core/claude.ts の bytesToBase64） */
+export type ClaudeContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; base64: string };
+
+export interface ClaudeCallRequest<T> {
+  prompt: ClaudePrompt;
+  content: ClaudeContentPart[];
+  /** 構造化出力のスキーマ。送る形にも、受け取った後の検証にも使う */
+  schema: z.ZodType<T>;
+  /**
+   * スキーマを通った後の、中身の検査（引用の ID が実在するか、試す言い回しがないか、など）。
+   * 違反の種類（短い英字。ログに出る）を返すと失敗として扱い、再試行の対象にする。問題なければ null。
+   * 違反の種類に、受け取った本文を入れない。
+   */
+  check?: (value: T) => string | null;
+  /** 処理の ID（ログで追うため） */
+  traceId?: string;
+}
+
+/** 保存とログに使う、呼び出しの記録。本文は持たない */
+export interface ClaudeCallMeta {
+  purpose: ClaudePurpose;
+  /** 応答に書かれたモデル（応答がなければ要求したモデル） */
+  model: string;
+  promptVersion: string;
+  /** 全試行の合計 */
+  inputTokens: number;
+  outputTokens: number;
+  /** 何回送ったか（送る前に止めたら 0） */
+  attempts: number;
+}
+
+export type ClaudeFailure =
+  | "not_configured"
+  | "timeout"
+  | "network"
+  | "rate_limited"
+  | "upstream"
+  | "rejected"
+  | "auth"
+  | "too_large"
+  | "refused"
+  | "truncated"
+  | "invalid_response"
+  | "check_failed";
+
+export type ClaudeCallResult<T> =
+  | { ok: true; value: T; meta: ClaudeCallMeta }
+  | { ok: false; reason: ClaudeFailure; /** check_failed（と送る前に止めた rejected）の、違反の種類 */ violation?: string; meta: ClaudeCallMeta };
+
+/** Batch API に入れる一件。customId は 1〜64 文字の英数字・_・-（写真の ID など） */
+export interface ClaudeBatchItem {
+  customId: string;
+  content: ClaudeContentPart[];
+}
+
+export type ClaudeBatchStatus = "in_progress" | "canceling" | "ended";
+
+export interface ClaudeBatchInfo {
+  batchId: string;
+  status: ClaudeBatchStatus;
+  counts: { processing: number; succeeded: number; errored: number; canceled: number; expired: number };
+}
+
+/** Batch の結果の一行。行ごとに全か無か */
+export type ClaudeBatchRow<T> =
+  | { customId: string; ok: true; value: T; meta: ClaudeCallMeta }
+  | {
+      customId: string;
+      ok: false;
+      /** errored / canceled / expired は upstream・rejected などに読み替える */
+      reason: ClaudeFailure | "canceled" | "expired";
+      violation?: string;
+      meta: ClaudeCallMeta;
+    };
+
+export type ClaudeOpResult<T> = { ok: true; value: T } | { ok: false; reason: ClaudeFailure };
+
+/** Claude の呼び出し。家族が画面を開いている最中には呼ばない（入り口は毎朝の処理で作る） */
+export interface ClaudeClient {
+  call<T>(req: ClaudeCallRequest<T>): Promise<ClaudeCallResult<T>>;
+  /** 同じプロンプト・同じスキーマで、多くの件をまとめて頼む（半額。返るまで最長 24 時間） */
+  createBatch<T>(req: { prompt: ClaudePrompt; schema: z.ZodType<T>; items: ClaudeBatchItem[]; traceId?: string }): Promise<ClaudeOpResult<ClaudeBatchInfo>>;
+  getBatch(batchId: string, traceId?: string): Promise<ClaudeOpResult<ClaudeBatchInfo>>;
+  /** status が ended になってから呼ぶ。prompt は createBatch に渡したもの（meta の版に使う） */
+  getBatchResults<T>(req: {
+    batchId: string;
+    prompt: ClaudePrompt;
+    schema: z.ZodType<T>;
+    check?: (value: T) => string | null;
+    traceId?: string;
+  }): Promise<ClaudeOpResult<ClaudeBatchRow<T>[]>>;
+}
+
 // ---- 設定と依存 ----
 
 export interface AppConfig {
@@ -218,6 +329,7 @@ export interface AppDeps {
   repos: Repositories;
   photos: PhotoStore;
   transcriber: Transcriber;
+  claude: ClaudeClient;
   /** 開発用の確かめ。キーがなければ null */
   transcribeProbe: TranscribeProbe | null;
   runInBackground: RunInBackground;

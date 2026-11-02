@@ -1,6 +1,7 @@
 // Workers の入り口（platform/cloudflare/entry.ts）を、偽の env と ctx で動かす。
 // 毎朝の処理（scheduled）とデモ用のボタンが、同じ runMorning を通ることの土台を確かめる。
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import type { AppDeps } from "../src/server/core/ports";
 
 const runMorning = vi.fn(async (_deps: AppDeps, _now?: Date, _opts?: { familyId?: string }) => {});
@@ -107,6 +108,16 @@ describe("createCloudflareDeps の設定", () => {
     expect(createCloudflareDeps(fakeEnv(), fakeCtx()).transcribeProbe).toBeNull();
     const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", OPENAI_API_KEY: "fake-key" } as unknown as Env;
     expect(createCloudflareDeps(env, fakeCtx()).transcribeProbe).not.toBeNull();
+  });
+
+  it("Anthropic のキーがなければ、Claude は呼ばずに not_configured で返す。あれば本物の実装を作る", async () => {
+    const deps = createCloudflareDeps(fakeEnv(), fakeCtx());
+    const prompt = { purpose: "entrance" as const, version: "entrance/v0", text: "架空" };
+    const r = await deps.claude.createBatch({ prompt, schema: z.object({}), items: [] });
+    expect(r).toEqual({ ok: false, reason: "not_configured" });
+    const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", ANTHROPIC_API_KEY: "fake-key" } as unknown as Env;
+    // 本物の実装は、空の Batch を送る前に rejected で止める（not_configured ではない）
+    expect(await createCloudflareDeps(env, fakeCtx()).claude.createBatch({ prompt, schema: z.object({}), items: [] })).toEqual({ ok: false, reason: "rejected" });
   });
 
   it("秘密の値を env から読む", () => {
