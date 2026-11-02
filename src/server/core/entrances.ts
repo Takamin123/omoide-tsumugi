@@ -1,4 +1,4 @@
-// 入り口。初日は Claude を使わない「固定の入り口」だけを作る（選び方は docs/decisions/0009）。
+// 入り口。固定の入り口（Claude を使わない。選び方は docs/decisions/0009）。Claude の入り口は entrance-claude.ts。
 import { displayText } from "./clean-transcript";
 import type { AppDeps, EntranceRow, FamilyRow, MemberRow, NarrationRow, PhotoRow } from "./ports";
 
@@ -66,7 +66,7 @@ export function pickFixedPhoto(photos: PhotoRow[], past: Pick<EntranceRow, "phot
 }
 
 /** 撮影日の古い順。撮影日がないものは後ろ。同じなら登録順。 */
-function compareTaken(a: PhotoRow, b: PhotoRow): number {
+export function compareTaken(a: PhotoRow, b: PhotoRow): number {
   if (a.takenAt !== b.takenAt) {
     if (a.takenAt === null) return 1;
     if (b.takenAt === null) return -1;

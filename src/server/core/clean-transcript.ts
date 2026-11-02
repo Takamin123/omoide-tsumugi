@@ -251,16 +251,47 @@ export function displayText(n: DisplaySource): string | null {
   return n.transcript && n.transcript.length > 0 ? n.transcript : null;
 }
 
+type QuoteSourceInput = DisplaySource & Pick<NarrationRow, "kind">;
+
 /**
- * 添える家族の言葉。範囲（cleanedText の位置）がなければ全文。
- * 範囲があるのに使える整形がない、範囲が外れている、置き換えた後に言葉が残らない、のどれかなら null（引用しない）。
+ * 引用の位置を数える文字（0017）。文字の語りは transcript（整形しない）、声の語りは使える cleanedText と印の範囲。
+ * 声の語りで使える整形がなければ null（範囲つきでは引用できない。transcript の位置ではないため）
+ */
+export function quoteSource(n: QuoteSourceInput): { text: string; spans: readonly UncertainSpan[] } | null {
+  if (n.kind === "text") return n.transcript && n.transcript.length > 0 ? { text: n.transcript, spans: [] } : null;
+  return usableCleaned(n);
+}
+
+/**
+ * 添える家族の言葉。範囲（quoteSource の位置）がなければ全文。
+ * 範囲があるのに位置を数える文字がない、範囲が外れている、置き換えた後に言葉が残らない、のどれかなら null（引用しない）。
  * 切り出してから置き換える（置き換えると位置がずれるため）
  */
-export function quoteText(n: DisplaySource, start: number | null, end: number | null): string | null {
+export function quoteText(n: QuoteSourceInput, start: number | null, end: number | null): string | null {
   if (start === null || end === null) return displayText(n);
-  const c = usableCleaned(n);
+  const c = quoteSource(n);
   if (!c) return null;
   if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > c.text.length) return null;
   const text = renderSlice(c.text, c.spans, start, end);
   return significant(text.split(UNCERTAIN_PLACEHOLDER).join("")).length > 0 ? text : null;
+}
+
+/**
+ * 引用する文字列の位置を、quoteSource の文字の中で探す（[start, end)）。印の範囲と重ならない最初の出現を使う。
+ * 見つからなければ not_found、出現がすべて印と重なれば uncertain_overlap
+ */
+export function locateQuote(
+  n: QuoteSourceInput,
+  quote: string,
+): { ok: true; start: number; end: number } | { ok: false; violation: "not_citable" | "not_found" | "uncertain_overlap" } {
+  const c = quoteSource(n);
+  if (!c) return { ok: false, violation: "not_citable" };
+  if (quote.length === 0) return { ok: false, violation: "not_found" };
+  let found = false;
+  for (let at = c.text.indexOf(quote); at >= 0; at = c.text.indexOf(quote, at + 1)) {
+    found = true;
+    const end = at + quote.length;
+    if (!c.spans.some((s) => s.start < end && at < s.end)) return { ok: true, start: at, end };
+  }
+  return { ok: false, violation: found ? "uncertain_overlap" : "not_found" };
 }

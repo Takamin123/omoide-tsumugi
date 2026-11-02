@@ -119,6 +119,14 @@ export interface EntranceRow {
   quoteEnd: number | null;
   question: string | null;
   kind: "claude" | "fixed";
+  /** 以下は Claude の入り口の記録（固定の入り口では null）。運営と開発だけが見る。家族向けの API の形に入れない（0017） */
+  reason: string | null;
+  model: string | null;
+  promptVersion: string | null;
+  /** Claude に渡した語りの ID（プロンプトの全文は保存しない。組み直すため） */
+  inputNarrationIds: string[] | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
   shownAt: number | null;
   createdAt: number;
 }
@@ -127,6 +135,18 @@ export type NewFixedEntrance = Pick<
   EntranceRow,
   "id" | "familyId" | "memberId" | "forDate" | "photoId" | "quoteNarrationId" | "createdAt"
 >;
+/** Claude の入り口。question・model・promptVersion は必ず入れる */
+export type NewClaudeEntrance = Pick<
+  EntranceRow,
+  "id" | "familyId" | "memberId" | "forDate" | "photoId" | "focus" | "quoteNarrationId" | "quoteStart" | "quoteEnd" | "reason" | "createdAt"
+> & {
+  question: string;
+  model: string;
+  promptVersion: string;
+  inputNarrationIds: string[];
+  inputTokens: number;
+  outputTokens: number;
+};
 
 // ---- リポジトリ ----
 // 家族の中のものを引くときは、必ず familyId を渡す（ほかの家族のものは見えない = 404）。
@@ -182,6 +202,8 @@ export interface EntranceRepository {
   listByMember(familyId: string, memberId: string): Promise<EntranceRow[]>;
   /** (member_id, for_date) がすでにあれば入れずに false を返す。 */
   insertFixedIfAbsent(row: NewFixedEntrance): Promise<boolean>;
+  /** (member_id, for_date) がすでにあれば入れずに false を返す。 */
+  insertClaudeIfAbsent(row: NewClaudeEntrance): Promise<boolean>;
   /** 初めて見せた時刻を入れる（すでにあれば変えない）。 */
   markShown(familyId: string, entranceId: string, now: number): Promise<void>;
 }

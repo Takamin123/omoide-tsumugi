@@ -231,6 +231,12 @@ describe("quoteText: 切り出してから置き換える", () => {
       quoteEnd: 21,
       question: "q",
       kind: "claude",
+      reason: null,
+      model: null,
+      promptVersion: null,
+      inputNarrationIds: null,
+      inputTokens: null,
+      outputTokens: null,
       shownAt: null,
       createdAt: 0,
     };

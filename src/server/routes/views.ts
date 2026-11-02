@@ -39,7 +39,7 @@ export const narrationView = (n: NarrationRow): Narration => ({
 });
 
 /**
- * 添える家族の言葉は、語りの本文から範囲で引く（null なら全文）。範囲は cleanedText の位置（0017、0018）。
+ * 添える家族の言葉は、語りの本文から範囲で引く（null なら全文）。範囲は、声の語りなら cleanedText、文字の語りなら transcript の位置（0017、0018）。
  * 切り出してから印の範囲を「……」に置き換える（quoteText）。
  */
 export function entranceView(e: EntranceRow, photo: PhotoRow, quoteFrom: NarrationRow | null): Entrance {

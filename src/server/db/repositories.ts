@@ -91,6 +91,12 @@ const toEntrance = (r: EntranceRecord): EntranceRow => ({
   quoteEnd: r.quoteEnd,
   question: r.question,
   kind: r.kind,
+  reason: r.reason,
+  model: r.model,
+  promptVersion: r.promptVersion,
+  inputNarrationIds: r.inputNarrationIds,
+  inputTokens: r.inputTokens,
+  outputTokens: r.outputTokens,
   shownAt: r.shownAt,
   createdAt: r.createdAt,
 });
@@ -322,6 +328,13 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
         const res = await db
           .insert(entrances)
           .values({ ...row, kind: "fixed" })
+          .onConflictDoNothing({ target: [entrances.memberId, entrances.forDate] });
+        return changes(res) > 0;
+      },
+      async insertClaudeIfAbsent(row) {
+        const res = await db
+          .insert(entrances)
+          .values({ ...row, kind: "claude" })
           .onConflictDoNothing({ target: [entrances.memberId, entrances.forDate] });
         return changes(res) > 0;
       },

@@ -12,6 +12,7 @@
     "typecheck": "npm run cf-typegen && tsc -b",
     "test": "vitest run",
     "eval:clean": "vitest run --config vitest.evals.config.ts evals/clean-transcript.eval.ts",
+    "eval:entrance": "vitest run --config vitest.evals.config.ts evals/entrance.eval.ts",
     "cf-typegen": "wrangler types src/server/platform/cloudflare/worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
     "postinstall": "npm run cf-typegen"
