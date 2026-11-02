@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import type { AppDeps } from "./core/ports";
+import { check } from "./routes/check";
 import { requireInvite } from "./routes/auth";
 import { entrances } from "./routes/entrances";
 import type { AppEnv } from "./routes/env";
@@ -34,7 +35,8 @@ export function createApp<B extends object = object>(
     .route("/", members)
     .route("/", photos)
     .route("/", narrations)
-    .route("/", entrances);
+    .route("/", entrances)
+    .route("/", check);
   app.route("/api", api);
   app.all("/api/*", (c) => fail(c, "not_found"));
 

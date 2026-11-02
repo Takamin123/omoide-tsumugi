@@ -11,6 +11,9 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
   if (!narration || narration.kind !== "voice" || narration.transcriptStatus !== "pending" || !narration.audioKey) return;
 
   let outcome: { status: "done"; text: string } | { status: "failed"; reason: string };
+  // 録音の形式と大きさ（マイクと録音済みファイルが同じ流れに乗ったかを、ログで見比べるため。本文は出さない）
+  let contentType: string | null = narration.audioContentType;
+  let audioBytes: number | null = null;
   try {
     const [speaker, stored] = await Promise.all([
       repos.members.get(familyId, narration.speakerMemberId),
@@ -19,8 +22,10 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
     if (!stored) {
       outcome = { status: "failed", reason: "audio_missing" };
     } else {
+      contentType = narration.audioContentType ?? stored.contentType;
       const audio = await new Response(stored.body).blob();
-      const typed = new Blob([audio], { type: narration.audioContentType ?? stored.contentType });
+      audioBytes = audio.size;
+      const typed = new Blob([audio], { type: contentType });
       const r = await deps.transcriber.transcribe({
         audio: typed,
         dialectRegion: speaker?.speechStyle === "dialect" ? speaker.dialectRegion : null,
@@ -38,6 +43,8 @@ export async function transcribeNarration(deps: Pick<AppDeps, "repos" | "photos"
       familyId,
       narrationId,
       status: outcome.status,
+      contentType,
+      audioBytes,
       ...(outcome.status === "failed" ? { reason: outcome.reason } : {}),
     }),
   );

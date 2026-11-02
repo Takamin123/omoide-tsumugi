@@ -1,6 +1,7 @@
 // 語り。声は保存先へ流し、受け取ったことを先に返してから背景で文字起こしする。
 import { Hono } from "hono";
 import { narrationMetaSchema } from "../../shared/api";
+import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
 import type { NarrationRow } from "../core/ports";
 import { transcribeNarration } from "../core/transcribe";
@@ -11,7 +12,11 @@ import { narrationView, photoView } from "./views";
 
 /** 録音の上限（文字起こしの上限に合わせる） */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
-const AUDIO_TYPE = /^audio\/[a-z0-9.+-]+(;[ a-z0-9=.,+-]*)?$/i;
+
+/** 語りの受け取りが受け付ける録音か（大きさの上限は別に見る）。確かめの入り口（routes/check.ts）も同じ判定を使う */
+export function isAcceptableAudio(audio: File): boolean {
+  return audio.size > 0 && audio.type.length <= 100 && AUDIO_TYPE_PATTERN.test(audio.type);
+}
 
 export const narrations = new Hono<AppEnv>()
   .post("/narrations", async (c) => {
@@ -24,7 +29,7 @@ export const narrations = new Hono<AppEnv>()
     if (!meta) return fail(c, "invalid_request");
     const audio = form.get("audio");
     if (meta.kind === "voice") {
-      if (!(audio instanceof File) || audio.size === 0 || audio.type.length > 100 || !AUDIO_TYPE.test(audio.type)) {
+      if (!(audio instanceof File) || !isAcceptableAudio(audio)) {
         return fail(c, "invalid_request");
       }
       if (audio.size > MAX_AUDIO_BYTES) return fail(c, "too_large");

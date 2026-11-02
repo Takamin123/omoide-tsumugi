@@ -1,5 +1,5 @@
 import { createApp } from "../src/server/app";
-import type { AppDeps, PhotoStore, Repositories, Transcriber, TranscribeInput } from "../src/server/core/ports";
+import type { AppDeps, PhotoStore, Repositories, Transcriber, TranscribeInput, TranscribeProbe } from "../src/server/core/ports";
 import { createD1Repositories } from "../src/server/platform/cloudflare/d1-repositories";
 import { INVITE_COOKIE } from "../src/server/routes/auth";
 import { fs, path, repoRoot } from "./node";
@@ -41,6 +41,7 @@ export function fakeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     repos: unusedRepos,
     photos: memoryPhotoStore(),
     transcriber: fakeTranscriber(),
+    transcribeProbe: null,
     runInBackground: () => {},
     config: { appEnv: "development", createFamilyToken: null },
     now: () => new Date(),
@@ -95,7 +96,7 @@ export interface TestApp {
 
 export function makeTestApp(
   d1: D1Database,
-  opts: { appEnv?: string; transcriber?: ReturnType<typeof fakeTranscriber>; now?: Date } = {},
+  opts: { appEnv?: string; transcriber?: ReturnType<typeof fakeTranscriber>; transcribeProbe?: TranscribeProbe; now?: Date } = {},
 ): TestApp {
   let now = opts.now ?? new Date("2026-11-02T00:00:00Z"); // 日本時間 9:00
   const background: Promise<unknown>[] = [];
@@ -105,6 +106,7 @@ export function makeTestApp(
     repos: createD1Repositories(d1),
     photos: store,
     transcriber,
+    transcribeProbe: opts.transcribeProbe ?? null,
     runInBackground: (t) => void background.push(t),
     config: { appEnv: opts.appEnv ?? "development", createFamilyToken: CREATE_TOKEN },
     now: () => now,

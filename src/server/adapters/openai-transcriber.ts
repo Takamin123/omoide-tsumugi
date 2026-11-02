@@ -1,7 +1,7 @@
 // OpenAI の文字起こし。fetch だけを使うので、Workers でも VPS でも同じものを使える。
 // 応答は外から来るデータとして zod で検証する。エラーの本文や入力はログに出さない。
 import { z } from "zod";
-import type { Transcriber } from "../core/ports";
+import type { Transcriber, TranscribeProbe } from "../core/ports";
 
 export const TRANSCRIBE_MODEL = "gpt-transcribe";
 const ENDPOINT = "https://api.openai.com/v1/audio/transcriptions";
@@ -56,11 +56,57 @@ export function createOpenAITranscriber(apiKey: string, fetchImpl: typeof fetch 
   };
 }
 
-function fileName(type: string): string {
+/** 送るファイルの名前。OpenAI は名前の拡張子で形式を見るので、録音の形式から決める（確かめの入り口も同じものを使う） */
+export function fileName(type: string): string {
   if (type.includes("webm")) return "audio.webm";
   if (type.includes("mp4") || type.includes("m4a") || type.includes("aac")) return "audio.m4a";
   if (type.includes("mpeg") || type.includes("mp3")) return "audio.mp3";
   if (type.includes("wav")) return "audio.wav";
   if (type.includes("ogg")) return "audio.ogg";
   return "audio.webm";
+}
+
+const PROBE_BODY_MAX_CHARS = 20_000;
+
+/**
+ * 開発用の確かめ（POST /api/check/transcribe）のための、生の呼び出し。
+ * 人が入れた欄をそのまま送り、OpenAI の status と本文を検証せずに返す。再試行はしない。
+ * 家族の流れでは使わない（家族の流れは createOpenAITranscriber で、応答を検証する）。
+ */
+export function createOpenAITranscribeProbe(apiKey: string, fetchImpl: typeof fetch = fetch): TranscribeProbe {
+  return {
+    async probe({ audio, model, fields }) {
+      const name = fileName(audio.type);
+      const form = new FormData();
+      form.append("file", audio, name);
+      form.append("model", model);
+      for (const [k, v] of fields) form.append(k, v);
+      const started = Date.now();
+      let res: Response;
+      try {
+        res = await fetchImpl(ENDPOINT, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: form,
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+      } catch (e) {
+        const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+        return { status: null, networkError: timedOut ? "timeout" : "network", elapsedMs: Date.now() - started, fileName: name, body: null };
+      }
+      let text: string;
+      try {
+        text = await res.text();
+      } catch {
+        return { status: res.status, networkError: "body_read", elapsedMs: Date.now() - started, fileName: name, body: null };
+      }
+      let body: unknown;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text.slice(0, PROBE_BODY_MAX_CHARS);
+      }
+      return { status: res.status, networkError: null, elapsedMs: Date.now() - started, fileName: name, body };
+    },
+  };
 }

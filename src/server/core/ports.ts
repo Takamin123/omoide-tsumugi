@@ -181,6 +181,21 @@ export interface Transcriber {
 }
 export type TranscribeFailure = "not_configured" | "timeout" | "rate_limited" | "upstream" | "rejected" | "invalid_response";
 
+/** 開発用の確かめ（POST /api/check/transcribe）で、文字起こしを生のまま呼ぶ。応答は検証せずに人に見せる */
+export interface TranscribeProbe {
+  probe(input: { audio: Blob; model: string; fields: [string, string][] }): Promise<TranscribeProbeResult>;
+}
+export interface TranscribeProbeResult {
+  /** HTTP status。届かなかったときは null */
+  status: number | null;
+  networkError: string | null;
+  elapsedMs: number;
+  /** 実際に付けたファイル名 */
+  fileName: string;
+  /** JSON なら解釈したもの、そうでなければ文字列（先頭だけ） */
+  body: unknown;
+}
+
 // ---- 設定と依存 ----
 
 export interface AppConfig {
@@ -198,6 +213,8 @@ export interface AppDeps {
   repos: Repositories;
   photos: PhotoStore;
   transcriber: Transcriber;
+  /** 開発用の確かめ。キーがなければ null */
+  transcribeProbe: TranscribeProbe | null;
   runInBackground: RunInBackground;
   config: AppConfig;
   now: () => Date;
