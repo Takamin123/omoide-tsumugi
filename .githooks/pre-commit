@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# 有効にする: git config core.hooksPath .githooks
+exec "$(git rev-parse --show-toplevel)/scripts/check-staged.sh"

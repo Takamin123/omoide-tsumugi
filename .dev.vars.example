@@ -1,0 +1,10 @@
+# 手元用の秘密の値の名前の一覧。値は書かない。
+# cp .dev.vars.example .dev.vars として、.dev.vars に値を書く（.dev.vars は git の管理から外してある）
+# 手順: .claude/skills/setup-secrets/SKILL.md
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+DEMO_RESET_TOKEN=
+HEALTHCHECK_TOKEN=
