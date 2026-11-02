@@ -74,12 +74,16 @@ function stripComments(src: string): string {
 }
 const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), "utf8") as string;
 
+/** 開発用の確かめページ（/check）。家族に見せないので、言葉をこの中に置いてよい */
+const checkDir = path.join(clientDir, "check");
+
 describe("家族に見せる日本語は words.ts にだけある", () => {
-  it("words.ts 以外の src/client に、コメント以外の日本語がない", () => {
+  it("words.ts 以外の src/client に、コメント以外の日本語がない（開発用の check/ を除く）", () => {
     const jp = /[぀-ヿ㐀-鿿！-｠]/;
     const offenders: string[] = [];
     for (const file of listFiles(clientDir)) {
       if (file.endsWith(`${path.sep}words.ts`)) continue;
+      if (file.startsWith(`${checkDir}${path.sep}`)) continue;
       stripComments(fs.readFileSync(file, "utf8"))
         .split("\n")
         .forEach((line: string, i: number) => {
@@ -87,6 +91,17 @@ describe("家族に見せる日本語は words.ts にだけある", () => {
         });
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("check/ のファイルは、先頭で開発用と断っている。家族の画面からは読み込まない（App の lazy だけ）", () => {
+    const files = listFiles(checkDir);
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) expect(fs.readFileSync(f, "utf8").split("\n")[0]).toMatch(/開発用/);
+    const importers = listFiles(clientDir).filter(
+      (f) => !f.startsWith(`${checkDir}${path.sep}`) && /["']\.{1,2}\/(?:\.\.\/)*check\//.test(fs.readFileSync(f, "utf8")),
+    );
+    expect(importers.map((f) => path.relative(repoRoot, f))).toEqual(["src/client/App.tsx"]);
+    expect(read("src/client/App.tsx")).toMatch(/lazy\(\(\) => import\("\.\/check\/CheckPage"\)\)/);
   });
 });
 

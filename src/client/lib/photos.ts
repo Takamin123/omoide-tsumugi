@@ -36,6 +36,24 @@ export async function readExifFacts(file: Blob): Promise<ExifFacts> {
   return { takenAt, latitude: location?.latitude ?? null, longitude: location?.longitude ?? null };
 }
 
+/** EXIF が残っているかを見るための項目。位置（GPS）は読まない */
+const EXIF_PROBE_TAGS = ["Make", "Model", "Software", "DateTimeOriginal", "CreateDate", "Orientation", "ExifImageWidth"];
+
+/**
+ * 読めた EXIF の項目名だけを返す（値は返さない。位置は読まない）。空なら EXIF ごと消えている。読めなければ null。
+ * 開発用の確かめページ（/check）が、位置だけ消えたのか EXIF ごと消えたのかを見分けるために使う。
+ */
+export async function readExifTagNames(file: Blob): Promise<string[] | null> {
+  try {
+    const tags = (await exifr.parse(file, { gps: false, pick: EXIF_PROBE_TAGS, reviveValues: false })) as
+      | Record<string, unknown>
+      | undefined;
+    return tags ? EXIF_PROBE_TAGS.filter((k) => tags[k] !== undefined) : [];
+  } catch {
+    return null;
+  }
+}
+
 export async function sha256Hex(file: Blob): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return toHex(new Uint8Array(digest));

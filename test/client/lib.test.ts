@@ -8,7 +8,7 @@ const exifrMock = vi.hoisted(() => ({ parse: vi.fn(), gps: vi.fn() }));
 vi.mock("exifr", () => ({ default: exifrMock }));
 
 const load = (name: string): Promise<any> => import(name);
-const { readExifFacts } = await load("../../src/client/lib/photos");
+const { readExifFacts, readExifTagNames } = await load("../../src/client/lib/photos");
 const { api, ApiError } = await load("../../src/client/lib/api");
 const { sendVoice, sendText } = await load("../../src/client/lib/voice");
 const { loadMe, saveMe } = await load("../../src/client/lib/me");
@@ -57,6 +57,24 @@ describe("readExifFacts: 位置は丸めた値だけを返す", () => {
     exifrMock.gps.mockResolvedValue(undefined);
     await readExifFacts(blob());
     expect(exifrMock.parse.mock.calls[0]?.[1]).toMatchObject({ reviveValues: false });
+  });
+});
+
+describe("readExifTagNames: 項目名だけを返し、位置は読まない（開発用の /check）", () => {
+  beforeEach(() => exifrMock.parse.mockReset());
+
+  it("gps: false で読み、値ではなく読めた項目名だけを返す", async () => {
+    exifrMock.parse.mockResolvedValue({ Make: "X", Model: "Y", latitude: 12.3 });
+    expect(await readExifTagNames(blob())).toEqual(["Make", "Model"]);
+    expect((exifrMock.parse.mock.calls[0] as any[])[1]).toMatchObject({ gps: false });
+    expect((exifrMock.parse.mock.calls[0] as any[])[1].pick).not.toContain("GPSLatitude");
+  });
+
+  it("EXIF がないときは空、読めないときは null（分けて見せる）", async () => {
+    exifrMock.parse.mockResolvedValueOnce(undefined);
+    expect(await readExifTagNames(blob())).toEqual([]);
+    exifrMock.parse.mockRejectedValueOnce(new Error("bad"));
+    expect(await readExifTagNames(blob())).toBeNull();
   });
 });
 

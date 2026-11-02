@@ -1,5 +1,5 @@
 // 道すじと、家族の情報・本人の持ち方。画面の流れは docs/decisions/0008-first-day-screens-and-words.md
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api, ApiError, type FamilyViewWithClock } from "./lib/api";
 import { errorText } from "./lib/errors";
 import { loadMe, saveMe } from "./lib/me";
@@ -15,6 +15,9 @@ import { Join } from "./screens/Join";
 import { Start } from "./screens/Start";
 import { WhoAreYou } from "./screens/WhoAreYou";
 import { words } from "./words";
+
+/** 開発用の確かめページ。ふだんの画面の読み込みを重くしないよう分ける */
+const CheckPage = lazy(() => import("./check/CheckPage"));
 
 type Load =
   | { state: "loading" }
@@ -42,11 +45,18 @@ export function App() {
   }, []);
 
   const joinToken = tokenFromJoinPath(path);
-  const needsFamily = !joinToken && path !== "/start";
+  const needsFamily = !joinToken && path !== "/start" && path !== "/check";
   useEffect(() => {
     if (needsFamily) void reload();
   }, [needsFamily, reload]);
 
+  if (path === "/check") {
+    return (
+      <Suspense fallback={<main><p>{words.loading}</p></main>}>
+        <CheckPage />
+      </Suspense>
+    );
+  }
   if (joinToken) {
     return (
       <Join

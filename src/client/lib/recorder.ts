@@ -1,7 +1,8 @@
 // 録音（MediaRecorder）。画面からは start / stop だけを使う。
 // 録った Blob は、録音済みファイルと同じ送る関数（voice.ts の sendVoice）に渡す。
 
-const preferredTypes = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"];
+/** 録音の形式の候補。先頭から順に、ブラウザが対応するものを使う（確かめページも同じ一覧を見せる） */
+export const preferredTypes = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"] as const;
 
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return undefined;
