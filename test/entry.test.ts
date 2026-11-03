@@ -128,6 +128,24 @@ describe("createCloudflareDeps の設定", () => {
 
   it("秘密の値を env から読む", () => {
     const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", CREATE_FAMILY_TOKEN: "t" } as unknown as Env;
-    expect(createCloudflareDeps(env, fakeCtx()).config).toEqual({ appEnv: "preview", createFamilyToken: "t" });
+    expect(createCloudflareDeps(env, fakeCtx()).config).toEqual({
+      appEnv: "preview",
+      createFamilyToken: "t",
+      opsRecordToken: null,
+      opsRecordFamilies: [],
+    });
+  });
+
+  it("運営の記録の鍵と、見てよい家族の ID（カンマ区切り、空白と空の項目は捨てる）を読む（0030）", () => {
+    const env = {
+      DB: {},
+      BUCKET: fakeBucket(),
+      APP_ENV: "production",
+      OPS_RECORD_TOKEN: "o",
+      OPS_RECORD_FAMILIES: " fam-a, ,fam-b,",
+    } as unknown as Env;
+    const config = createCloudflareDeps(env, fakeCtx()).config;
+    expect(config.opsRecordToken).toBe("o");
+    expect(config.opsRecordFamilies).toEqual(["fam-a", "fam-b"]);
   });
 });

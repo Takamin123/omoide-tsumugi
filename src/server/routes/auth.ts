@@ -4,6 +4,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { hashToken, timingSafeEqual } from "../core/secrets";
+import type { AppConfig } from "../core/ports";
 import type { AppEnv } from "./env";
 import { fail } from "./http";
 
@@ -29,8 +30,9 @@ function isApiPath(path: string): boolean {
 }
 
 /**
- * 合言葉ではなく、運営の鍵（CREATE_FAMILY_TOKEN の Bearer）で守る入り口の頭。運営の記録の画面だけ（0025）。
- * 家族の合言葉の cookie では開かない。PUBLIC_ROUTES とは違い、確認を飛ばすのではなく、別の鍵で確かめる
+ * 合言葉ではなく、運営の鍵（OPS_RECORD_TOKEN の Bearer）で守る入り口の頭。運営の記録の画面だけ（0025、0030）。
+ * 家族の合言葉の cookie でも、家族を作る鍵（CREATE_FAMILY_TOKEN）でも開かない。
+ * PUBLIC_ROUTES とは違い、確認を飛ばすのではなく、別の鍵で確かめる
  */
 export const OPS_PATH_PREFIX = "/api/ops/";
 
@@ -40,12 +42,37 @@ export function isOpsPath(path: string): boolean {
   return p === "/api/ops" || p.startsWith(OPS_PATH_PREFIX);
 }
 
-/** Authorization: Bearer の値が、運営の鍵と同じか。鍵の設定がなければ誰も通さない */
+/** 運営の鍵の長さの下限。人間がランダムに作る（例: openssl rand -base64 32 は 44 文字）。0030 */
+export const OPS_KEY_MIN_LENGTH = 32;
+
+export type OpsKeyMisconfig = "too_short" | "same_as_create_family_token";
+
+/**
+ * 設定された運営の鍵が使えるか。短すぎる・家族を作る鍵と同じ値なら、設定なしとみなす（0027 の「別の鍵」を設定の誤りからも守る）。
+ * 設定がないときは null（誤りではない）
+ */
+export function opsKeyMisconfig(config: AppConfig): OpsKeyMisconfig | null {
+  const key = config.opsRecordToken;
+  if (!key) return null;
+  if (key.length < OPS_KEY_MIN_LENGTH) return "too_short";
+  if (config.createFamilyToken && key === config.createFamilyToken) return "same_as_create_family_token";
+  return null;
+}
+
+/** Authorization: Bearer の値が、運営の鍵と同じか。鍵の設定がない・使えない設定なら誰も通さない */
 export async function hasOpsKey(c: Context<AppEnv>): Promise<boolean> {
-  const expected = c.get("deps").config.createFamilyToken;
+  const config = c.get("deps").config;
+  const expected = config.opsRecordToken;
+  if (!expected) return false;
+  const misconfig = opsKeyMisconfig(config);
+  if (misconfig) {
+    // 「鍵の打ち間違い」と「設定が弾かれた」を運営が見分けられるよう、種類だけを残す（値は残さない）
+    console.warn(JSON.stringify({ event: "ops_key_misconfigured", reason: misconfig }));
+    return false;
+  }
   const header = c.req.header("authorization") ?? "";
   const given = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
-  if (!expected || !given || given.length > 500) return false;
+  if (!given || given.length > 500) return false;
   return timingSafeEqual(given, expected);
 }
 

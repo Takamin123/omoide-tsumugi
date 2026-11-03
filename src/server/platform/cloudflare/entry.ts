@@ -11,7 +11,21 @@ import { createD1Repositories } from "./d1-repositories";
 import { createR2PhotoStore } from "./r2-photo-store";
 
 /** wrangler secret / .dev.vars で入れる秘密の値（wrangler types には出ないことがあるので、ここで名前を持つ） */
-type Secrets = { OPENAI_API_KEY?: string; ANTHROPIC_API_KEY?: string; CREATE_FAMILY_TOKEN?: string };
+type Secrets = {
+  OPENAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  CREATE_FAMILY_TOKEN?: string;
+  OPS_RECORD_TOKEN?: string;
+  /** 運営が記録を見てよい、デモでない家族の ID（カンマ区切り）。実際の家族の識別子なので、vars ではなく秘密に置く（0030） */
+  OPS_RECORD_FAMILIES?: string;
+};
+
+/** カンマ区切りの家族 ID を、空白と空の項目を除いて並べる */
+export const parseFamilyIds = (raw: string | undefined): string[] =>
+  (raw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
 // ctx は waitUntil だけを使う（Hono の executionCtx と、Workers の ExecutionContext の両方を受けられるようにする）
 export function createCloudflareDeps(env: Env, ctx: Pick<ExecutionContext, "waitUntil">): AppDeps {
@@ -28,6 +42,8 @@ export function createCloudflareDeps(env: Env, ctx: Pick<ExecutionContext, "wait
       // 分からないときは本番とみなす（時計を使える家族を狭い側に倒す）
       appEnv: (env as { APP_ENV?: string }).APP_ENV ?? "production",
       createFamilyToken: secrets.CREATE_FAMILY_TOKEN || null,
+      opsRecordToken: secrets.OPS_RECORD_TOKEN || null,
+      opsRecordFamilies: parseFamilyIds(secrets.OPS_RECORD_FAMILIES),
     },
     now: () => new Date(),
   };

@@ -1,23 +1,32 @@
 // 運営の記録の画面（/ops/record）の入り口。読み取りだけ。見るのは運営と開発だけ（0017、0025）。
-// 本番（APP_ENV=production）では 404。手元とプレビューのデモの家族で使う。
-// 合言葉の cookie では開かない。運営の鍵（CREATE_FAMILY_TOKEN の Bearer）で守る。
-// 確かめは auth.ts の一か所（requireInvite）で行い、ここでも重ねて確かめる（パスの書き方で一か所目を外れても開かない）。
+// 全環境で同じ規則（0030）: デモの家族は鍵だけで開く。デモでない家族は、親の同意を得て OPS_RECORD_FAMILIES に
+// 載せた家族だけ開く。載っていなければ、存在しないものとして 404。
+// 合言葉の cookie でも、家族を作る鍵（CREATE_FAMILY_TOKEN）でも開かない。運営の鍵（OPS_RECORD_TOKEN の Bearer）で守る。
+// 鍵の確かめは auth.ts の一か所（requireInvite）で行い、ここでも重ねて確かめる（パスの書き方で一か所目を外れても開かない）。
 // 本文・説明・理由はログに出さない。
 import { Hono, type MiddlewareHandler } from "hono";
 import type { OpsEntrance, OpsFamilyRecord, OpsNarration } from "../../shared/ops";
 import { quoteSource, quoteText } from "../core/clean-transcript";
-import type { NarrationRow, OpsEntranceRow } from "../core/ports";
+import type { AppConfig, FamilyRow, NarrationRow, OpsEntranceRow } from "../core/ports";
 import { hasOpsKey } from "./auth";
-import { devToolsOpen, type AppEnv } from "./env";
+import type { AppEnv } from "./env";
 import { fail } from "./http";
 import { privateBody } from "./photos";
 
 const requireOpsKey: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!(await hasOpsKey(c))) return fail(c, "unauthorized");
-  // 本番では、鍵が合っていても開かない（実際の家族の語りを運営が読むことは、人間に聞くまで行わない。0025）
-  if (!devToolsOpen(c.get("deps").config)) return fail(c, "not_found");
   return next();
 };
+
+/** 運営が見てよい家族か。デモの家族か、同意を得て許可の一覧に載せた家族だけ（0030） */
+export const opsMayView = (family: FamilyRow, config: AppConfig): boolean =>
+  family.isDemo || config.opsRecordFamilies.includes(family.id);
+
+/** 運営が見てよい家族を読む。ない家族と、見てはいけない家族は、どちらも null（同じ 404 にする） */
+async function viewableFamily(deps: AppEnv["Variables"]["deps"], familyId: string): Promise<FamilyRow | null> {
+  const family = await deps.repos.families.get(familyId);
+  return family && opsMayView(family, deps.config) ? family : null;
+}
 
 /**
  * 引用の範囲を、位置を数える文字（quoteSource。文字の語りは transcript、声の語りは cleaned_text）からそのまま切り出す。印は置き換えない。
@@ -95,9 +104,10 @@ export const ops = new Hono<AppEnv>()
   .use("/ops/*", requireOpsKey)
 
   .get("/ops/families/:familyId/record", async (c) => {
-    const { repos } = c.get("deps");
+    const deps = c.get("deps");
+    const { repos } = deps;
     const familyId = c.req.param("familyId");
-    const family = await repos.families.get(familyId);
+    const family = await viewableFamily(deps, familyId);
     if (!family) return fail(c, "not_found");
 
     const [members, photos, entrances, narrations, guesses] = await Promise.all([
@@ -148,7 +158,9 @@ export const ops = new Hono<AppEnv>()
   // focus の枠を重ねるための写真。録音は返さない
   .get("/ops/families/:familyId/photos/:photoId/image", async (c) => {
     const deps = c.get("deps");
-    const photo = await deps.repos.photos.get(c.req.param("familyId"), c.req.param("photoId"));
+    const familyId = c.req.param("familyId");
+    if (!(await viewableFamily(deps, familyId))) return fail(c, "not_found");
+    const photo = await deps.repos.photos.get(familyId, c.req.param("photoId"));
     if (!photo) return fail(c, "not_found");
     const obj = await deps.photos.get(photo.storageKey);
     if (!obj) return fail(c, "not_found");

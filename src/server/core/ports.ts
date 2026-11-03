@@ -488,6 +488,13 @@ export interface AppConfig {
   appEnv: string;
   /** POST /api/families を守る Bearer。ないときは家族を作れない */
   createFamilyToken: string | null;
+  /**
+   * 運営の記録の画面（/api/ops/*）を守る Bearer。CREATE_FAMILY_TOKEN とは別の鍵（0027、0030）。
+   * ないとき、短すぎるとき、CREATE_FAMILY_TOKEN と同じ値のときは誰も開けない
+   */
+  opsRecordToken: string | null;
+  /** 運営が記録を見てよい、デモでない家族の ID（親の同意を得た家族だけ。0030）。デモの家族は載せなくても開く */
+  opsRecordFamilies: readonly string[];
 }
 
 /** レスポンスを返した後に続ける処理。Workers では waitUntil、VPS ではそのまま待たずに走らせる。 */
