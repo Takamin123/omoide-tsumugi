@@ -22,10 +22,10 @@ argument-hint: "[before|create|watch|end]"
 
 1. **Cloudflare の本番のアカウントが有料プランか確かめる**（ダッシュボードの Workers の Plans）。`docs/spec.md` は有料プランが前提。無料の 50 サブリクエストでは毎朝の処理が収まらない
 2. **本番の既存の家族を数えて消す**（人間の決定、2026-11-04: 本番の既存の家族は消す）。手順は `/d1-migrate` の「本番に適用する」。消すのはマイグレーション 0005 より前
-   - `npx wrangler d1 execute DB --remote --command "SELECT id, is_demo, created_at FROM families"` で数える（名前は出さない）
+   - `npx wrangler d1 execute omoide-tsumugi --remote --command "SELECT id, is_demo, created_at FROM families"` で数える（名前は出さない）
    - 一つずつ `/delete-family production <家族 ID>`（デモの家族なら `--allow-demo`）。消すのは人間が自分の端末で打つ
    - この時点の本番には、0004・0005 で作る表（record_extractions、musubi_guess_runs）がまだない。スクリプトはその表を「まだない表」として 0 件に数え、ある表だけを消す
-3. **マイグレーション 0003 → 0004 → 0005 を本番に**。`/d1-migrate production`。先に `npx wrangler d1 migrations list DB --remote` で未適用のものを確かめ、人間の確認を取ってから
+3. **マイグレーション 0003 → 0004 → 0005 を本番に**。`/d1-migrate production`。先に `npx wrangler d1 migrations list omoide-tsumugi --remote` で未適用のものを確かめ、人間の確認を取ってから
    - 0003 で、本番の有効なリンクはすべて取り消される（`docs/decisions/0036`）
 4. **秘密の値（本番）**。`/setup-secrets production`。値は人間が入力する
    - `ANTHROPIC_API_KEY`（プレビューとは別のキー）、`OPENAI_API_KEY`、`CREATE_FAMILY_TOKEN`、`OPS_RECORD_TOKEN`（32 文字以上で、ほかの鍵とは別の値。`docs/decisions/0030`）
