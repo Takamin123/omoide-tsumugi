@@ -1,15 +1,16 @@
-// 運営の記録の入り口（/api/ops/*）の鍵を、パスの書き方を変えて素通りできないこと（qa-engineer、0025）。
+// 運営の記録の入り口（/api/ops/*）の鍵を、パスの書き方を変えて素通りできないこと（qa-engineer、0025、0030）。
 // - 家族の合言葉の cookie だけでは、どの書き方でも ops のハンドラ（とデータベース）に届かない
 // - 運営の鍵だけでは、どの書き方でも家族向けのハンドラに届かない
 // - ops の確かめが、ほかの /api/* に掛かっていない
-// - 本番では、鍵が合っていても、どの書き方でも 404 で、データベースに触れない
+// - 家族を作る鍵（CREATE_FAMILY_TOKEN）では、どの環境でも、どの書き方でも開かず、データベースに触れない
 // 架空の値だけを使う。
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/server/app";
 import type { FamilyRow, Repositories } from "../src/server/core/ports";
 import { cookieOf, fakeDeps } from "./helpers";
 
-const KEY = "qa-ops-key-fake";
+const KEY = "qa-ops-key-fake-0123456789abcdef-xyz";
+const CREATE_KEY = "qa-create-family-key-fake";
 const FAKE_FAMILY = { id: "fam-qa", isDemo: true, createdAt: 0 } as unknown as FamilyRow;
 
 let touched: string[] = [];
@@ -31,7 +32,7 @@ const spyRepos = new Proxy({} as Repositories, {
   },
 });
 const appFor = (appEnv = "development") =>
-  createApp(() => fakeDeps({ repos: spyRepos, config: { appEnv, createFamilyToken: KEY } }));
+  createApp(() => fakeDeps({ repos: spyRepos, config: { appEnv, createFamilyToken: CREATE_KEY, opsRecordToken: KEY, opsRecordFamilies: [] } }));
 const app = appFor();
 
 const COOKIE = { Cookie: cookieOf("any-family-token") };
@@ -173,20 +174,29 @@ describe("鍵の書き方", () => {
   });
 });
 
-describe("本番では、鍵が合っていても、どの書き方でも 404", () => {
-  const prod = appFor("production");
-  const cases = opsPaths.flatMap((p) => variants(p).map((v) => ["GET", v] as const));
-  it.each(cases)("%s %s", async (method, p) => {
+describe("家族を作る鍵では、どの環境でも、どの書き方でも ops に届かない（0030）", () => {
+  const cases = ["development", "preview", "production"].flatMap((appEnv) =>
+    opsPaths.flatMap((p) => variants(p).map((v) => [appEnv, v] as const)),
+  );
+  it.each(cases)("%s %s", async (appEnv, p) => {
     touched = [];
-    const res = await prod.request(new Request("http://localhost" + p, { method, headers: BEARER }));
-    // ops と見なされない書き方（/api//ops/ など）は、合言葉の確認で 401。どちらでも中身は出ない
+    const res = await appFor(appEnv).request(new Request("http://localhost" + p, { headers: { Authorization: `Bearer ${CREATE_KEY}` } }));
     expect([401, 404]).toContain(res.status);
     expect(touched).toEqual([]);
   });
+});
 
-  it("APP_ENV が production 以外の値でも、手元とプレビューの扱い（開く）。production だけ閉じる", async () => {
+describe("本番でも、運営の鍵なら ops のハンドラに届く（環境では分けない。0030）", () => {
+  it.each(["production", "preview", "development"])("%s", async (appEnv) => {
     touched = [];
-    const res = await appFor("preview").request(opsPaths[0]!, { headers: BEARER });
+    const res = await appFor(appEnv).request(opsPaths[0]!, { headers: BEARER });
+    expect(res.status).toBe(404); // 架空のデータベースは家族を返さない
+    expect(touched).toEqual(["families.get"]);
+  });
+
+  it("写真の入り口も、まず家族を読んで見てよいかを確かめる（写真を読む前に止まる）", async () => {
+    touched = [];
+    const res = await appFor("production").request(opsPaths[1]!, { headers: BEARER });
     expect(res.status).toBe(404);
     expect(touched).toEqual(["families.get"]);
   });

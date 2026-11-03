@@ -7,6 +7,10 @@ R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 CREATE_FAMILY_TOKEN=
+# 運営の記録の画面（/ops/record）の鍵。32 文字以上のランダムな値で、CREATE_FAMILY_TOKEN とは別の値にする（0030）
+OPS_RECORD_TOKEN=
+# 運営が記録を見てよい、デモでない家族の ID（カンマ区切り）。親の同意を得た家族だけ。手元では空のままでよい（0030）
+OPS_RECORD_FAMILIES=
 DEMO_RESET_TOKEN=
 HEALTHCHECK_TOKEN=
 # 秘密ではない。手元では本番の設定（APP_ENV=production）を上書きし、どの家族でもデモの時計を進められるようにする

@@ -21,6 +21,9 @@ argument-hint: "[local|preview|production] [名前]"
 | `ANTHROPIC_API_KEY` | Claude の呼び出し |
 | `OPENAI_API_KEY` | 文字起こし（gpt-transcribe） |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ACCOUNT_ID` | R2 の署名付き URL を作る（S3 互換の API）。Workers から合言葉を確かめて返すだけなら要らない |
+| `CREATE_FAMILY_TOKEN` | 家族を作る API（`POST /api/families`）を守る |
+| `OPS_RECORD_TOKEN` | 運営の記録の画面（`/ops/record`）を守る。32 文字以上のランダムな値（例: `openssl rand -base64 32`）で、`CREATE_FAMILY_TOKEN` とは別の値にする。短い・同じ値なら誰も開けない（0030） |
+| `OPS_RECORD_FAMILIES` | 運営が記録を見てよい、デモでない家族の ID（カンマ区切り）。親の同意を得た家族だけ。実際の家族の識別子なので vars ではなく秘密に置く。家族を消すときはここからも外す（0030） |
 | `DEMO_RESET_TOKEN` | デモの初期化の API を守る |
 | `HEALTHCHECK_TOKEN` | デプロイ後の確かめの API を守る |
 

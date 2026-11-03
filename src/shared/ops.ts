@@ -1,5 +1,5 @@
 // 運営の記録の画面（/ops/record）の、クライアントとサーバーの約束。
-// 見るのは運営と開発だけ。家族の画面には出さない。合言葉ではなく運営の鍵（CREATE_FAMILY_TOKEN の Bearer）で守る（0017、0025）。
+// 見るのは運営と開発だけ。家族の画面には出さない。合言葉ではなく運営の鍵（OPS_RECORD_TOKEN の Bearer）で守る（0017、0025、0030）。
 // 家族が語ったもの（told）と、Claude の推測（guessed）を、形の上でも分けて持つ。
 
 export type OpsRect = { x: number; y: number; w: number; h: number };

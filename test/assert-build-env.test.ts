@@ -247,6 +247,8 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
   };
   /** クライアントの出力にある、開発用の /check の chunk（docs/decisions/0014） */
   const checkChunks = () => (fs.readdirSync(path.join(dir, "dist/client/assets")) as string[]).filter((n) => /^CheckPage-.*\.js$/.test(n));
+  /** 運営の記録の画面の chunk。本番にも入る（0030） */
+  const opsChunks = () => (fs.readdirSync(path.join(dir, "dist/client/assets")) as string[]).filter((n) => /^RecordPage-.*\.js$/.test(n));
 
   it("vite build（本番）: 本番のバインディングになり、production は通り preview は止まる", () => {
     const c = build();
@@ -261,6 +263,8 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     expect(checkChunks()).toEqual([]);
     const assets = path.join(dir, "dist/client/assets");
     for (const n of fs.readdirSync(assets) as string[]) expect(fs.readFileSync(path.join(assets, n), "utf8"), n).not.toContain("/api/check/");
+    // 運営の記録の画面は、本番のビルドにも別の chunk として入る（0030）
+    expect(opsChunks()).toHaveLength(1);
   }, 60_000);
 
   it("CLOUDFLARE_ENV=preview vite build: プレビューのバインディングになり、preview は通り production は止まる", () => {
@@ -274,5 +278,6 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     expect(run(dir, ["production"]).status).toBe(1);
     // プレビューのビルドには、開発用の /check の chunk が入る
     expect(checkChunks()).toHaveLength(1);
+    expect(opsChunks()).toHaveLength(1);
   }, 60_000);
 });

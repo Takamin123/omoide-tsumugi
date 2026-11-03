@@ -1,13 +1,14 @@
-// 運営の記録の画面の入り口（GET /api/ops/families/:familyId/record と写真）。0017、0025。
-// - 運営の鍵（CREATE_FAMILY_TOKEN の Bearer）がなければ 401。家族の合言葉の cookie では開かない
-// - 見つからない家族、ほかの家族の写真は 404。本番では鍵が合っていても 404
+// 運営の記録の画面の入り口（GET /api/ops/families/:familyId/record と写真）。0017、0025、0030。
+// - 運営の鍵（OPS_RECORD_TOKEN の Bearer）がなければ 401。家族の合言葉の cookie でも、家族を作る鍵でも開かない
+// - 見つからない家族、ほかの家族の写真は 404
+// - 全環境で同じ規則: デモの家族は鍵で開く。デモでない家族は、許可の一覧（OPS_RECORD_FAMILIES）に載っていなければ 404
 // - 理由（reason）と写真の説明は、運営の入り口にだけ出る（家族向けの入り口には出ない）
 // 架空の家族と架空の文だけを使う。
 import { drizzle } from "drizzle-orm/d1";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/server/db/schema";
 import type { OpsFamilyRecord } from "../src/shared/ops";
-import { addMember, addPhoto, CREATE_TOKEN, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
+import { addMember, addPhoto, CREATE_TOKEN, createFamily, makeTestApp, OPS_TOKEN, startD1, type TestApp } from "./helpers";
 
 let d1: D1Database;
 let dispose: () => Promise<void>;
@@ -18,12 +19,12 @@ afterAll(() => dispose());
 
 const SECRET_REASON = "架空の理由_REASON_7f3";
 const SECRET_GUESS = "架空の説明_GUESS_9c1";
-const bearer = (key = CREATE_TOKEN) => ({ Authorization: `Bearer ${key}` });
+const bearer = (key = OPS_TOKEN) => ({ Authorization: `Bearer ${key}` });
 const recordUrl = (familyId: string) => `/api/ops/families/${familyId}/record`;
 
 /** 入り口（Claude、理由つき）・整形済みの声の語り・写真の説明を一つずつ持つ家族 */
-async function seed(t: TestApp) {
-  const f = await createFamily(t, true);
+async function seed(t: TestApp, isDemo = true) {
+  const f = await createFamily(t, isDemo);
   const elder = await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "おばあちゃん" });
   const child = await addMember(t, f.cookie);
   const photo = await addPhoto(t, f.cookie, child.id, 1);
@@ -90,7 +91,7 @@ describe("運営の記録: 鍵", () => {
       expect((await t.app.request(url, { headers: bearer("wrong") })).status, url).toBe(401);
       expect((await t.app.request(url, { headers: { Authorization: CREATE_TOKEN } })).status, url).toBe(401);
     }
-    t.deps.config.createFamilyToken = null;
+    t.deps.config.opsRecordToken = null;
     expect((await t.app.request(recordUrl(f.familyId), { headers: bearer() })).status).toBe(401);
   });
 
@@ -120,13 +121,91 @@ describe("運営の記録: 鍵", () => {
     expect((await t.app.request("/api/feed", { headers: bearer() })).status).toBe(401);
   });
 
-  it("本番（APP_ENV=production）では、鍵が合っていても 404", async () => {
+  it("家族を作る鍵（CREATE_FAMILY_TOKEN）では、どの環境でも開かない（0027、0030）", async () => {
+    for (const appEnv of ["development", "preview", "production"]) {
+      const t = makeTestApp(d1, { appEnv });
+      const { f, photo } = await seed(t);
+      const res = await t.app.request(recordUrl(f.familyId), { headers: bearer(CREATE_TOKEN) });
+      expect(res.status, appEnv).toBe(401);
+      expect(await res.text()).not.toContain(SECRET_REASON);
+      const img = await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: bearer(CREATE_TOKEN) });
+      expect(img.status, appEnv).toBe(401);
+    }
+  });
+
+  it("鍵の設定が短すぎるとき、家族を作る鍵と同じ値のときは、その鍵でも開かない。ログには種類だけ出す", async () => {
+    const t = makeTestApp(d1);
+    const { f } = await seed(t);
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "warn").mockImplementation((m: unknown) => void logs.push(String(m)));
+    try {
+      t.deps.config.opsRecordToken = "short-ops-key";
+      expect((await t.app.request(recordUrl(f.familyId), { headers: bearer("short-ops-key") })).status).toBe(401);
+      const same = "same-as-create-family-".padEnd(40, "x");
+      t.deps.config.opsRecordToken = same;
+      t.deps.config.createFamilyToken = same;
+      expect((await t.app.request(recordUrl(f.familyId), { headers: bearer(same) })).status).toBe(401);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(logs.map((l) => JSON.parse(l))).toEqual([
+      { event: "ops_key_misconfigured", reason: "too_short" },
+      { event: "ops_key_misconfigured", reason: "same_as_create_family_token" },
+    ]);
+    expect(logs.join("")).not.toContain("short-ops-key");
+    expect(logs.join("")).not.toContain("same-as-create-family-");
+  });
+
+  it("本番（APP_ENV=production）でも、運営の鍵ならデモの家族は開く", async () => {
     const t = makeTestApp(d1, { appEnv: "production" });
     const { f, photo } = await seed(t);
     const res = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
-    expect(res.status).toBe(404);
-    expect(await res.text()).not.toContain(SECRET_REASON);
-    expect((await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: bearer() })).status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(SECRET_REASON);
+    expect((await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: bearer() })).status).toBe(200);
+  });
+});
+
+describe("運営の記録: 見てよい家族（0030）", () => {
+  for (const appEnv of ["development", "preview", "production"]) {
+    it(`${appEnv}: デモでない家族は、許可の一覧になければ鍵が合っていても 404。載せれば開く`, async () => {
+      const t = makeTestApp(d1, { appEnv });
+      const { f, photo } = await seed(t, false);
+      const other = await seed(t, false);
+      const img = `/api/ops/families/${f.familyId}/photos/${photo.id}/image`;
+      const res = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
+      expect(res.status).toBe(404);
+      expect(await res.text()).not.toContain(SECRET_REASON);
+      expect((await t.app.request(img, { headers: bearer() })).status).toBe(404);
+
+      t.deps.config.opsRecordFamilies = [f.familyId];
+      const ok = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
+      expect(ok.status).toBe(200);
+      expect(((await ok.json()) as OpsFamilyRecord).family).toMatchObject({ id: f.familyId, isDemo: false });
+      expect((await t.app.request(img, { headers: bearer() })).status).toBe(200);
+      // 一覧に載せた家族の道で、載っていない家族の写真は引けない。載っていない家族は 404 のまま
+      expect((await t.app.request(`/api/ops/families/${f.familyId}/photos/${other.photo.id}/image`, { headers: bearer() })).status).toBe(404);
+      expect((await t.app.request(recordUrl(other.f.familyId), { headers: bearer() })).status).toBe(404);
+      expect((await t.app.request(`/api/ops/families/${other.f.familyId}/photos/${other.photo.id}/image`, { headers: bearer() })).status).toBe(404);
+    });
+  }
+
+  it("許可の一覧にない家族と、存在しない家族は、同じ 404 の本文", async () => {
+    const t = makeTestApp(d1, { appEnv: "production" });
+    const { f } = await seed(t, false);
+    const a = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
+    const b = await t.app.request(recordUrl("no-such-family"), { headers: bearer() });
+    expect(a.status).toBe(404);
+    expect(b.status).toBe(404);
+    expect(await a.text()).toBe(await b.text());
+  });
+
+  it("許可の一覧に載せても、家族の合言葉の cookie と家族を作る鍵では開かない", async () => {
+    const t = makeTestApp(d1, { appEnv: "production" });
+    const { f } = await seed(t, false);
+    t.deps.config.opsRecordFamilies = [f.familyId];
+    expect((await t.app.request(recordUrl(f.familyId), { headers: { Cookie: f.cookie } })).status).toBe(401);
+    expect((await t.app.request(recordUrl(f.familyId), { headers: bearer(CREATE_TOKEN) })).status).toBe(401);
   });
 });
 

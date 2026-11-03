@@ -66,11 +66,12 @@ describe("App: check/ を読み込むのは __CHECK_PAGE__ が真のときだけ
     expect(app).toContain('const isCheck = CheckPage !== null && path === "/check";');
     expect(app).toMatch(/const needsFamily = [^;]*!isCheck;/);
   });
-  // 運営の記録の画面（/ops/record）も同じ規則でビルドから外れる（0025）
-  it("ops/ の lazy の import も __CHECK_PAGE__ の三項の中にあり、偽なら null", () => {
-    expect(app).toMatch(/const OpsRecordPage = __CHECK_PAGE__ \? lazy\(\(\) => import\("\.\/ops\/RecordPage"\)\) : null;/);
+  // 運営の記録の画面（/ops/record）は __CHECK_PAGE__ の規則から外し、本番のビルドにも入れる（0030）。/check は外れたまま
+  it("ops/ の lazy の import は __CHECK_PAGE__ に掛けない（常に読み込める）。家族の読み込みは通さない", () => {
+    expect(app).toMatch(/const OpsRecordPage = lazy\(\(\) => import\("\.\/ops\/RecordPage"\)\);/);
     expect(app.match(/import\("\.\/ops\//g)).toHaveLength(1);
-    expect(app).toContain('const isOps = OpsRecordPage !== null && path === "/ops/record";');
+    expect(app).not.toMatch(/__CHECK_PAGE__[^;]*ops\//);
+    expect(app).toContain('const isOps = path === "/ops/record";');
     expect(app).toMatch(/const needsFamily = [^;]*!isOps[ &;]/);
   });
 });
