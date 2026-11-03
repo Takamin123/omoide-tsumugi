@@ -270,6 +270,7 @@ describe("用途とモデル、プロンプトの版", () => {
     expect(CLAUDE_PURPOSES.photo_guess.model).toBe("claude-haiku-5-5");
     expect(CLAUDE_PURPOSES.clean_transcript.model).toBe("claude-haiku-5-5");
     expect(CLAUDE_PURPOSES.entrance.model).toBe("claude-sonnet-5-5");
+    expect(CLAUDE_PURPOSES.extract_records.model).toBe("claude-haiku-5-5");
   });
 
   it.each(Object.entries(PROMPTS))("%s: 版の文字列がファイルと合い、本文がビルドに入っている", (purpose, p) => {

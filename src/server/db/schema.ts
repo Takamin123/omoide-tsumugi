@@ -177,6 +177,27 @@ export const records = sqliteTable(
   ],
 );
 
+/**
+ * 記録の取り出し（extract_records）の作業の表（0039）。語り一つに一行。推測の表（records）とは分ける。
+ * 取り出しが 0 件でも done を残す（同じ語りを二度呼ばない）。プロンプトの版が上がっても取り直さない。
+ * failed は attempts が上限に届くまで翌朝に取り直す
+ */
+export const recordExtractions = sqliteTable(
+  "record_extractions",
+  {
+    narrationId: text("narration_id").primaryKey().references(() => narrations.id),
+    familyId: text("family_id").notNull().references(() => families.id),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model"), // 応答に書かれたモデル（応答がなければ要求したモデル）
+    state: text("state", { enum: ["done", "failed"] }).notNull(),
+    attempts: integer("attempts").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("record_extractions_family").on(t.familyId)],
+);
+
 /** むすび（同じ出来事のまとまり）。 */
 export const musubi = sqliteTable(
   "musubi",

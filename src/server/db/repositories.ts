@@ -14,6 +14,9 @@ import type {
   OpsEntranceRow,
   PhotoGuessRow,
   PhotoRow,
+  RecordExtractionAttempt,
+  RecordExtractionRow,
+  RecordRow,
   Repositories,
   UncertainSpan,
 } from "../core/ports";
@@ -25,7 +28,7 @@ export type BatchItem = DrizzleBatchItem<"sqlite">;
 /** いくつかの書き込みを、すべて行うか、どれも行わないかで行う。 */
 export type RunBatch = (items: [BatchItem, ...BatchItem[]]) => Promise<void>;
 
-const { families, inviteLinks, members, photos, narrations, entrances, photoGuesses, photoGuessRequests } = schema;
+const { families, inviteLinks, members, photos, narrations, entrances, photoGuesses, photoGuessRequests, records, recordExtractions } = schema;
 
 type FamilyRecord = typeof families.$inferSelect;
 const toFamily = (r: FamilyRecord): FamilyRow => ({
@@ -127,6 +130,26 @@ function changes(result: unknown): number {
 }
 
 export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Repositories {
+  /**
+   * 作業の行を入れる select。語りがその家族のものであるときだけ一行になる（ほかの家族の語りに作業の行を付けない）。
+   */
+  const extractionSelect = (attempt: RecordExtractionAttempt, state: "done" | "failed") => {
+    const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+    return db
+      .select({
+        narrationId: narrations.id,
+        familyId: narrations.familyId,
+        promptVersion: v(attempt.promptVersion, "promptVersion"),
+        model: v(attempt.model, "model"),
+        state: v(state, "state"),
+        attempts: v(1, "attempts"),
+        inputTokens: v(attempt.inputTokens, "inputTokens"),
+        outputTokens: v(attempt.outputTokens, "outputTokens"),
+        createdAt: v(attempt.createdAt, "createdAt"),
+      })
+      .from(narrations)
+      .where(and(eq(narrations.id, attempt.narrationId), eq(narrations.familyId, attempt.familyId)));
+  };
   return {
     families: {
       async create(family, firstLink, now) {
@@ -569,6 +592,140 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .where(eq(photoGuesses.familyId, familyId))
           .orderBy(asc(photoGuesses.createdAt), asc(photoGuesses.id))
           .all()) as PhotoGuessRow[];
+      },
+    },
+
+    records: {
+      async listByFamily(familyId) {
+        return (await db
+          .select()
+          .from(records)
+          .where(eq(records.familyId, familyId))
+          .orderBy(asc(records.createdAt), asc(records.narrationId), asc(records.quoteStart), asc(records.id))
+          .all()) as RecordRow[];
+      },
+    },
+
+    recordExtractions: {
+      async listPending(familyId, maxAttempts, limit) {
+        const rows = await db
+          .select()
+          .from(narrations)
+          .where(
+            and(
+              eq(narrations.familyId, familyId),
+              // 引用の位置を数える文字があるものだけ（文字の語りは transcript、声の語りは整形済み）。整形がまだの声は翌朝に回る
+              or(
+                and(eq(narrations.kind, "text"), isNotNull(narrations.transcript)),
+                and(eq(narrations.kind, "voice"), isNotNull(narrations.cleanedText)),
+              ),
+              notExists(
+                db
+                  .select({ one: sql`1` })
+                  .from(recordExtractions)
+                  .where(
+                    and(
+                      eq(recordExtractions.narrationId, narrations.id),
+                      or(eq(recordExtractions.state, "done"), sql`${recordExtractions.attempts} >= ${maxAttempts}`),
+                    ),
+                  ),
+              ),
+            ),
+          )
+          .orderBy(asc(narrations.createdAt), asc(narrations.id))
+          .limit(limit)
+          .all();
+        return rows.map(toNarration);
+      },
+      async saveDone(attempt, rows) {
+        const extractionOf = (state: "done" | "failed") => extractionSelect(attempt, state);
+        const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+        // done の行がまだないときだけ（同じ語りの取り出しが重なっても、記録は一組だけ）。語りがその家族のものであることも確かめる
+        const notDone = notExists(
+          db
+            .select({ one: sql`1` })
+            .from(recordExtractions)
+            .where(and(eq(recordExtractions.narrationId, attempt.narrationId), eq(recordExtractions.state, "done"))),
+        );
+        const items: BatchItem[] = rows.map((r) =>
+          db.insert(records).select(
+            db
+              .select({
+                id: v(r.id, "id"),
+                familyId: narrations.familyId,
+                photoId: narrations.photoId,
+                kind: v(r.kind, "kind"),
+                value: v(r.value, "value"),
+                origin: v("told", "origin"),
+                toldByMemberId: narrations.speakerMemberId,
+                narrationId: narrations.id,
+                quoteStart: v(r.quoteStart, "quoteStart"),
+                quoteEnd: v(r.quoteEnd, "quoteEnd"),
+                model: v<string | null>(null, "model"),
+                promptVersion: v<string | null>(null, "promptVersion"),
+                createdAt: v(r.createdAt, "createdAt"),
+              })
+              .from(narrations)
+              .where(
+                and(
+                  eq(narrations.id, r.narrationId),
+                  eq(narrations.id, attempt.narrationId),
+                  eq(narrations.familyId, attempt.familyId),
+                  eq(narrations.familyId, r.familyId),
+                  eq(narrations.photoId, r.photoId),
+                  eq(narrations.speakerMemberId, r.toldByMemberId),
+                  notDone,
+                ),
+              ),
+          ),
+        );
+        // 記録を先に入れ、作業の行を後で done にする（done になった後では not exists で入らなくなるため）
+        await runBatch([
+          ...items,
+          db
+            .insert(recordExtractions)
+            .select(extractionOf("done"))
+            .onConflictDoUpdate({
+              target: recordExtractions.narrationId,
+              set: {
+                promptVersion: attempt.promptVersion,
+                model: attempt.model,
+                state: "done",
+                attempts: sql`${recordExtractions.attempts} + 1`,
+                inputTokens: attempt.inputTokens,
+                outputTokens: attempt.outputTokens,
+                createdAt: attempt.createdAt,
+              },
+              setWhere: and(eq(recordExtractions.familyId, attempt.familyId), ne(recordExtractions.state, "done")),
+            }),
+        ] as unknown as [BatchItem, ...BatchItem[]]);
+      },
+      async markFailed(attempt) {
+        const extractionOf = (state: "done" | "failed") => extractionSelect(attempt, state);
+        await db
+          .insert(recordExtractions)
+          .select(extractionOf("failed"))
+          .onConflictDoUpdate({
+            target: recordExtractions.narrationId,
+            set: {
+              promptVersion: attempt.promptVersion,
+              model: attempt.model,
+              attempts: sql`${recordExtractions.attempts} + 1`,
+              inputTokens: attempt.inputTokens,
+              outputTokens: attempt.outputTokens,
+              createdAt: attempt.createdAt,
+            },
+            setWhere: and(eq(recordExtractions.familyId, attempt.familyId), eq(recordExtractions.state, "failed")),
+          })
+          .run();
+      },
+      async listByFamily(familyId) {
+        return (await db
+          .select()
+          .from(recordExtractions)
+          .where(eq(recordExtractions.familyId, familyId))
+          .orderBy(asc(recordExtractions.createdAt), asc(recordExtractions.narrationId))
+          .all()) as RecordExtractionRow[];
       },
     },
 

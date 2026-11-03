@@ -20,6 +20,7 @@ export const CLAUDE_PURPOSES: Record<ClaudePurpose, ClaudePurposeSettings> = {
   photo_guess: { model: CLAUDE_HAIKU, maxTokens: 8_000 },
   clean_transcript: { model: CLAUDE_HAIKU, maxTokens: 8_000 },
   entrance: { model: CLAUDE_SONNET, maxTokens: 16_000 },
+  extract_records: { model: CLAUDE_HAIKU, maxTokens: 8_000 },
 };
 
 /** 送る前に止めたときや、応答がなかったときの記録 */
