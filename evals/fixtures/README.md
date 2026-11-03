@@ -41,3 +41,16 @@
 
 - 架空のことだけを書く。身近な人の話を少し変えて使うこともしない
 - `mishearings` の `heard` が `transcript` にちょうど一度出てくること、`replyToId` の先が同じ写真の語りであることを保つ
+
+## demo-yamagata.json
+
+デモの家族（`src/server/demo/seed.ts` と `seed-cleaned.ts` の写し。架空の山形の三世代、標準語）。人 4 人・写真 12 枚・語り 12 本（返事つき）・過去の固定の入り口 2 つ（`pastEntrances`）。日付は asOfDate（2026-11-03）と daysAgo から作った。
+
+- 人の並びは、毎朝の処理で回す順（本番は members.created_at の順）。`.claude/skills/demo-reset/SKILL.md` の手順 0 に合わせて、お母さん → じいちゃん → まさとおじさん → ゆい
+- 写真の `description` は、qa-engineer が画像を見て書いた、photo_guesses に入るような推測の説明
+- 写真の `imageFile` は、手元の画像の名前（リポジトリに入れない）。出し比べは `EVAL_IMAGES_DIR`（既定 `~/omoide-demo-seed/prepared`）から読み、なければ説明だけを渡す。`EVAL_IMAGES=0` で画像を渡さない
+- 種を変えたら、この写しも作り直す
+
+## family-a-small.json
+
+family-a の変種。5 人、写真 2 枚（p01-beach、p07-field）と、その語り 4 本だけ。写真が人より少ない家族で、同じ日に写真を重ねないこと（0042）が「外すと 0 枚になるなら外さない」に倒れるかを見る。

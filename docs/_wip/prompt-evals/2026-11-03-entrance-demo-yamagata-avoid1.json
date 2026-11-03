@@ -1,0 +1,719 @@
+{
+  "fixture": "demo-yamagata",
+  "avoid": true,
+  "images": 12,
+  "repeat": 3,
+  "outcomes": [
+    {
+      "memberId": "m-okaasan",
+      "run": 1,
+      "usedBefore": [],
+      "candidates": [
+        "P8",
+        "Y1",
+        "Y2",
+        "P6",
+        "P4",
+        "P5"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 18011,
+      "outputTokens": 1457,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "P8を選択。じいちゃんの返事n12がお母さん自身の語りn11に直接答えており、全候補が未出なので言葉が届く写真を優先。P4も有力だが語りが多く焦点が散る。focusは古木と支柱の周り。材料はn11、n12。",
+            "photo_id": "P8",
+            "focus": {
+              "x": 0.1,
+              "y": 0.05,
+              "w": 0.75,
+              "h": 0.9
+            },
+            "quote": {
+              "narration_id": "n12",
+              "text": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+            },
+            "question": "あの木の前で、ほかにどんなことがありましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "P8を選択。じいちゃんの返事n12がお母さん自身の語りn11に直接答えており、全候補が未出なので言葉が届く写真を優先。P4も有力だが語りが多く焦点が散る。focusは古木と支柱の周り。材料はn11、n12。",
+        "photo_id": "P8",
+        "focus": {
+          "x": 0.1,
+          "y": 0.05,
+          "w": 0.75,
+          "h": 0.9
+        },
+        "quote": {
+          "narration_id": "n12",
+          "text": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+        },
+        "question": "あの木の前で、ほかにどんなことがありましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+    },
+    {
+      "memberId": "m-jiichan",
+      "run": 1,
+      "usedBefore": [
+        "P8"
+      ],
+      "candidates": [
+        "Y1",
+        "P4",
+        "P5",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17496,
+      "outputTokens": 1115,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "Y1を選択。まさととゆいの言葉が付き、未提示でじいちゃんに届く。P4は本人の語りが主で退けた。focusは田んぼと道を含む範囲。材料はn10。",
+            "photo_id": "Y1",
+            "focus": {
+              "x": 0,
+              "y": 0.35,
+              "w": 0.8,
+              "h": 0.65
+            },
+            "quote": {
+              "narration_id": "n10",
+              "text": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+            },
+            "question": "この道を歩いているとき、どんなところに目が行きますか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "Y1を選択。まさととゆいの言葉が付き、未提示でじいちゃんに届く。P4は本人の語りが主で退けた。focusは田んぼと道を含む範囲。材料はn10。",
+        "photo_id": "Y1",
+        "focus": {
+          "x": 0,
+          "y": 0.35,
+          "w": 0.8,
+          "h": 0.65
+        },
+        "quote": {
+          "narration_id": "n10",
+          "text": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+        },
+        "question": "この道を歩いているとき、どんなところに目が行きますか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+    },
+    {
+      "memberId": "m-masato",
+      "run": 1,
+      "usedBefore": [
+        "P8",
+        "Y1"
+      ],
+      "candidates": [
+        "Y2",
+        "P6",
+        "P4",
+        "P5",
+        "P1",
+        "P2"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17654,
+      "outputTokens": 1454,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "Y2を選択。祖父の語りが付いた、まだ出していない写真。P4は語りが多いがP5・P6より後回し。focusは語りの川の流れと浅瀬、遠くの橋を含む範囲。材料はn8。",
+            "photo_id": "Y2",
+            "focus": {
+              "x": 0.2,
+              "y": 0.35,
+              "w": 0.7,
+              "h": 0.6
+            },
+            "quote": {
+              "narration_id": "n8",
+              "text": "最上川のこのあたりは、若いころよく舟で渡ったんだ。"
+            },
+            "question": "川の真ん中の岩のあたりでは、ほかにどんなことがありましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "Y2を選択。祖父の語りが付いた、まだ出していない写真。P4は語りが多いがP5・P6より後回し。focusは語りの川の流れと浅瀬、遠くの橋を含む範囲。材料はn8。",
+        "photo_id": "Y2",
+        "focus": {
+          "x": 0.2,
+          "y": 0.35,
+          "w": 0.7,
+          "h": 0.6
+        },
+        "quote": {
+          "narration_id": "n8",
+          "text": "最上川のこのあたりは、若いころよく舟で渡ったんだ。"
+        },
+        "question": "川の真ん中の岩のあたりでは、ほかにどんなことがありましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "最上川のこのあたりは、若いころよく舟で渡ったんだ。"
+    },
+    {
+      "memberId": "m-yui",
+      "run": 1,
+      "usedBefore": [
+        "P8",
+        "Y1",
+        "Y2"
+      ],
+      "candidates": [
+        "P4",
+        "P6",
+        "P1",
+        "P2",
+        "P3",
+        "P7"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17456,
+      "outputTokens": 906,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "P6を選択。ゆいの写真でじいちゃんの語りn7が付き、出した回数が0。P4は出した回数が1で退けた。focusは語りに出る鍋の中身を含む範囲。材料はn7、n3。",
+            "photo_id": "P6",
+            "focus": {
+              "x": 0.05,
+              "y": 0.05,
+              "w": 0.75,
+              "h": 0.9
+            },
+            "quote": {
+              "narration_id": "n7",
+              "text": "孫が食べてるとこ見てるのが、一番のごちそうなんだって。"
+            },
+            "question": "この日の食卓では、ほかにどんな話が出ましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "P6を選択。ゆいの写真でじいちゃんの語りn7が付き、出した回数が0。P4は出した回数が1で退けた。focusは語りに出る鍋の中身を含む範囲。材料はn7、n3。",
+        "photo_id": "P6",
+        "focus": {
+          "x": 0.05,
+          "y": 0.05,
+          "w": 0.75,
+          "h": 0.9
+        },
+        "quote": {
+          "narration_id": "n7",
+          "text": "孫が食べてるとこ見てるのが、一番のごちそうなんだって。"
+        },
+        "question": "この日の食卓では、ほかにどんな話が出ましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "孫が食べてるとこ見てるのが、一番のごちそうなんだって。"
+    },
+    {
+      "memberId": "m-okaasan",
+      "run": 2,
+      "usedBefore": [],
+      "candidates": [
+        "P8",
+        "Y1",
+        "Y2",
+        "P6",
+        "P4",
+        "P5"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 18011,
+      "outputTokens": 1343,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "P8を選択。受け取る人の語りn11にじいちゃんが返したn12があり、言葉が届く。P4は夫婦岩の話が多く次回に回す。focusは大木と支柱。材料はn11,n12。",
+            "photo_id": "P8",
+            "focus": {
+              "x": 0.1,
+              "y": 0.05,
+              "w": 0.75,
+              "h": 0.9
+            },
+            "quote": {
+              "narration_id": "n12",
+              "text": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+            },
+            "question": "木の前を離れたあと、みんなでどんなふうに過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "P8を選択。受け取る人の語りn11にじいちゃんが返したn12があり、言葉が届く。P4は夫婦岩の話が多く次回に回す。focusは大木と支柱。材料はn11,n12。",
+        "photo_id": "P8",
+        "focus": {
+          "x": 0.1,
+          "y": 0.05,
+          "w": 0.75,
+          "h": 0.9
+        },
+        "quote": {
+          "narration_id": "n12",
+          "text": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+        },
+        "question": "木の前を離れたあと、みんなでどんなふうに過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+    },
+    {
+      "memberId": "m-jiichan",
+      "run": 2,
+      "usedBefore": [
+        "P8"
+      ],
+      "candidates": [
+        "Y1",
+        "P4",
+        "P5",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17496,
+      "outputTokens": 1164,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "Y1を選択。孫と叔父の語りが付き、出した回数0で、じいちゃんの語りがまだない。P4はじいちゃん自身の語りがあるため後回し。focusは田んぼと道と遠くの山を含めた。材料はn10(引用)とn9。",
+            "photo_id": "Y1",
+            "focus": {
+              "x": 0,
+              "y": 0.35,
+              "w": 0.75,
+              "h": 0.65
+            },
+            "quote": {
+              "narration_id": "n10",
+              "text": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+            },
+            "question": "この道を歩くと、どんな景色や音に出会いますか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "Y1を選択。孫と叔父の語りが付き、出した回数0で、じいちゃんの語りがまだない。P4はじいちゃん自身の語りがあるため後回し。focusは田んぼと道と遠くの山を含めた。材料はn10(引用)とn9。",
+        "photo_id": "Y1",
+        "focus": {
+          "x": 0,
+          "y": 0.35,
+          "w": 0.75,
+          "h": 0.65
+        },
+        "quote": {
+          "narration_id": "n10",
+          "text": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+        },
+        "question": "この道を歩くと、どんな景色や音に出会いますか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+    },
+    {
+      "memberId": "m-masato",
+      "run": 2,
+      "usedBefore": [
+        "P8",
+        "Y1"
+      ],
+      "candidates": [
+        "Y2",
+        "P6",
+        "P4",
+        "P5",
+        "P1",
+        "P2"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17654,
+      "outputTokens": 1334,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "P4を選択。じいちゃん・お母さん・ゆいの語りが付き、出した回数も0。Y2は自分の写真なので後回し、P6は食事の話。focusは語りに出る岩と縄。材料はn1。",
+            "photo_id": "P4",
+            "focus": {
+              "x": 0.2,
+              "y": 0.2,
+              "w": 0.7,
+              "h": 0.75
+            },
+            "quote": {
+              "narration_id": "n1",
+              "text": "本物は思ったより小さくてな、でも縄がぴんと張ってて、きれいだった。"
+            },
+            "question": "縄の前で過ごしたあと、みんなでどんな話をしていたのか、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "P4を選択。じいちゃん・お母さん・ゆいの語りが付き、出した回数も0。Y2は自分の写真なので後回し、P6は食事の話。focusは語りに出る岩と縄。材料はn1。",
+        "photo_id": "P4",
+        "focus": {
+          "x": 0.2,
+          "y": 0.2,
+          "w": 0.7,
+          "h": 0.75
+        },
+        "quote": {
+          "narration_id": "n1",
+          "text": "本物は思ったより小さくてな、でも縄がぴんと張ってて、きれいだった。"
+        },
+        "question": "縄の前で過ごしたあと、みんなでどんな話をしていたのか、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "本物は思ったより小さくてな、でも縄がぴんと張ってて、きれいだった。"
+    },
+    {
+      "memberId": "m-yui",
+      "run": 2,
+      "usedBefore": [
+        "P8",
+        "Y1",
+        "P4"
+      ],
+      "candidates": [
+        "Y2",
+        "P6",
+        "P1",
+        "P2",
+        "P3",
+        "P7"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17109,
+      "outputTokens": 1232,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "Y2を選択。祖父(elder)の語りn8が付き、孫のゆいに届く向きで、未出し。P6はゆい自身の写真で優先度が下。focusは川の流れと浅瀬、遠くの橋を含む範囲。材料はn8。",
+            "photo_id": "Y2",
+            "focus": {
+              "x": 0.1,
+              "y": 0.3,
+              "w": 0.8,
+              "h": 0.65
+            },
+            "quote": {
+              "narration_id": "n8",
+              "text": "川の真ん中に大きな岩があってな、伊勢で夫婦岩を見たとき、あの岩を思い出したんだよ。"
+            },
+            "question": "舟で渡った日は、川の上でどんなことがあったのか、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "Y2を選択。祖父(elder)の語りn8が付き、孫のゆいに届く向きで、未出し。P6はゆい自身の写真で優先度が下。focusは川の流れと浅瀬、遠くの橋を含む範囲。材料はn8。",
+        "photo_id": "Y2",
+        "focus": {
+          "x": 0.1,
+          "y": 0.3,
+          "w": 0.8,
+          "h": 0.65
+        },
+        "quote": {
+          "narration_id": "n8",
+          "text": "川の真ん中に大きな岩があってな、伊勢で夫婦岩を見たとき、あの岩を思い出したんだよ。"
+        },
+        "question": "舟で渡った日は、川の上でどんなことがあったのか、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "川の真ん中に大きな岩があってな、伊勢で夫婦岩を見たとき、あの岩を思い出したんだよ。"
+    },
+    {
+      "memberId": "m-okaasan",
+      "run": 3,
+      "usedBefore": [],
+      "candidates": [
+        "P8",
+        "Y1",
+        "Y2",
+        "P6",
+        "P4",
+        "P5"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 18011,
+      "outputTokens": 1150,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "P8を選択。受け取る人の写真で、じいちゃんの返事n12が付き、未出し。P4とP6も候補だが、返事の重みでP8を優先。focusは語りの大きな木と支柱を含む中央。材料はn11、n12。",
+            "photo_id": "P8",
+            "focus": {
+              "x": 0.1,
+              "y": 0.05,
+              "w": 0.75,
+              "h": 0.9
+            },
+            "quote": {
+              "narration_id": "n12",
+              "text": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+            },
+            "question": "あの木の前で、ほかの家族はそれぞれどんなふうに過ごしていましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "P8を選択。受け取る人の写真で、じいちゃんの返事n12が付き、未出し。P4とP6も候補だが、返事の重みでP8を優先。focusは語りの大きな木と支柱を含む中央。材料はn11、n12。",
+        "photo_id": "P8",
+        "focus": {
+          "x": 0.1,
+          "y": 0.05,
+          "w": 0.75,
+          "h": 0.9
+        },
+        "quote": {
+          "narration_id": "n12",
+          "text": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+        },
+        "question": "あの木の前で、ほかの家族はそれぞれどんなふうに過ごしていましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。"
+    },
+    {
+      "memberId": "m-jiichan",
+      "run": 3,
+      "usedBefore": [
+        "P8"
+      ],
+      "candidates": [
+        "Y1",
+        "P4",
+        "P5",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17496,
+      "outputTokens": 905,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "Y1を選択。受け取る人が elder で、まさとと孫ゆいの語りが付き、未出し。P4も候補だが本人の語りが中心。focusは田んぼと手前の道。材料はn10、n9。",
+            "photo_id": "Y1",
+            "focus": {
+              "x": 0,
+              "y": 0.4,
+              "w": 0.8,
+              "h": 0.55
+            },
+            "quote": {
+              "narration_id": "n10",
+              "text": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+            },
+            "question": "この道では、歩きながらほかにどんなものを見たり聞いたりしてきましたか。"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "Y1を選択。受け取る人が elder で、まさとと孫ゆいの語りが付き、未出し。P4も候補だが本人の語りが中心。focusは田んぼと手前の道。材料はn10、n9。",
+        "photo_id": "Y1",
+        "focus": {
+          "x": 0,
+          "y": 0.4,
+          "w": 0.8,
+          "h": 0.55
+        },
+        "quote": {
+          "narration_id": "n10",
+          "text": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+        },
+        "question": "この道では、歩きながらほかにどんなものを見たり聞いたりしてきましたか。"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "夏休み、じいちゃんと一緒にこの道を歩きたい。"
+    },
+    {
+      "memberId": "m-masato",
+      "run": 3,
+      "usedBefore": [
+        "P8",
+        "Y1"
+      ],
+      "candidates": [
+        "Y2",
+        "P6",
+        "P4",
+        "P5",
+        "P1",
+        "P2"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17654,
+      "outputTokens": 1069,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "Y2を選択。受け取る人の写真で、じいちゃんの語りが付き未出し。P4は語りが多いが、まさとの語りがない。focusは川面。素材n8。",
+            "photo_id": "Y2",
+            "focus": {
+              "x": 0.1,
+              "y": 0.35,
+              "w": 0.8,
+              "h": 0.6
+            },
+            "quote": {
+              "narration_id": "n8",
+              "text": "最上川のこのあたりは、若いころよく舟で渡ったんだ。"
+            },
+            "question": "川の真ん中の大きな岩のそばを舟で通るとき、どんな様子だったのか、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "Y2を選択。受け取る人の写真で、じいちゃんの語りが付き未出し。P4は語りが多いが、まさとの語りがない。focusは川面。素材n8。",
+        "photo_id": "Y2",
+        "focus": {
+          "x": 0.1,
+          "y": 0.35,
+          "w": 0.8,
+          "h": 0.6
+        },
+        "quote": {
+          "narration_id": "n8",
+          "text": "最上川のこのあたりは、若いころよく舟で渡ったんだ。"
+        },
+        "question": "川の真ん中の大きな岩のそばを舟で通るとき、どんな様子だったのか、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "最上川のこのあたりは、若いころよく舟で渡ったんだ。"
+    },
+    {
+      "memberId": "m-yui",
+      "run": 3,
+      "usedBefore": [
+        "P8",
+        "Y1",
+        "Y2"
+      ],
+      "candidates": [
+        "P4",
+        "P6",
+        "P1",
+        "P2",
+        "P3",
+        "P7"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 17456,
+      "outputTokens": 986,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "P6を選択。出した回数0で、じいちゃんの語りn7が付いており、孫のゆいに届く。P4は一度出していて回数が多いため退けた。focusは語りに出る肉が大きく写る左寄りの範囲。材料はn7、n3。",
+            "photo_id": "P6",
+            "focus": {
+              "x": 0.05,
+              "y": 0.05,
+              "w": 0.75,
+              "h": 0.9
+            },
+            "quote": {
+              "narration_id": "n7",
+              "text": "ばあちゃんはいつもそうなんだ。孫が食べてるとこ見てるのが、一番のごちそうなんだって。"
+            },
+            "question": "この日の夜ごはんの席では、ほかにどんなやり取りがありましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "P6を選択。出した回数0で、じいちゃんの語りn7が付いており、孫のゆいに届く。P4は一度出していて回数が多いため退けた。focusは語りに出る肉が大きく写る左寄りの範囲。材料はn7、n3。",
+        "photo_id": "P6",
+        "focus": {
+          "x": 0.05,
+          "y": 0.05,
+          "w": 0.75,
+          "h": 0.9
+        },
+        "quote": {
+          "narration_id": "n7",
+          "text": "ばあちゃんはいつもそうなんだ。孫が食べてるとこ見てるのが、一番のごちそうなんだって。"
+        },
+        "question": "この日の夜ごはんの席では、ほかにどんなやり取りがありましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "ばあちゃんはいつもそうなんだ。孫が食べてるとこ見てるのが、一番のごちそうなんだって。"
+    }
+  ]
+}

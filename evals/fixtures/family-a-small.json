@@ -1,0 +1,125 @@
+{
+  "id": "family-a-small",
+  "summary": "family-a の変種（写真が人より少ない家族）。5 人、写真 2 枚（p01-beach、p07-field）と、その語り 4 本だけ。同じ日に写真を重ねないことが「外すと 0 枚なら外さない」に倒れるかを見る",
+  "asOfDate": "2026-11-03",
+  "members": [
+    {
+      "id": "m-mother",
+      "role": "family",
+      "relation": "母",
+      "calledAs": "お母さん",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    },
+    {
+      "id": "m-baaba",
+      "role": "elder",
+      "relation": "祖母",
+      "calledAs": "ばあば",
+      "speechStyle": "dialect",
+      "dialectRegion": "広島",
+      "setUpByMemberId": "m-mother"
+    },
+    {
+      "id": "m-jiiji",
+      "role": "elder",
+      "relation": "祖父",
+      "calledAs": "じいじ",
+      "speechStyle": "dialect",
+      "dialectRegion": "広島",
+      "setUpByMemberId": "m-mother"
+    },
+    {
+      "id": "m-uncle",
+      "role": "family",
+      "relation": "叔父",
+      "calledAs": "まさるおじさん",
+      "speechStyle": "dialect",
+      "dialectRegion": "広島",
+      "setUpByMemberId": null
+    },
+    {
+      "id": "m-yui",
+      "role": "family",
+      "relation": "孫",
+      "calledAs": "ゆい",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    }
+  ],
+  "photos": [
+    {
+      "id": "p01-beach",
+      "ownerMemberId": "m-mother",
+      "takenAt": "2026-10-18T14:02:11",
+      "description": "砂浜で、浮き輪を持った子どもと、海に向かって走る子ども、日傘をさした女性が写っている。遠くに小さな島が見える。色があせている",
+      "note": "古い紙の写真をスマホで撮り直したもの。takenAt は撮り直した日で、写っている時期ではない（時期を取り違えさせる罠）"
+    },
+    {
+      "id": "p07-field",
+      "ownerMemberId": "m-yui",
+      "takenAt": "2018-11-24T13:45:02",
+      "description": "畑で、子どもが大根を両手で引っぱっている。後ろに麦わら帽子の年配の男性がいる",
+      "note": ""
+    }
+  ],
+  "narrations": [
+    {
+      "id": "n01-beach-baaba",
+      "speakerMemberId": "m-baaba",
+      "photoId": "p01-beach",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-20",
+      "transcript": "これは海水浴じゃね。あんたらがまだこまい頃じゃけえ、昭和の五十…三年か四年か。お父さんが会社の休みをもろうて、汽車で行ったんよ。ほいで、あんたは浮き輪をはなさんかったし、まさるは泳ぐ泳ぐ言うて沖の方へ行こうとするけえ、わたしはもう、ずうっと浜から呼びよったんよ。帰りに食べたかき氷が、ぶちおいしかったねえ。",
+      "traits": [
+        "dialect"
+      ],
+      "mishearings": [],
+      "note": "広島の言葉（こまい、じゃけえ、もろうて、ぶち）。「あんた」は母のこと。時期は語りの中で「昭和の五十三年か四年」とだけ言っている"
+    },
+    {
+      "id": "n06-beach-mother-reply",
+      "speakerMemberId": "m-mother",
+      "photoId": "p01-beach",
+      "replyToId": "n01-beach-baaba",
+      "kind": "text",
+      "forDate": "2026-10-20",
+      "transcript": "浮き輪、いまでも覚えてる。黄色いアヒルのやつ。まさるが沖に行こうとして、お父さんが走って連れ戻してたよね",
+      "traits": [
+        "reply"
+      ],
+      "mishearings": [],
+      "note": "ばあば（n01）への返事。家族の言葉に「覚えてる」がある。問いかけに「覚えていますか」を持ち込まないか"
+    },
+    {
+      "id": "n07-beach-uncle-reply",
+      "speakerMemberId": "m-uncle",
+      "photoId": "p01-beach",
+      "replyToId": "n06-beach-mother-reply",
+      "kind": "text",
+      "forDate": "2026-10-21",
+      "transcript": "連れ戻されたんじゃないって。足がつったけえ自分で戻ったんよ。親父は後から来ただけじゃ",
+      "traits": [
+        "reply",
+        "dialect"
+      ],
+      "mishearings": [],
+      "note": "母（n06）への返事。言うことが食い違う。どちらが正しいかを決めないか、片方だけを事実として扱わないか"
+    },
+    {
+      "id": "n10-field-yui",
+      "speakerMemberId": "m-yui",
+      "photoId": "p07-field",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-11-02",
+      "transcript": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。",
+      "traits": [],
+      "mishearings": [],
+      "note": "孫の語り。写真の説明の「年配の男性」をじいじだと語っている"
+    }
+  ]
+}

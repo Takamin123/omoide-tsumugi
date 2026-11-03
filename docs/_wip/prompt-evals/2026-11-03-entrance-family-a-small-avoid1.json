@@ -1,0 +1,464 @@
+{
+  "fixture": "family-a-small",
+  "avoid": true,
+  "images": 0,
+  "repeat": 2,
+  "outcomes": [
+    {
+      "memberId": "m-mother",
+      "run": 1,
+      "usedBefore": [],
+      "candidates": [
+        "p01-beach",
+        "p07-field"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5326,
+      "outputTokens": 805,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p01-beach を選択。お母さんはfamilyで、ばあば(elder)の語りn01が付く写真を優先。p07-fieldは自分以外だが祖父母の語りがなく後回し。画像なしのためfocusはnull。材料はn01-beach-baaba。引用は食い違いのない部分を選んだ。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "汽車で出かけたこの日、浜ではほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p01-beach を選択。お母さんはfamilyで、ばあば(elder)の語りn01が付く写真を優先。p07-fieldは自分以外だが祖父母の語りがなく後回し。画像なしのためfocusはnull。材料はn01-beach-baaba。引用は食い違いのない部分を選んだ。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "汽車で出かけたこの日、浜ではほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+    },
+    {
+      "memberId": "m-baaba",
+      "run": 1,
+      "usedBefore": [
+        "p01-beach"
+      ],
+      "candidates": [
+        "p07-field"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 4720,
+      "outputTokens": 625,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p07-field を選択。候補は一枚のみで、孫ゆいの語りがあり、ばあばに届く向き。画像がないため focus は null。材料は n10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "この畑では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p07-field を選択。候補は一枚のみで、孫ゆいの語りがあり、ばあばに届く向き。画像がないため focus は null。材料は n10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "この畑では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+    },
+    {
+      "memberId": "m-jiiji",
+      "run": 1,
+      "usedBefore": [
+        "p01-beach",
+        "p07-field"
+      ],
+      "candidates": [
+        "p07-field",
+        "p01-beach"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5331,
+      "outputTokens": 748,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p07-field を選んだ。孫ゆいの語りが付き、まだ出していない写真。p01-beach は語りが食い違い、今日は見送った。画像なしのため focus は null。材料は n10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "この日の畑では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p07-field を選んだ。孫ゆいの語りが付き、まだ出していない写真。p01-beach は語りが食い違い、今日は見送った。画像なしのため focus は null。材料は n10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "この日の畑では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+    },
+    {
+      "memberId": "m-uncle",
+      "run": 1,
+      "usedBefore": [
+        "p01-beach",
+        "p07-field",
+        "p07-field"
+      ],
+      "candidates": [
+        "p07-field",
+        "p01-beach"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5332,
+      "outputTokens": 956,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p01-beach を選択。祖母の語りと母の返事が付き、叔父には他の家族の言葉が届く。p07-field はゆいの語りのみで祖父母の語りがないため退けた。画像なしで focus は null。材料は n01-beach-baaba。母と本人の語りは食い違うため引用しない。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "汽車に揺られたこの日の行きと帰りは、どんな様子でしたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p01-beach を選択。祖母の語りと母の返事が付き、叔父には他の家族の言葉が届く。p07-field はゆいの語りのみで祖父母の語りがないため退けた。画像なしで focus は null。材料は n01-beach-baaba。母と本人の語りは食い違うため引用しない。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "汽車に揺られたこの日の行きと帰りは、どんな様子でしたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+    },
+    {
+      "memberId": "m-yui",
+      "run": 1,
+      "usedBefore": [
+        "p01-beach",
+        "p07-field",
+        "p07-field",
+        "p01-beach"
+      ],
+      "candidates": [
+        "p01-beach",
+        "p07-field"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5327,
+      "outputTokens": 1122,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p01-beach を選択。ばあばの語りと母・叔父の返事が付いており、ゆいに他の家族の言葉が届くため。p07-field はゆい自身の語りで優先度が低い。画像がないので focus は null。母と叔父の食い違いは引用せず、n01-beach-baaba を引用。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "ほいで、あんたは浮き輪をはなさんかったし、まさるは泳ぐ泳ぐ言うて沖の方へ行こうとするけえ、わたしはもう、ずうっと浜から呼びよったんよ。"
+            },
+            "question": "この日の浜では、ほかにどんなことがあったのか、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p01-beach を選択。ばあばの語りと母・叔父の返事が付いており、ゆいに他の家族の言葉が届くため。p07-field はゆい自身の語りで優先度が低い。画像がないので focus は null。母と叔父の食い違いは引用せず、n01-beach-baaba を引用。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "ほいで、あんたは浮き輪をはなさんかったし、まさるは泳ぐ泳ぐ言うて沖の方へ行こうとするけえ、わたしはもう、ずうっと浜から呼びよったんよ。"
+        },
+        "question": "この日の浜では、ほかにどんなことがあったのか、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "ほいで、あんたは浮き輪をはなさんかったし、まさるは泳ぐ泳ぐ言うて沖の方へ行こうとするけえ、わたしはもう、ずうっと浜から呼びよったんよ。"
+    },
+    {
+      "memberId": "m-mother",
+      "run": 2,
+      "usedBefore": [],
+      "candidates": [
+        "p01-beach",
+        "p07-field"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5326,
+      "outputTokens": 669,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p01-beachを選択。ばあばの語りと家族の返事があり、お母さんに初めて出す写真。p07-fieldは自分の写真ではないが語りが少なく後回し。画像なしのためfocusはnull。材料はn01-beach-baaba。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "この日の浜では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p01-beachを選択。ばあばの語りと家族の返事があり、お母さんに初めて出す写真。p07-fieldは自分の写真ではないが語りが少なく後回し。画像なしのためfocusはnull。材料はn01-beach-baaba。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "この日の浜では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+    },
+    {
+      "memberId": "m-baaba",
+      "run": 2,
+      "usedBefore": [
+        "p01-beach"
+      ],
+      "candidates": [
+        "p07-field"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 4720,
+      "outputTokens": 686,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p07-field は唯一の候補で、孫ゆいの語りが付いておりばあばに届く。画像なしのため focus は null。材料は n10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "この日の畑は、ほかにどんな様子でしたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p07-field は唯一の候補で、孫ゆいの語りが付いておりばあばに届く。画像なしのため focus は null。材料は n10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "この日の畑は、ほかにどんな様子でしたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+    },
+    {
+      "memberId": "m-jiiji",
+      "run": 2,
+      "usedBefore": [
+        "p01-beach",
+        "p07-field"
+      ],
+      "candidates": [
+        "p07-field",
+        "p01-beach"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5331,
+      "outputTokens": 694,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p07-field を選択。じいじが居合わせた孫ゆいの語りで未出。p01-beach は母とおじの語りが食い違うため退けた。画像なしでfocusはnull。材料はn10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "この日の畑では、大根のほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p07-field を選択。じいじが居合わせた孫ゆいの語りで未出。p01-beach は母とおじの語りが食い違うため退けた。画像なしでfocusはnull。材料はn10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "この日の畑では、大根のほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "全然抜けなくて、じいじが後ろから引っぱってくれた。"
+    },
+    {
+      "memberId": "m-uncle",
+      "run": 2,
+      "usedBefore": [
+        "p01-beach",
+        "p07-field",
+        "p07-field"
+      ],
+      "candidates": [
+        "p07-field",
+        "p01-beach"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5332,
+      "outputTokens": 749,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p01-beach を選択。ばあばの語りと母の返事があり、出した回数も同数で、elderの語りがある方を優先した。p07-field は孫の写真で語り手もゆいのみ。画像なしのため focus は null。quote は n01-beach-baaba。母とおじの食い違いには触れない。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "この日、汽車に乗っている間は、どんなふうに過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p01-beach を選択。ばあばの語りと母の返事があり、出した回数も同数で、elderの語りがある方を優先した。p07-field は孫の写真で語り手もゆいのみ。画像なしのため focus は null。quote は n01-beach-baaba。母とおじの食い違いには触れない。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "この日、汽車に乗っている間は、どんなふうに過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+    },
+    {
+      "memberId": "m-yui",
+      "run": 2,
+      "usedBefore": [
+        "p01-beach",
+        "p07-field",
+        "p07-field",
+        "p01-beach"
+      ],
+      "candidates": [
+        "p01-beach",
+        "p07-field"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5327,
+      "outputTokens": 1040,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "p01-beachを選択。ばあばの語りと家族の返事が付き、ゆいの入り口に未出で、ゆいは生まれる前の話。p07-fieldはゆい自身の語りのみなので退けた。画像なしでfocusはnull。材料はn01-beach-baaba。母とまさるの食い違いは避けた。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "汽車での道のりは、どんな様子だったのか聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "p01-beachを選択。ばあばの語りと家族の返事が付き、ゆいの入り口に未出で、ゆいは生まれる前の話。p07-fieldはゆい自身の語りのみなので退けた。画像なしでfocusはnull。材料はn01-beach-baaba。母とまさるの食い違いは避けた。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "汽車での道のりは、どんな様子だったのか聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+    }
+  ]
+}
