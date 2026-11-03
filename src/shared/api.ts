@@ -128,6 +128,11 @@ export type Photo = {
   height: number;
   takenAt: string | null;
   hasLocation: boolean; // 緯度経度そのものはクライアントに返さない
+  /**
+   * 写真の位置から引いた市区町村の名前（「三重県伊勢市」）。画面では「あたり」を付けて出す。
+   * 位置がない、日本の外、近くに市区町村の代表点がないときは null。サーバーが一覧から引く（外のサービスは使わない）。0047
+   */
+  place: string | null;
   imageUrl: string; // /api/photos/:id/image（合言葉を確かめてから返す。Cache-Control: private, no-store）
 };
 export type UploadPhotoResult = { photo: Photo; duplicate: boolean };

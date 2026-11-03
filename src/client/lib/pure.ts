@@ -71,6 +71,11 @@ export function formatTakenDate(takenAt: string | null): string | null {
   return words.dateLabel(Number(m[1]), Number(m[2]), Number(m[3]));
 }
 
+/** 写真の場所の表示: "三重県伊勢市あたり"。なければ null（0047） */
+export function formatPlace(place: string | null | undefined): string | null {
+  return place ? words.placeLabel(place) : null;
+}
+
 /** 録音の経過時間の表示: "0:07" */
 export function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));

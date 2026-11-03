@@ -510,6 +510,8 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     expect(sent).toContain(SECRET_GUESS);
     expect(sent).not.toContain("34.39");
     expect(sent).not.toContain("132.46");
+    // 写真の位置から引いた地名も渡さない（0047。架空の座標で、広島市の代表点の近く）
+    expect(sent).not.toContain("広島");
 
     const before = s.requests.length;
     s.t.setNow(NOW);
@@ -520,6 +522,9 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     const e = (JSON.parse(body) as { entrance: Record<string, unknown> }).entrance;
     expect(e).toMatchObject({ question: "この日のことを、聞かせてください", focus: { x: 0.1, y: 0.2, w: 0.5, h: 0.5 } });
     expect(e.quote).toMatchObject({ speakerMemberId: s.grandchild, text: "全然抜けなかった。" });
+    // 写真に付いている記録: 撮影日と場所の文字。緯度経度は返さない（0047）
+    expect(e.photo).toMatchObject({ takenAt: "2018-11-24T13:45:02", place: "広島県広島市" });
+    expect(body).not.toContain("34.39");
     expect(Object.keys(e).sort()).toEqual(["focus", "forDate", "id", "memberId", "photo", "question", "questionAudioUrl", "quote"]);
     // 読み上げのキーがない（speaker が null）ので音声は作らない
     expect(e.questionAudioUrl).toBeNull();

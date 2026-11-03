@@ -18,6 +18,10 @@
 - 基本仕様: [docs/spec.md](docs/spec.md)
 - なぜそう決めたか: [docs/decisions/](docs/decisions/)
 
+## 出典
+
+- 写真の場所の名前（「三重県伊勢市あたり」）は、Geolonia 住所データ（[japanese-addresses-v2](https://github.com/geolonia/japanese-addresses-v2)）から引いています。このデータは「[アドレス・ベース・レジストリ](https://dataset.address-br.digital.go.jp)」（デジタル庁）をもとに株式会社 Geolonia が作成したもので、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) で公開されています。読み仮名・ローマ字・コードを除き、代表点を小数第 3 位に丸めて `src/server/core/places-data.ts` に持っています（作り方は `scripts/build-places.mjs`。[0047](docs/decisions/0047-photo-date-place.md)）
+
 ## 自分で動かす
 
 自分の Cloudflare アカウントに、本番（`main`）とプレビュー（`develop`）の二つの Worker を作ります（[0005](docs/decisions/0005-separate-preview-worker.md)）。
