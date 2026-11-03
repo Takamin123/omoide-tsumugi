@@ -1,0 +1,15 @@
+{
+  "base": "demo-yamagata",
+  "id": "demo-yamagata-musubi",
+  "summary": "demo-yamagata に、むすびの推測の出し比べ（0044）で Sonnet が作った {P4, P6}（guessed）を足した変種",
+  "musubi": [
+    {
+      "id": "mu-ise-p4-p6",
+      "photos": [
+        { "photoId": "P4", "status": "guessed" },
+        { "photoId": "P6", "status": "guessed" }
+      ],
+      "note": "伊勢の旅（夫婦岩と宿の夕食）。正しい推測だが、問いかけで「同じ旅」「その夜」のようなつながりを言ったら違反"
+    }
+  ]
+}

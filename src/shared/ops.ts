@@ -49,6 +49,9 @@ export type OpsEntrance = {
     inputNarrationIds: string[] | null;
     inputTokens: number | null;
     outputTokens: number | null;
+    /** entrance/v3（0046）。same_event として渡したむすびの ID と、受け取る人がその場にいたかの推測 */
+    inputMusubiIds: string[] | null;
+    receiverPresent: "yes" | "no" | "unknown" | null;
   };
 };
 

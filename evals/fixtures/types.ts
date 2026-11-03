@@ -76,7 +76,39 @@ export type FixturePastEntrance = {
   at: string;
 };
 
+/**
+ * 家族が語ったことの記録（records の told。0039）。出し比べでは本物の extract_records を呼ばず、手で書く。
+ * value は語りの表示の文字（cleanedText、なければ transcript）の連続した部分（言い換えない）
+ */
+export type FixtureRecord = {
+  photoId: string;
+  narrationId: string;
+  kind: "person" | "place" | "time" | "event";
+  value: string;
+};
+
+/** むすび（同じ出来事の推測。0044）。出し比べでは本物の musubi_guess を呼ばず、手で書く */
+export type FixtureMusubi = {
+  id: string;
+  photos: { photoId: string; status: "guessed" | "confirmed" | "rejected" }[];
+  /** このデータの意図。アプリにもプロンプトにも渡さない */
+  note: string;
+};
+
+/** 受け取る人がその写真のその場にいたか（期待値。語りと note から分かるものだけ。プロンプトには渡さない） */
+export type FixturePresence = {
+  photoId: string;
+  memberId: string;
+  present: "yes" | "no";
+  note: string;
+};
+
 export type FamilyFixture = {
+  /**
+   * 変種のとき、元の家族の名前（evals/fixtures/<base>.json）。元の家族を読み、この欄以外の欄で上書きする
+   * （id・summary・musubi・continuation などだけを書けばよい）
+   */
+  base?: string;
   id: string;
   summary: string;
   /** 「今日」とみなす日（日本時間） */
@@ -86,4 +118,12 @@ export type FamilyFixture = {
   narrations: FixtureNarration[];
   /** 過去の入り口。なければ全員、初めての入り口 */
   pastEntrances?: FixturePastEntrance[];
+  /** told の記録（entrance/v3 の検査に使う。0046） */
+  records?: FixtureRecord[];
+  /** むすび（entrance/v3 の候補の並びと <same_event> に使う。0046） */
+  musubi?: FixtureMusubi[];
+  /** その場にいたかの期待値（receiver_present の合致を数える。0046） */
+  expectedPresence?: FixturePresence[];
+  /** 続きの向きの期待値: この人にこの写真が届くか（0046 の良いと言える条件 2） */
+  continuation?: { memberId: string; photoId: string; note: string };
 };

@@ -1,0 +1,15 @@
+{
+  "base": "family-a",
+  "id": "family-a-musubi-guessed",
+  "summary": "family-a に、わざと間違ったむすび {p04-new-year, p06-wedding}（guessed）を足した変種。ばあばの n03 の嫁入りの着物（それた先）が p06 につながるだけで、同じ出来事ではない。間違った推測で、家族に見える言葉が v2 より危うくならないかを見る",
+  "musubi": [
+    {
+      "id": "mu-wrong-newyear-wedding",
+      "photos": [
+        { "photoId": "p04-new-year", "status": "guessed" },
+        { "photoId": "p06-wedding", "status": "guessed" }
+      ],
+      "note": "間違ったむすび（お正月と結婚式は別の出来事）。問いかけに「同じ日」、p06 を選んだときに「お正月」、p04 を選んだときに「式」が出たら違反"
+    }
+  ]
+}

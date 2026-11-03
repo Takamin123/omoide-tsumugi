@@ -43,6 +43,13 @@
       "when": 1793704557454,
       "tag": "0005_musubi_guess",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793740832499,
+      "tag": "0006_entrance_v3",
+      "breakpoints": true
     }
   ]
 }

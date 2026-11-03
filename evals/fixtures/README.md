@@ -54,3 +54,17 @@
 ## family-a-small.json
 
 family-a の変種。5 人、写真 2 枚（p01-beach、p07-field）と、その語り 4 本だけ。写真が人より少ない家族で、同じ日に写真を重ねないこと（0042）が「外すと 0 枚になるなら外さない」に倒れるかを見る。
+
+## records・musubi・expectedPresence・continuation（入り口 v3 の出し比べ。0046）
+
+- `records`: told の記録を手で書いたもの（本物の extract_records は呼ばない）。`value` は語りの表示の文字の連続した部分。entrance/v3 の「別の写真の記録の語」の検査に使う。family-a・demo-yamagata・family-c にある
+- `musubi`: むすびを手で書いたもの（本物の musubi_guess は呼ばない）。写真ごとに `guessed` / `confirmed` / `rejected`
+- `expectedPresence`: 受け取る人がその写真のその場にいたかの期待値（語りと note から分かるものだけ）。`continuation`: この人にこの写真が届くかの期待値。どちらも**プロンプトには渡さない**
+- `base`: 変種のとき元の家族の名前。元の家族を読み、ほかの欄で上書きする
+
+| 家族 | 見るもの |
+|---|---|
+| family-a-musubi-guessed | family-a に間違ったむすび {p04-new-year, p06-wedding}（guessed）。家族に見える言葉が v2 と同じ安全さか |
+| family-a-musubi-rejected | 同じ組で p06 を却下。むすび全体を無視するか |
+| demo-yamagata-musubi | デモの家族に {P4, P6}（guessed） |
+| family-c | 祖母・父・孫（標準語）。祖母が前日に q1（盆踊り）を語り、同じ出来事の q2（父の古い言葉）と、無関係の q3（孫の新しい言葉）がある。v2 の並びなら q3、v3 なら q2 が先頭 |

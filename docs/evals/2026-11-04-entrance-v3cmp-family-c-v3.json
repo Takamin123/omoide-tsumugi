@@ -1,0 +1,554 @@
+{
+  "fixture": "family-c",
+  "prompt": "entrance/v3",
+  "useMusubi": true,
+  "avoid": true,
+  "images": 0,
+  "repeat": 3,
+  "metrics": {
+    "total": 9,
+    "ok": 9,
+    "fixed": 0,
+    "retried": 0,
+    "violations": {},
+    "linkCheckHits": [],
+    "linkWordsInFinal": 0,
+    "quoteReuseMax": 5,
+    "quoteNull": 0,
+    "quoteByOthers": "9/9",
+    "focusViolations": 0,
+    "hokaniType": "4/9",
+    "deshitaka": "0/9",
+    "presenceMatched": "3/3",
+    "presence": [
+      {
+        "memberId": "m-sora",
+        "run": 1,
+        "photoId": "q6-kite",
+        "expected": "no",
+        "got": "no",
+        "question": "お父さんのこの話で、糸のことをもっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-sora",
+        "run": 2,
+        "photoId": "q6-kite",
+        "expected": "no",
+        "got": "no",
+        "question": "お父さんのこの凧あげの話で、もっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-sora",
+        "run": 3,
+        "photoId": "q6-kite",
+        "expected": "no",
+        "got": "no",
+        "question": "お父さんのこの話で、凧あげについてもっと聞いてみたいのはどんなところですか"
+      }
+    ],
+    "receiverPresentCounts": {
+      "yes": 6,
+      "no": 3
+    },
+    "continuation": "2/3",
+    "sameEventLines": 8,
+    "inputTokens": 57476,
+    "outputTokens": 8610
+  },
+  "outcomes": [
+    {
+      "memberId": "m-obaa",
+      "run": 1,
+      "usedBefore": [],
+      "candidates": [
+        "q2-yomise",
+        "q3-ajisai",
+        "q5-station",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6466,
+      "outputTokens": 1006,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "q2-yomise。お父さんの語りが付き未出し。same_eventでおばあちゃんが11/02に語っており同席と推測。q6-kiteも候補だが、同席の根拠があるこちらを優先。画像なしでfocusはnull。材料はc1-yomise-papa。",
+            "photo_id": "q2-yomise",
+            "focus": null,
+            "quote": {
+              "narration_id": "c1-yomise-papa",
+              "text": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+            },
+            "question": "夜店では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "q2-yomise。お父さんの語りが付き未出し。same_eventでおばあちゃんが11/02に語っており同席と推測。q6-kiteも候補だが、同席の根拠があるこちらを優先。画像なしでfocusはnull。材料はc1-yomise-papa。",
+        "photo_id": "q2-yomise",
+        "focus": null,
+        "quote": {
+          "narration_id": "c1-yomise-papa",
+          "text": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+        },
+        "question": "夜店では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。",
+      "sameEventLines": 1,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-papa",
+      "run": 1,
+      "usedBefore": [
+        "q2-yomise"
+      ],
+      "candidates": [
+        "q1-bon",
+        "q3-ajisai",
+        "q5-station",
+        "q7-ohagi",
+        "q6-kite",
+        "q4-snow"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6452,
+      "outputTokens": 788,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "q1-bon。おばあちゃんの語りが付き未出し。present:同じ出来事の別写真でお父さんが語っている。退けた候補:q6-kiteは本人の語りのみ。focus:画像なしでnull。材料:c2-bon-obaa",
+            "photo_id": "q1-bon",
+            "focus": null,
+            "quote": {
+              "narration_id": "c2-bon-obaa",
+              "text": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。"
+            },
+            "question": "この日の盆踊りで、ほかにどんなことがあったのか聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "q1-bon。おばあちゃんの語りが付き未出し。present:同じ出来事の別写真でお父さんが語っている。退けた候補:q6-kiteは本人の語りのみ。focus:画像なしでnull。材料:c2-bon-obaa",
+        "photo_id": "q1-bon",
+        "focus": null,
+        "quote": {
+          "narration_id": "c2-bon-obaa",
+          "text": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。"
+        },
+        "question": "この日の盆踊りで、ほかにどんなことがあったのか聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。",
+      "sameEventLines": 1,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-sora",
+      "run": 1,
+      "usedBefore": [
+        "q2-yomise",
+        "q1-bon"
+      ],
+      "candidates": [
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi",
+        "q5-station",
+        "q3-ajisai"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6192,
+      "outputTokens": 827,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "q6-kite:お父さんの語りが付き未出の写真。語りは父の父の話で、撮影2003年からそらは居合わせなかったと推測。q5・q3はそら自身の語り。画像なしのためfocusはnull。材料c4-kite-papa",
+            "photo_id": "q6-kite",
+            "focus": null,
+            "quote": {
+              "narration_id": "c4-kite-papa",
+              "text": "糸の出し方にこつがあると言って、なかなか持たせてくれなかった。"
+            },
+            "question": "お父さんのこの話で、糸のことをもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "q6-kite:お父さんの語りが付き未出の写真。語りは父の父の話で、撮影2003年からそらは居合わせなかったと推測。q5・q3はそら自身の語り。画像なしのためfocusはnull。材料c4-kite-papa",
+        "photo_id": "q6-kite",
+        "focus": null,
+        "quote": {
+          "narration_id": "c4-kite-papa",
+          "text": "糸の出し方にこつがあると言って、なかなか持たせてくれなかった。"
+        },
+        "question": "お父さんのこの話で、糸のことをもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "糸の出し方にこつがあると言って、なかなか持たせてくれなかった。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-obaa",
+      "run": 2,
+      "usedBefore": [],
+      "candidates": [
+        "q2-yomise",
+        "q3-ajisai",
+        "q5-station",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6466,
+      "outputTokens": 1210,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "q2-yomise:お父さんの語りがあり未提示。same_eventでおばあちゃんが最近語った出来事の別場面。yesの根拠はreceiver_talked。q3、q5も候補だが同条件でq2を優先。画像なしでfocusはnull。材料c1-yomise-papa",
+            "photo_id": "q2-yomise",
+            "focus": null,
+            "quote": {
+              "narration_id": "c1-yomise-papa",
+              "text": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+            },
+            "question": "夜店では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "q2-yomise:お父さんの語りがあり未提示。same_eventでおばあちゃんが最近語った出来事の別場面。yesの根拠はreceiver_talked。q3、q5も候補だが同条件でq2を優先。画像なしでfocusはnull。材料c1-yomise-papa",
+        "photo_id": "q2-yomise",
+        "focus": null,
+        "quote": {
+          "narration_id": "c1-yomise-papa",
+          "text": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+        },
+        "question": "夜店では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。",
+      "sameEventLines": 1,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-papa",
+      "run": 2,
+      "usedBefore": [
+        "q2-yomise"
+      ],
+      "candidates": [
+        "q1-bon",
+        "q3-ajisai",
+        "q5-station",
+        "q7-ohagi",
+        "q6-kite",
+        "q4-snow"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6452,
+      "outputTokens": 879,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "q1-bon を選択。おばあちゃんの語りが付き未出し。お父さんは same_event で receiver_talked があり同じ場にいたと推測。q6-kite は本人の語りのみで後回し。画像なしのため focus は null。材料は c2-bon-obaa。",
+            "photo_id": "q1-bon",
+            "focus": null,
+            "quote": {
+              "narration_id": "c2-bon-obaa",
+              "text": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。"
+            },
+            "question": "盆踊りの輪の中では、どんな音が聞こえていましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "q1-bon を選択。おばあちゃんの語りが付き未出し。お父さんは same_event で receiver_talked があり同じ場にいたと推測。q6-kite は本人の語りのみで後回し。画像なしのため focus は null。材料は c2-bon-obaa。",
+        "photo_id": "q1-bon",
+        "focus": null,
+        "quote": {
+          "narration_id": "c2-bon-obaa",
+          "text": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。"
+        },
+        "question": "盆踊りの輪の中では、どんな音が聞こえていましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。",
+      "sameEventLines": 1,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-sora",
+      "run": 2,
+      "usedBefore": [
+        "q2-yomise",
+        "q1-bon"
+      ],
+      "candidates": [
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi",
+        "q5-station",
+        "q3-ajisai"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6192,
+      "outputTokens": 922,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "q6-kite を選択。家族(お父さん)の語りが付き未出し。2003年撮影でそらの生まれる前の父の子ども時代の話と読め no。画像なしで focus は null。q5/q3 はそら自身の語り。材料は c4-kite-papa。",
+            "photo_id": "q6-kite",
+            "focus": null,
+            "quote": {
+              "narration_id": "c4-kite-papa",
+              "text": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。"
+            },
+            "question": "お父さんのこの凧あげの話で、もっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "q6-kite を選択。家族(お父さん)の語りが付き未出し。2003年撮影でそらの生まれる前の父の子ども時代の話と読め no。画像なしで focus は null。q5/q3 はそら自身の語り。材料は c4-kite-papa。",
+        "photo_id": "q6-kite",
+        "focus": null,
+        "quote": {
+          "narration_id": "c4-kite-papa",
+          "text": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。"
+        },
+        "question": "お父さんのこの凧あげの話で、もっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-obaa",
+      "run": 3,
+      "usedBefore": [],
+      "candidates": [
+        "q2-yomise",
+        "q3-ajisai",
+        "q5-station",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6466,
+      "outputTokens": 1319,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "q5-stationを選択。孫そらの語りがあり未出し。語りでおばあちゃんちに来たので在席と推測。q2-yomiseも有力だが在席が推測止まり。画像なしでfocusはnull。材料はc5-station-sora。",
+            "photo_id": "q5-station",
+            "focus": null,
+            "quote": {
+              "narration_id": "c5-station-sora",
+              "text": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。"
+            },
+            "question": "電車が着いたあと、その日はどんなふうに過ぎましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "q5-stationを選択。孫そらの語りがあり未出し。語りでおばあちゃんちに来たので在席と推測。q2-yomiseも有力だが在席が推測止まり。画像なしでfocusはnull。材料はc5-station-sora。",
+        "photo_id": "q5-station",
+        "focus": null,
+        "quote": {
+          "narration_id": "c5-station-sora",
+          "text": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。"
+        },
+        "question": "電車が着いたあと、その日はどんなふうに過ぎましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。",
+      "sameEventLines": 1,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-papa",
+      "run": 3,
+      "usedBefore": [
+        "q5-station"
+      ],
+      "candidates": [
+        "q1-bon",
+        "q3-ajisai",
+        "q7-ohagi",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6534,
+      "outputTokens": 764,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "q1-bon：おばあちゃんの語りが付き未出し。q2と同じ出来事でpapaが語り済みのため同席と推測。q3は孫の写真で次点。画像なしでfocusはnull。材料はc2-bon-obaa。",
+            "photo_id": "q1-bon",
+            "focus": null,
+            "quote": {
+              "narration_id": "c2-bon-obaa",
+              "text": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+            },
+            "question": "この日の夜、浴衣のほかにはどんな景色や音がありましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "q1-bon：おばあちゃんの語りが付き未出し。q2と同じ出来事でpapaが語り済みのため同席と推測。q3は孫の写真で次点。画像なしでfocusはnull。材料はc2-bon-obaa。",
+        "photo_id": "q1-bon",
+        "focus": null,
+        "quote": {
+          "narration_id": "c2-bon-obaa",
+          "text": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+        },
+        "question": "この日の夜、浴衣のほかにはどんな景色や音がありましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。",
+      "sameEventLines": 2,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-sora",
+      "run": 3,
+      "usedBefore": [
+        "q5-station",
+        "q1-bon"
+      ],
+      "candidates": [
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi",
+        "q3-ajisai"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6256,
+      "outputTokens": 895,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "q6-kite: 祖父母の語りは無く、お父さんの語りが付き未出しのため選択。お父さんの子ども時代の話でそらは不在と推測。q2-yomiseも同条件だが凧を優先。画像なしのためfocusはnull。材料はc4-kite-papa。",
+            "photo_id": "q6-kite",
+            "focus": null,
+            "quote": {
+              "narration_id": "c4-kite-papa",
+              "text": "凧あげは父の得意技だった。"
+            },
+            "question": "お父さんのこの話で、凧あげについてもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "q6-kite: 祖父母の語りは無く、お父さんの語りが付き未出しのため選択。お父さんの子ども時代の話でそらは不在と推測。q2-yomiseも同条件だが凧を優先。画像なしのためfocusはnull。材料はc4-kite-papa。",
+        "photo_id": "q6-kite",
+        "focus": null,
+        "quote": {
+          "narration_id": "c4-kite-papa",
+          "text": "凧あげは父の得意技だった。"
+        },
+        "question": "お父さんのこの話で、凧あげについてもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "凧あげは父の得意技だった。",
+      "sameEventLines": 1,
+      "inputMusubiIds": [
+        "mu-natsumatsuri"
+      ],
+      "linkCheck": null
+    }
+  ]
+}

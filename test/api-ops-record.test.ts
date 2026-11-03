@@ -240,6 +240,8 @@ describe("運営の記録: 中身", () => {
       inputNarrationIds: [narrationId],
       inputTokens: 1234,
       outputTokens: 56,
+      inputMusubiIds: null,
+      receiverPresent: null,
     });
 
     const n = r.narrations.find((x) => x.id === narrationId)!;

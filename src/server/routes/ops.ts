@@ -72,6 +72,8 @@ function entranceRecord(e: OpsEntranceRow, byId: Map<string, NarrationRow>): Ops
       inputNarrationIds: e.inputNarrationIds,
       inputTokens: e.inputTokens,
       outputTokens: e.outputTokens,
+      inputMusubiIds: e.inputMusubiIds,
+      receiverPresent: e.receiverPresent,
     },
   };
 }

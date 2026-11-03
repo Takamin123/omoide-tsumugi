@@ -289,6 +289,9 @@ export const entrances = sqliteTable(
     inputNarrationIds: text("input_narration_ids", { mode: "json" }).$type<string[]>(),
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
+    // entrance/v3（0046）。運営と開発だけが見る。CHECK は付けない（値はアプリが zod の enum で縛る）
+    inputMusubiIds: text("input_musubi_ids", { mode: "json" }).$type<string[]>(),
+    receiverPresent: text("receiver_present", { enum: ["yes", "no", "unknown"] }),
     // 問いかけの読み上げの音声（0019、0029）。kind = 'claude' のときだけ。毎朝の処理が作る（リポジトリの更新の条件で守る）
     questionAudioKey: text("question_audio_key"),
     questionAudioModel: text("question_audio_model"),
