@@ -151,8 +151,9 @@ export const words = {
     stopVoice: "止める",
     /** 写真の拡大の画面を閉じる（0040） */
     close: "閉じる",
-    byText: "文字で",
-    byVoice: "声で",
+    /** 「声で話す」「文字で書く」。幅が足りないときは言葉の切れ目（\u200B）でだけ折る（.phrase-break。360px・文字 150% で二行になる） */
+    byText: "文字で\u200B書く",
+    byVoice: "声で\u200B話す",
     send: "送る",
     cancel: "やめる",
     menuFamily: "家族のこと",

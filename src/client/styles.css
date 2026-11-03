@@ -320,6 +320,17 @@ textarea {
   min-height: var(--primary-height);
 }
 
+/* 言葉の途中で折らない。折ってよいのは文字列に入れた切れ目（\u200B）だけ */
+.phrase-break {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 左右の余白を詰めて、360px・文字 150% でも「文字で」が一行に収まるようにする */
+.grid2.phrase-break > button {
+  padding-inline: 0.5rem;
+}
+
 /* 録るのを止めるボタン: 色に頼らず、太い輪郭と四角の印で分ける */
 .primary.stop {
   background: var(--surface);

@@ -44,7 +44,7 @@ export function ReplyBox({ target, onSent, onCancel, onComposing }: Props) {
     <div className={onCancel ? "stack reply-box" : "stack answer"}>
       {mode === "choose" && (
         <>
-          <div className="grid2">
+          <div className="grid2 phrase-break">
             <button type="button" onClick={() => setMode("voice")}>
               {w.byVoice}
             </button>
