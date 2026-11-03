@@ -13,9 +13,10 @@ afterAll(() => dispose());
 
 const fakeAudio = { bytes: new Uint8Array([1, 2, 3, 4]), type: "audio/webm;codecs=opus" };
 
-function voiceForm(speakerMemberId: string, photoId: string, text: string | null = null, kind: "voice" | "text" = "voice"): FormData {
+/** 話し手は、送る cookie の人（0036） */
+function voiceForm(photoId: string, text: string | null = null, kind: "voice" | "text" = "voice"): FormData {
   const form = new FormData();
-  form.append("meta", JSON.stringify({ kind, speakerMemberId, photoId, entranceId: null, replyToId: null, text }));
+  form.append("meta", JSON.stringify({ kind, photoId, entranceId: null, replyToId: null, text }));
   if (kind === "voice") form.append("audio", new File([fakeAudio.bytes], "a", { type: fakeAudio.type }));
   return form;
 }
@@ -41,18 +42,18 @@ describe("文字起こしの欄（受け取りから multipart まで）", () =>
     const other = await createFamily(t);
     await addMember(t, other.cookie, { calledAs: "よその架空のおじちゃん" });
     const f = await createFamily(t);
-    const g = await addMember(t, f.cookie, {
+    const m = await addMember(t, f.cookie, { relation: "架空の続柄まご", calledAs: "架空のたっくん" });
+    const g = await addMember(t, m.cookie, {
       role: "elder",
       relation: "架空の続柄そふ",
       calledAs: "架空のじっちゃ",
       speechStyle: "dialect",
       dialectRegion: "架空の里",
     });
-    const m = await addMember(t, f.cookie, { relation: "架空の続柄まご", calledAs: "架空のたっくん" });
-    const p = await addPhoto(t, f.cookie, g.id, 1, { latitude: 35.5, longitude: 139.6 });
+    const p = await addPhoto(t, g.cookie, 1, { latitude: 35.5, longitude: 139.6 });
     // 先に打った文の語り（家族が語ったことでも、今は keywords に入れない）
-    expect((await postForm(t, "/api/narrations", voiceForm(m.id, p.id, "架空の川で釣りをした", "text"), f.cookie)).status).toBe(202);
-    expect((await postForm(t, "/api/narrations", voiceForm(g.id, p.id), f.cookie)).status).toBe(202);
+    expect((await postForm(t, "/api/narrations", voiceForm(p.id, "架空の川で釣りをした", "text"), m.cookie)).status).toBe(202);
+    expect((await postForm(t, "/api/narrations", voiceForm(p.id), g.cookie)).status).toBe(202);
     await t.flush();
 
     expect(forms).toHaveLength(1);
@@ -73,17 +74,17 @@ describe("文字起こしの欄（受け取りから multipart まで）", () =>
   it("禁止文字（<、>、改行）を含む呼ばれ方は送らず、重複はまとめる。文字起こし自体は通る", async () => {
     const { t, forms } = realAdapterApp();
     const f = await createFamily(t);
-    const g = await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "架空のばあちゃ" });
-    await addMember(t, f.cookie, { calledAs: "<架空>" });
-    await addMember(t, f.cookie, { calledAs: "架空\nのけん" });
-    await addMember(t, f.cookie, { calledAs: "架空のばあちゃ" }); // 同じ呼ばれ方の人がもう一人
-    const p = await addPhoto(t, f.cookie, g.id, 1);
-    const res = await postForm(t, "/api/narrations", voiceForm(g.id, p.id), f.cookie);
+    const first = await addMember(t, f.cookie, { calledAs: "<架空>" });
+    const g = await addMember(t, first.cookie, { role: "elder", relation: "祖母", calledAs: "架空のばあちゃ" });
+    await addMember(t, first.cookie, { calledAs: "架空\nのけん" });
+    await addMember(t, first.cookie, { calledAs: "架空のばあちゃ" }); // 同じ呼ばれ方の人がもう一人
+    const p = await addPhoto(t, g.cookie, 1);
+    const res = await postForm(t, "/api/narrations", voiceForm(p.id), g.cookie);
     expect(res.status).toBe(202);
     await t.flush();
     expect(forms).toHaveLength(1);
     expect(forms[0]!.getAll("keywords[]")).toEqual(["架空のばあちゃ"]);
-    const list = (await (await t.app.request(`/api/narrations?photoId=${p.id}`, { headers: { Cookie: f.cookie } })).json()) as {
+    const list = (await (await t.app.request(`/api/narrations?photoId=${p.id}`, { headers: { Cookie: g.cookie } })).json()) as {
       narrations: { transcriptStatus: string }[];
     };
     expect(list.narrations[0]!.transcriptStatus).toBe("done");
@@ -92,14 +93,15 @@ describe("文字起こしの欄（受け取りから multipart まで）", () =>
   it("家族の人数が上限を超えても、keywords[] は上限まで。ログには候補の数だけ", async () => {
     const { t, forms } = realAdapterApp();
     const f = await createFamily(t);
-    const g = await addMember(t, f.cookie, { role: "elder", relation: "祖父", calledAs: "架空の呼び名0" });
+    const first = await addMember(t, f.cookie, { calledAs: "架空の呼び名1" });
+    const g = await addMember(t, first.cookie, { role: "elder", relation: "祖父", calledAs: "架空の呼び名0" });
     const total = MAX_TRANSCRIBE_KEYWORDS + 3;
-    for (let i = 1; i < total; i++) await addMember(t, f.cookie, { calledAs: `架空の呼び名${i}` });
-    const p = await addPhoto(t, f.cookie, g.id, 1);
+    for (let i = 2; i < total; i++) await addMember(t, first.cookie, { calledAs: `架空の呼び名${i}` });
+    const p = await addPhoto(t, g.cookie, 1);
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => void logs.push(args.map(String).join(" ")));
     try {
-      expect((await postForm(t, "/api/narrations", voiceForm(g.id, p.id), f.cookie)).status).toBe(202);
+      expect((await postForm(t, "/api/narrations", voiceForm(p.id), g.cookie)).status).toBe(202);
       await t.flush();
     } finally {
       spy.mockRestore();
@@ -114,13 +116,15 @@ describe("文字起こしの欄（受け取りから multipart まで）", () =>
   it("やり直し（500 の後）でも、同じ keywords[] と languages[] を送る", async () => {
     const { t, forms } = realAdapterApp((n) => (n === 1 ? new Response("{}", { status: 500 }) : Response.json({ text: "架空" })));
     const f = await createFamily(t);
-    const g = await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "架空のおばば" });
-    const p = await addPhoto(t, f.cookie, g.id, 1);
-    expect((await postForm(t, "/api/narrations", voiceForm(g.id, p.id), f.cookie)).status).toBe(202);
+    // 家族を作った人（最初の一人は家族の画面の人）が、ばあばを足す
+    const creator = await addMember(t, f.cookie, { calledAs: "架空のむすめ" });
+    const g = await addMember(t, creator.cookie, { role: "elder", relation: "祖母", calledAs: "架空のおばば" });
+    const p = await addPhoto(t, g.cookie, 1);
+    expect((await postForm(t, "/api/narrations", voiceForm(p.id), g.cookie)).status).toBe(202);
     await t.flush();
     expect(forms).toHaveLength(2);
     for (const form of forms) {
-      expect(form.getAll("keywords[]")).toEqual(["架空のおばば"]);
+      expect([...form.getAll("keywords[]")].sort()).toEqual(["架空のおばば", "架空のむすめ"].sort());
       expect(form.getAll("languages[]")).toEqual(["ja"]);
       expect(form.has("language")).toBe(false);
     }

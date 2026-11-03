@@ -304,7 +304,7 @@ const SECRET_REASON = "架空の理由ZQX";
 const SECRET_GUESS = "架空の説明WVY";
 const messageCalls = (reqs: FakeClaudeRequest[]) => reqs.filter((r) => r.method === "POST" && r.path === "/v1/messages");
 
-type Setup = { t: TestApp; requests: FakeClaudeRequest[]; familyId: string; cookie: string; elder: string; grandchild: string; photoId: string };
+type Setup = { t: TestApp; requests: FakeClaudeRequest[]; familyId: string; cookie: string; elder: string; elderCookie: string; grandchild: string; photoId: string };
 
 /** 祖母と孫、孫の写真一枚と孫の文字の語り、写真の説明（推測）を持つ家族 */
 async function setup(replies: (photoId: string, narrationId: string) => FakeClaudeReply[]): Promise<Setup> {
@@ -318,15 +318,18 @@ async function setup(replies: (photoId: string, narrationId: string) => FakeClau
   };
   const t = makeTestApp(d1, { claude: late });
   const f = await createFamily(t);
-  const elder = (await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "架空のばあば" })).id;
-  const grandchild = (await addMember(t, f.cookie, { relation: "孫", calledAs: "架空のまご" })).id;
-  const p = await addPhoto(t, f.cookie, grandchild, 1, { latitude: 34.39, longitude: 132.46, takenAt: "2018-11-24T13:45:02" });
+  // 最初の一人（家族の画面の人）は孫。孫が祖母を足す（0036）
+  const gc = await addMember(t, f.cookie, { relation: "孫", calledAs: "架空のまご" });
+  const grandchild = gc.id;
+  const e = await addMember(t, gc.cookie, { role: "elder", relation: "祖母", calledAs: "架空のばあば" });
+  const elder = e.id;
+  const p = await addPhoto(t, gc.cookie, 1, { latitude: 34.39, longitude: 132.46, takenAt: "2018-11-24T13:45:02" });
   const form = new FormData();
   form.append(
     "meta",
-    JSON.stringify({ kind: "text", speakerMemberId: grandchild, photoId: p.id, entranceId: null, replyToId: null, text: "畑で大根を抜いた。全然抜けなかった。" }),
+    JSON.stringify({ kind: "text", photoId: p.id, entranceId: null, replyToId: null, text: "畑で大根を抜いた。全然抜けなかった。" }),
   );
-  const nr = await postForm(t, "/api/narrations", form, f.cookie);
+  const nr = await postForm(t, "/api/narrations", form, gc.cookie);
   const narrationId = ((await nr.json()) as { narration: { id: string } }).narration.id;
   await t.flush();
   await d1
@@ -335,7 +338,7 @@ async function setup(replies: (photoId: string, narrationId: string) => FakeClau
     .run();
   const fake = fakeClaude({ replies: replies(p.id, narrationId) });
   inner = onlyPurpose(fake.claude, "entrance");
-  return { t, requests: fake.requests, familyId: f.familyId, cookie: f.cookie, elder, grandchild, photoId: p.id };
+  return { t, requests: fake.requests, familyId: f.familyId, cookie: gc.cookie, elder, elderCookie: e.cookie, grandchild, photoId: p.id };
 }
 
 const good = (photoId: string, narrationId: string, question = "この日のことを、聞かせてください"): FakeClaudeReply => ({
@@ -389,7 +392,7 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
 
     const before = s.requests.length;
     s.t.setNow(NOW);
-    const res = await s.t.app.request(`/api/entrances/today?memberId=${s.elder}`, { headers: { Cookie: s.cookie } });
+    const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
     const body = await res.text();
     // 画面を開いたときは Claude を呼ばない
     expect(s.requests.length).toBe(before);
@@ -445,7 +448,7 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     const t = makeTestApp(d1, { claude: notConfiguredClaude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    await addPhoto(t, f.cookie, m.id, 1);
+    await addPhoto(t, m.cookie, 1);
     const summary = await runMorning(t.deps, NOW, { familyId: f.familyId });
     expect(summary).toMatchObject({ created: 1, byClaude: 0, fallbacks: [{ memberId: m.id, reason: "not_configured" }] });
   });

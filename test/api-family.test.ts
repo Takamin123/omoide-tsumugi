@@ -1,4 +1,4 @@
-// 家族の場: 作る、合言葉で入る、作り直す、家族の様子、一人ひとり。
+// 家族の場: 作る、合言葉で入る、家族の様子、一人ひとり。一人ずつのリンクは member-links.test.ts（0036）
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addMember, CREATE_TOKEN, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
 
@@ -67,15 +67,11 @@ describe("合言葉", () => {
     expect(invalid.status).toBe(400);
   });
 
-  it("作り直すと古い合言葉はすぐ無効になり、新しいものが使える", async () => {
-    const { token, cookie } = await createFamily(t);
-    const res = await t.app.request("/api/invite/regenerate", { method: "POST", headers: { Cookie: cookie } });
-    expect(res.status).toBe(200);
-    const { token: next } = (await res.json()) as { token: string };
-    expect(next).not.toBe(token);
-    expect(res.headers.get("set-cookie")).toContain(`omoide_invite=${next}`);
-    expect((await t.app.request("/api/family", { headers: { Cookie: cookie } })).status).toBe(401);
-    expect((await t.app.request("/api/family", { headers: { Cookie: `omoide_invite=${next}` } })).status).toBe(200);
+  it("家族単位の作り直し（POST /api/invite/regenerate）はもうない（0036）", async () => {
+    const { cookie } = await createFamily(t);
+    const mom = await addMember(t, cookie);
+    const res = await t.app.request("/api/invite/regenerate", { method: "POST", headers: { Cookie: mom.cookie } });
+    expect(res.status).toBe(404);
   });
 });
 
@@ -84,9 +80,11 @@ describe("GET /api/family", () => {
     const { cookie } = await createFamily(t);
     t.setNow(new Date("2026-11-02T14:30:00Z")); // 日本時間 23:30
     const res = await t.app.request("/api/family", { headers: { Cookie: cookie } });
-    const body = (await res.json()) as { family: Record<string, unknown>; members: unknown[] };
+    const body = (await res.json()) as { family: Record<string, unknown>; members: unknown[]; me: unknown };
     expect(body.family).toMatchObject({ isDemo: false, clock: { date: "2026-11-02", slot: "night" }, canAdvanceClock: true });
     expect(body.members).toEqual([]);
+    // 最初の人のリンクで開いた端末は、まだ誰でもない
+    expect(body.me).toBeNull();
     t.setNow(new Date("2026-11-02T00:00:00Z"));
   });
 
@@ -115,7 +113,7 @@ describe("一人ひとり", () => {
     const a = await createFamily(t);
     const b = await createFamily(t);
     const mom = await addMember(t, a.cookie);
-    const grandma = await addMember(t, a.cookie, {
+    const grandma = await addMember(t, mom.cookie, {
       role: "elder",
       relation: "祖母",
       calledAs: "ばあば",
@@ -125,22 +123,29 @@ describe("一人ひとり", () => {
     });
     const patch = await t.app.request(`/api/members/${grandma.id}`, {
       method: "PATCH",
-      headers: { Cookie: a.cookie, "Content-Type": "application/json" },
+      headers: { Cookie: mom.cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ role: "elder", relation: "祖母", calledAs: "おばあちゃん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: mom.id }),
     });
     expect(patch.status).toBe(200);
     expect(await patch.json()).toMatchObject({ calledAs: "おばあちゃん", dialectRegion: null });
 
-    const view = (await (await t.app.request("/api/family", { headers: { Cookie: a.cookie } })).json()) as { members: { id: string }[] };
+    const view = (await (await t.app.request("/api/family", { headers: { Cookie: mom.cookie } })).json()) as {
+      members: { id: string; hasLink: boolean }[];
+      me: { id: string } | null;
+    };
     expect(view.members.map((m) => m.id).sort()).toEqual([mom.id, grandma.id].sort());
+    expect(view.me?.id).toBe(mom.id);
+    // addMember はどちらのリンクも作っている
+    expect(view.members.every((m) => m.hasLink)).toBe(true);
 
     // ほかの家族の人を、代わりに設定した人にできない
-    const cross = await t.app.request("/api/members", json({ role: "family", relation: "孫", calledAs: "けん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: mom.id }, { Cookie: b.cookie }));
+    const dad = await addMember(t, b.cookie, { relation: "父", calledAs: "おとうさん" });
+    const cross = await t.app.request("/api/members", json({ role: "family", relation: "孫", calledAs: "けん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: mom.id }, { Cookie: dad.cookie }));
     expect(cross.status).toBe(404);
     // ほかの家族の人は直せない
     const patchOther = await t.app.request(`/api/members/${mom.id}`, {
       method: "PATCH",
-      headers: { Cookie: b.cookie, "Content-Type": "application/json" },
+      headers: { Cookie: dad.cookie, "Content-Type": "application/json" },
       body: JSON.stringify({ role: "family", relation: "母", calledAs: "x", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null }),
     });
     expect(patchOther.status).toBe(404);

@@ -51,7 +51,8 @@ function fakeSpeaker(onSpeak?: (i: SpeakInput) => Promise<void>, script: SpeakRe
   };
 }
 
-type Setup = { t: TestApp; familyId: string; cookie: string; elder: string; grandchild: string };
+/** cookie は孫（家族の画面の人）、elderCookie は祖母の端末 */
+type Setup = { t: TestApp; familyId: string; cookie: string; elderCookie: string; elder: string; grandchild: string };
 
 async function setup(speaker: Speaker | null): Promise<Setup> {
   let inner: ClaudeClient = notConfiguredClaude;
@@ -63,12 +64,15 @@ async function setup(speaker: Speaker | null): Promise<Setup> {
   };
   const t = makeTestApp(d1, { claude: late, ...(speaker ? { speaker } : {}) });
   const f = await createFamily(t);
-  const elder = (await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "架空のおばあ" })).id;
-  const grandchild = (await addMember(t, f.cookie, { relation: "孫", calledAs: "架空の孫" })).id;
-  const p = await addPhoto(t, f.cookie, grandchild, 7);
+  // 最初の一人は家族の画面の人（0036）
+  const g = await addMember(t, f.cookie, { relation: "孫", calledAs: "架空の孫" });
+  const e = await addMember(t, g.cookie, { role: "elder", relation: "祖母", calledAs: "架空のおばあ" });
+  const elder = e.id;
+  const grandchild = g.id;
+  const p = await addPhoto(t, g.cookie, 7);
   const form = new FormData();
-  form.append("meta", JSON.stringify({ kind: "text", speakerMemberId: grandchild, photoId: p.id, entranceId: null, replyToId: null, text: "架空の川原の語り。" }));
-  await postForm(t, "/api/narrations", form, f.cookie);
+  form.append("meta", JSON.stringify({ kind: "text", photoId: p.id, entranceId: null, replyToId: null, text: "架空の川原の語り。" }));
+  await postForm(t, "/api/narrations", form, g.cookie);
   await t.flush();
   const good: FakeClaudeReply = {
     kind: "json",
@@ -76,7 +80,7 @@ async function setup(speaker: Speaker | null): Promise<Setup> {
     model: "claude-sonnet-5-5",
   };
   inner = onlyPurpose(fakeClaude({ replies: [good, good] }).claude, "entrance");
-  return { t, familyId: f.familyId, cookie: f.cookie, elder, grandchild };
+  return { t, familyId: f.familyId, cookie: g.cookie, elderCookie: e.cookie, elder, grandchild };
 }
 
 const rowsOf = async (familyId: string) =>
@@ -123,7 +127,7 @@ describe("qa: 毎朝の処理の締め切り（9 分）", () => {
     expect(summary.speech.failed.map((f) => f.reason)).toEqual(["past_deadline", "past_deadline"]);
     expect(speechKeys(s.t)).toEqual([]);
     s.t.setNow(NOW);
-    const res = await s.t.app.request(`/api/entrances/today?memberId=${s.elder}`, { headers: { Cookie: s.cookie } });
+    const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
     const e = ((await res.json()) as { entrance: { question: string; questionAudioUrl: string | null } }).entrance;
     expect(e).toMatchObject({ question: QUESTION, questionAudioUrl: null });
   });

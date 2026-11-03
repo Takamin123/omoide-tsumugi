@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import { PHOTO_GUESS_BACKGROUND_BUDGET_MS, runPhotoGuesses } from "../core/photo-guess";
 import { photoMetaSchema, type PhotoMeta, type UploadPhotoResult } from "../../shared/api";
+import { currentMember } from "./auth";
 import type { AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm } from "./http";
 import { photoView } from "./views";
@@ -41,9 +42,10 @@ export const photos = new Hono<AppEnv>()
 
     const deps = c.get("deps");
     const familyId = c.get("family").id;
-    if (!(await deps.repos.members.get(familyId, meta.ownerMemberId))) return fail(c, "not_found");
+    // 持ち主は、この端末の人（リンクの人）。クライアントからは受け取らない（0036）
+    const ownerMemberId = currentMember(c).id;
 
-    const existing = await deps.repos.photos.findByOwnerHash(familyId, meta.ownerMemberId, meta.contentHash);
+    const existing = await deps.repos.photos.findByOwnerHash(familyId, ownerMemberId, meta.contentHash);
     if (existing) return c.json({ photo: photoView(existing), duplicate: true } satisfies UploadPhotoResult, 200);
 
     const id = crypto.randomUUID();
@@ -52,7 +54,7 @@ export const photos = new Hono<AppEnv>()
     const row = {
       id,
       familyId,
-      ownerMemberId: meta.ownerMemberId,
+      ownerMemberId,
       storageKey,
       contentHash: meta.contentHash,
       width: meta.width,
@@ -65,7 +67,7 @@ export const photos = new Hono<AppEnv>()
     if (!(await deps.repos.photos.insertIfAbsent(row))) {
       // 同時に同じ写真が届いた: 先に入った方を返し、こちらの保存は消す
       await deps.photos.delete(storageKey);
-      const winner = await deps.repos.photos.findByOwnerHash(familyId, meta.ownerMemberId, meta.contentHash);
+      const winner = await deps.repos.photos.findByOwnerHash(familyId, ownerMemberId, meta.contentHash);
       if (!winner) return fail(c, "internal");
       return c.json({ photo: photoView(winner), duplicate: true } satisfies UploadPhotoResult, 200);
     }

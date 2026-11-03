@@ -60,9 +60,9 @@ async function familyWithPhotos(t: TestApp, n: number, opts: { isDemo?: boolean 
   const f = await createFamily(t, opts.isDemo ?? false);
   const m = await addMember(t, f.cookie);
   const ids: string[] = [];
-  for (let i = 0; i < n; i++) ids.push((await addPhoto(t, f.cookie, m.id, 100 + i, { takenAt: "1985-08-12T10:30:00", latitude: 31.6, longitude: 130.56 })).id);
+  for (let i = 0; i < n; i++) ids.push((await addPhoto(t, m.cookie, 100 + i, { takenAt: "1985-08-12T10:30:00", latitude: 31.6, longitude: 130.56 })).id);
   await t.flush();
-  return { ...f, memberId: m.id, photoIds: ids };
+  return { ...f, cookie: m.cookie, memberId: m.id, photoIds: ids };
 }
 
 describe("説明の機械検査", () => {
@@ -87,7 +87,7 @@ describe("登録の後に、一枚ずつ説明を作る（しきい値以下）"
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
     // 並んで届いた登録の背景処理が重なっても、同じ写真を二度呼ばない
-    const ids = await Promise.all([1, 2, 3].map((n) => addPhoto(t, f.cookie, m.id, n).then((p) => p.id)));
+    const ids = await Promise.all([1, 2, 3].map((n) => addPhoto(t, m.cookie, n).then((p) => p.id)));
     await t.flush();
 
     expect(messageCalls(f0.requests)).toHaveLength(3);
@@ -110,7 +110,7 @@ describe("登録の後に、一枚ずつ説明を作る（しきい値以下）"
     const t = makeTestApp(d1, { claude: f0.claude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie, { calledAs: "架空のよびな" });
-    await addPhoto(t, f.cookie, m.id, 7, { takenAt: "1985-08-12T10:30:00", latitude: 31.6, longitude: 130.56 });
+    await addPhoto(t, m.cookie, 7, { takenAt: "1985-08-12T10:30:00", latitude: 31.6, longitude: 130.56 });
     await t.flush();
 
     const body = messageCalls(f0.requests)[0]!.body as any;
@@ -132,7 +132,7 @@ describe("登録の後に、一枚ずつ説明を作る（しきい値以下）"
     const t = makeTestApp(d1, { claude: f0.claude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    const p = await addPhoto(t, f.cookie, m.id, 1);
+    const p = await addPhoto(t, m.cookie, 1);
     await t.flush();
     expect(p.id).toBeTruthy();
     expect(await requestRows(f.familyId)).toEqual([{ photo_id: p.id, state: "failed", batch_id: null, attempts: 1 }]);
@@ -156,7 +156,7 @@ describe("登録の後に、一枚ずつ説明を作る（しきい値以下）"
     const t = makeTestApp(d1, { claude: f0.claude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    await addPhoto(t, f.cookie, m.id, 1);
+    await addPhoto(t, m.cookie, 1);
     await t.flush();
     expect(messageCalls(f0.requests)).toHaveLength(2);
     expect(await t.deps.repos.photoGuesses.listByFamily(f.familyId)).toEqual([]);
@@ -182,7 +182,7 @@ describe("登録の後に、一枚ずつ説明を作る（しきい値以下）"
     const t = makeTestApp(d1, { claude: f0.claude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    await addPhoto(t, f.cookie, m.id, 1);
+    await addPhoto(t, m.cookie, 1);
     await t.flush();
     const all = [...logs, ...f0.logs.map((l) => JSON.stringify(l))].join("\n");
     expect(all).toContain("photo_guess_run");
@@ -316,8 +316,8 @@ describe("家族向けの API に説明を出さない", () => {
     const t = makeTestApp(d1, { claude: f0.claude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    const p = await addPhoto(t, f.cookie, m.id, 1);
-    await addPhoto(t, f.cookie, m.id, 2);
+    const p = await addPhoto(t, m.cookie, 1);
+    await addPhoto(t, m.cookie, 2);
     await t.flush();
     expect(await t.deps.repos.photoGuesses.listByFamily(f.familyId)).toHaveLength(2);
 
@@ -329,10 +329,10 @@ describe("家族向けの API に説明を出さない", () => {
       "/api/narrations",
       `/api/narrations?photoId=${p.id}`,
       "/api/feed",
-      `/api/entrances/today?memberId=${m.id}`,
+      "/api/entrances/today",
     ];
     for (const url of urls) {
-      const res = await t.app.request(url, { headers: { Cookie: f.cookie } });
+      const res = await t.app.request(url, { headers: { Cookie: m.cookie } });
       const text = await res.text();
       expect(text, url).not.toContain(SECRET);
       expect(text, url).not.toContain("description");

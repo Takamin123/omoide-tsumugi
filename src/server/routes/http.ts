@@ -4,6 +4,7 @@ import type { ErrorKind } from "../../shared/api";
 
 const statusOf = {
   unauthorized: 401,
+  forbidden: 403,
   not_found: 404,
   invalid_request: 400,
   duplicate: 409,

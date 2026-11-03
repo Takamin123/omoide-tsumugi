@@ -4,6 +4,7 @@ import {
   addMember,
   addPhoto,
   createFamily,
+  defaultMember,
   fakeTranscriber,
   hashOf,
   makeTestApp,
@@ -41,9 +42,9 @@ describe("語りの冪等", () => {
   it("requestId がなければ、同じ中身でも二つの語りになる（NULL は一意の制約にかからない）", async () => {
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    const p = await addPhoto(t, f.cookie, m.id, 1);
-    expect((await postForm(t, "/api/narrations", textForm({ speakerMemberId: m.id, photoId: p.id }), f.cookie)).status).toBe(202);
-    expect((await postForm(t, "/api/narrations", textForm({ speakerMemberId: m.id, photoId: p.id }), f.cookie)).status).toBe(202);
+    const p = await addPhoto(t, m.cookie, 1);
+    expect((await postForm(t, "/api/narrations", textForm({ photoId: p.id }), m.cookie)).status).toBe(202);
+    expect((await postForm(t, "/api/narrations", textForm({ photoId: p.id }), m.cookie)).status).toBe(202);
     expect(await count("SELECT COUNT(*) AS n FROM narrations WHERE family_id = ?", f.familyId)).toBe(2);
   });
 
@@ -52,13 +53,13 @@ describe("語りの冪等", () => {
     const b = await createFamily(t);
     const ma = await addMember(t, a.cookie);
     const mb = await addMember(t, b.cookie);
-    const pa = await addPhoto(t, a.cookie, ma.id, 1);
-    const pb = await addPhoto(t, b.cookie, mb.id, 1);
+    const pa = await addPhoto(t, ma.cookie, 1);
+    const pb = await addPhoto(t, mb.cookie, 1);
     const requestId = crypto.randomUUID();
-    const ra = (await (await postForm(t, "/api/narrations", textForm({ speakerMemberId: ma.id, photoId: pa.id, requestId }), a.cookie)).json()) as {
+    const ra = (await (await postForm(t, "/api/narrations", textForm({ photoId: pa.id, requestId }), ma.cookie)).json()) as {
       narration: { id: string };
     };
-    const resB = await postForm(t, "/api/narrations", textForm({ speakerMemberId: mb.id, photoId: pb.id, requestId, text: "べつの架空の語り" }), b.cookie);
+    const resB = await postForm(t, "/api/narrations", textForm({ photoId: pb.id, requestId, text: "べつの架空の語り" }), mb.cookie);
     expect(resB.status).toBe(202);
     const rb = (await resB.json()) as { narration: { id: string; text: string } };
     expect(rb.narration.id).not.toBe(ra.narration.id);
@@ -68,21 +69,21 @@ describe("語りの冪等", () => {
   it("requestId が UUID でなければ 400", async () => {
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    const p = await addPhoto(t, f.cookie, m.id, 1);
-    expect((await postForm(t, "/api/narrations", textForm({ speakerMemberId: m.id, photoId: p.id, requestId: "x" }), f.cookie)).status).toBe(400);
+    const p = await addPhoto(t, m.cookie, 1);
+    expect((await postForm(t, "/api/narrations", textForm({ photoId: p.id, requestId: "x" }), m.cookie)).status).toBe(400);
   });
 
   it("ほかの家族の入り口を指す語りは 404", async () => {
     const a = await createFamily(t);
     const b = await createFamily(t);
     const ma = await addMember(t, a.cookie);
-    await addPhoto(t, a.cookie, ma.id, 1);
-    const e = (await (await t.app.request(`/api/entrances/today?memberId=${ma.id}`, { headers: { Cookie: a.cookie } })).json()) as {
+    await addPhoto(t, ma.cookie, 1);
+    const e = (await (await t.app.request(`/api/entrances/today`, { headers: { Cookie: ma.cookie } })).json()) as {
       entrance: { id: string };
     };
     const mb = await addMember(t, b.cookie);
-    const pb = await addPhoto(t, b.cookie, mb.id, 1);
-    const res = await postForm(t, "/api/narrations", textForm({ speakerMemberId: mb.id, photoId: pb.id, entranceId: e.entrance.id }), b.cookie);
+    const pb = await addPhoto(t, mb.cookie, 1);
+    const res = await postForm(t, "/api/narrations", textForm({ photoId: pb.id, entranceId: e.entrance.id }), mb.cookie);
     expect(res.status).toBe(404);
   });
 });
@@ -96,8 +97,8 @@ describe("文字起こしの失敗", () => {
     });
     const f = await createFamily(t2);
     const m = await addMember(t2, f.cookie);
-    const p = await addPhoto(t2, f.cookie, m.id, 1);
-    const { narration } = (await (await postForm(t2, "/api/narrations", voiceForm({ speakerMemberId: m.id, photoId: p.id }), f.cookie)).json()) as {
+    const p = await addPhoto(t2, m.cookie, 1);
+    const { narration } = (await (await postForm(t2, "/api/narrations", voiceForm({ photoId: p.id }), m.cookie)).json()) as {
       narration: { id: string };
     };
     await t2.flush();
@@ -110,8 +111,8 @@ describe("文字起こしの失敗", () => {
     const t2 = makeTestApp(d1, { transcriber: tr });
     const f = await createFamily(t2);
     const m = await addMember(t2, f.cookie);
-    const p = await addPhoto(t2, f.cookie, m.id, 1);
-    const { narration } = (await (await postForm(t2, "/api/narrations", voiceForm({ speakerMemberId: m.id, photoId: p.id }), f.cookie)).json()) as {
+    const p = await addPhoto(t2, m.cookie, 1);
+    const { narration } = (await (await postForm(t2, "/api/narrations", voiceForm({ photoId: p.id }), m.cookie)).json()) as {
       narration: { id: string };
     };
     for (const k of t2.store.keys()) if (k.includes("/audio/")) await t2.store.delete(k);
@@ -126,23 +127,23 @@ describe("写真", () => {
   it("同じ content_hash でも、持ち主が違えば別の写真（201）", async () => {
     const f = await createFamily(t);
     const a = await addMember(t, f.cookie);
-    const b = await addMember(t, f.cookie, { relation: "孫", calledAs: "けん" });
-    const meta = (owner: string) => ({ ownerMemberId: owner, contentHash: hashOf(7), width: 1, height: 1, takenAt: null, latitude: null, longitude: null });
-    expect((await postForm(t, "/api/photos", photoForm(meta(a.id), tinyJpeg(7)), f.cookie)).status).toBe(201);
-    expect((await postForm(t, "/api/photos", photoForm(meta(b.id), tinyJpeg(7)), f.cookie)).status).toBe(201);
+    const b = await addMember(t, a.cookie, { relation: "孫", calledAs: "けん" });
+    const meta = { contentHash: hashOf(7), width: 1, height: 1, takenAt: null, latitude: null, longitude: null };
+    expect((await postForm(t, "/api/photos", photoForm(meta, tinyJpeg(7)), a.cookie)).status).toBe(201);
+    expect((await postForm(t, "/api/photos", photoForm(meta, tinyJpeg(7)), b.cookie)).status).toBe(201);
   });
 
-  it("合言葉を作り直したら、古い合言葉では写真も録音も取れない", async () => {
+  it("その人のリンクを作り直したら、古い合言葉では写真も録音も取れない", async () => {
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    const p = await addPhoto(t, f.cookie, m.id, 1);
-    const { narration } = (await (await postForm(t, "/api/narrations", voiceForm({ speakerMemberId: m.id, photoId: p.id }), f.cookie)).json()) as {
+    const p = await addPhoto(t, m.cookie, 1);
+    const { narration } = (await (await postForm(t, "/api/narrations", voiceForm({ photoId: p.id }), m.cookie)).json()) as {
       narration: { audioUrl: string };
     };
     await t.flush();
-    await t.app.request("/api/invite/regenerate", { method: "POST", headers: { Cookie: f.cookie } });
-    expect((await t.app.request(`/api/photos/${p.id}/image`, { headers: { Cookie: f.cookie } })).status).toBe(401);
-    expect((await t.app.request(narration.audioUrl, { headers: { Cookie: f.cookie } })).status).toBe(401);
+    expect((await t.app.request(`/api/members/${m.id}/link`, { method: "POST", headers: { Cookie: m.cookie } })).status).toBe(200);
+    expect((await t.app.request(`/api/photos/${p.id}/image`, { headers: { Cookie: m.cookie } })).status).toBe(401);
+    expect((await t.app.request(narration.audioUrl, { headers: { Cookie: m.cookie } })).status).toBe(401);
   });
 });
 
@@ -153,15 +154,22 @@ describe("合言葉の cookie", () => {
     expect(res.headers.get("set-cookie")).toMatch(/omoide_invite=;.*Max-Age=0/);
   });
 
-  it("合言葉で入るときと作り直すときの cookie も HttpOnly, Secure, SameSite=Lax", async () => {
+  it("合言葉で入るとき、最初の一人を入れるとき、自分のリンクを作り直すときの cookie も HttpOnly, Secure, SameSite=Lax", async () => {
     const f = await createFamily(t);
     const s = await t.app.request("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: f.token }),
     });
-    const r = await t.app.request("/api/invite/regenerate", { method: "POST", headers: { Cookie: f.cookie } });
-    for (const c of [s.headers.get("set-cookie")!, r.headers.get("set-cookie")!]) {
+    const first = await t.app.request("/api/members", {
+      method: "POST",
+      headers: { Cookie: f.cookie, "Content-Type": "application/json" },
+      body: JSON.stringify(defaultMember),
+    });
+    const m = (await first.json()) as { id: string };
+    const own = `omoide_invite=${/omoide_invite=([^;]*)/.exec(first.headers.get("set-cookie") ?? "")![1]}`;
+    const r = await t.app.request(`/api/members/${m.id}/link`, { method: "POST", headers: { Cookie: own } });
+    for (const c of [s.headers.get("set-cookie")!, first.headers.get("set-cookie")!, r.headers.get("set-cookie")!]) {
       expect(c).toMatch(/HttpOnly/);
       expect(c).toMatch(/Secure/);
       expect(c).toMatch(/SameSite=Lax/);
@@ -176,11 +184,11 @@ describe("デモの時計は、ほかの家族に触れない", () => {
     const demo = await createFamily(prod, true);
     const rm = await addMember(prod, real.cookie);
     const dm = await addMember(prod, demo.cookie);
-    await addPhoto(prod, real.cookie, rm.id, 1);
-    await addPhoto(prod, demo.cookie, dm.id, 1);
+    await addPhoto(prod, rm.cookie, 1);
+    await addPhoto(prod, dm.cookie, 1);
     const before = await count("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ?", real.familyId);
     for (let i = 0; i < 3; i++) {
-      expect((await prod.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: demo.cookie } })).status).toBe(200);
+      expect((await prod.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: dm.cookie } })).status).toBe(200);
     }
     expect(await count("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ?", demo.familyId)).toBe(1);
     expect(await count("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ?", real.familyId)).toBe(before);

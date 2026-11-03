@@ -6,12 +6,14 @@
 // 架空の値だけを使う。
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/server/app";
-import type { FamilyRow, Repositories } from "../src/server/core/ports";
+import type { FamilyRow, MemberRow, Repositories } from "../src/server/core/ports";
 import { cookieOf, fakeDeps } from "./helpers";
 
 const KEY = "qa-ops-key-fake-0123456789abcdef-xyz";
 const CREATE_KEY = "qa-create-family-key-fake";
 const FAKE_FAMILY = { id: "fam-qa", isDemo: true, createdAt: 0 } as unknown as FamilyRow;
+// リンクは一人ずつ（0036）。家族の画面の人のリンクとして通す
+const FAKE_MEMBER = { id: "m1", familyId: "fam-qa", role: "family" } as unknown as MemberRow;
 
 let touched: string[] = [];
 const spyRepos = new Proxy({} as Repositories, {
@@ -23,7 +25,7 @@ const spyRepos = new Proxy({} as Repositories, {
           return async () => {
             touched.push(`${table}.${fn}`);
             // 合言葉の cookie は、どの値でも架空の家族として通す（ops に cookie で届かないことを確かめるため）
-            if (table === "families" && fn === "findByActiveInviteHash") return FAKE_FAMILY;
+            if (table === "families" && fn === "findActiveLink") return { family: FAKE_FAMILY, member: FAKE_MEMBER };
             return null;
           };
         },
@@ -37,7 +39,7 @@ const app = appFor();
 
 const COOKIE = { Cookie: cookieOf("any-family-token") };
 const BEARER = { Authorization: `Bearer ${KEY}` };
-const beyondCookieCheck = () => touched.filter((x) => x !== "families.findByActiveInviteHash");
+const beyondCookieCheck = () => touched.filter((x) => x !== "families.findActiveLink");
 
 const variants = (p: string): string[] => [
   p,
@@ -71,9 +73,9 @@ const familyPaths: [string, string][] = [
   ["GET", "/api/narrations"],
   ["GET", "/api/narrations/n1/audio"],
   ["GET", "/api/feed"],
-  ["GET", "/api/entrances/today?memberId=m1"],
+  ["GET", "/api/entrances/today"],
   ["POST", "/api/demo/clock/advance"],
-  ["POST", "/api/invite/regenerate"],
+  ["POST", "/api/members/m1/link"],
 ];
 
 describe("合言葉の cookie だけでは、どの書き方でも ops に届かない", () => {
@@ -134,7 +136,7 @@ describe("ops の確かめは、ほかの /api/* に掛かっていない", () =
       touched = [];
       const res = await app.request(p, { headers: COOKIE });
       expect(res.status, p).toBe(404);
-      expect(touched, p).toEqual(["families.findByActiveInviteHash"]);
+      expect(touched, p).toEqual(["families.findActiveLink"]);
     }
   });
 });

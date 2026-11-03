@@ -158,7 +158,16 @@ function fakeSpeaker(script: SpeakResult[] = []): Speaker & { calls: SpeakInput[
 
 const NOW = new Date("2026-11-02T18:00:00Z"); // 日本時間 11/3 3:00
 
-type Setup = { t: TestApp; familyId: string; cookie: string; elder: string; grandchild: string; speaker: ReturnType<typeof fakeSpeaker> };
+/** cookie は孫（家族の画面の人）、elderCookie は祖母の端末 */
+type Setup = {
+  t: TestApp;
+  familyId: string;
+  cookie: string;
+  elderCookie: string;
+  elder: string;
+  grandchild: string;
+  speaker: ReturnType<typeof fakeSpeaker>;
+};
 
 /** 祖母と孫、孫の写真一枚と文字の語り。Claude は二人とも通る応答を返す（claude: false なら固定の入り口） */
 async function setup(opts: { speaker?: ReturnType<typeof fakeSpeaker> | null; claude?: boolean; isDemo?: boolean } = {}): Promise<Setup> {
@@ -172,12 +181,15 @@ async function setup(opts: { speaker?: ReturnType<typeof fakeSpeaker> | null; cl
   const speaker = opts.speaker === undefined ? fakeSpeaker() : opts.speaker;
   const t = makeTestApp(d1, { claude: opts.claude === false ? notConfiguredClaude : late, ...(speaker ? { speaker } : {}) });
   const f = await createFamily(t, opts.isDemo ?? false);
-  const elder = (await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "架空のばあば" })).id;
-  const grandchild = (await addMember(t, f.cookie, { relation: "孫", calledAs: "架空のまご" })).id;
-  const p = await addPhoto(t, f.cookie, grandchild, 1);
+  // 最初の一人は家族の画面の人（0036）
+  const g = await addMember(t, f.cookie, { relation: "孫", calledAs: "架空のまご" });
+  const e = await addMember(t, g.cookie, { role: "elder", relation: "祖母", calledAs: "架空のばあば" });
+  const elder = e.id;
+  const grandchild = g.id;
+  const p = await addPhoto(t, g.cookie, 1);
   const form = new FormData();
-  form.append("meta", JSON.stringify({ kind: "text", speakerMemberId: grandchild, photoId: p.id, entranceId: null, replyToId: null, text: "架空の畑の語り。" }));
-  await postForm(t, "/api/narrations", form, f.cookie);
+  form.append("meta", JSON.stringify({ kind: "text", photoId: p.id, entranceId: null, replyToId: null, text: "架空の畑の語り。" }));
+  await postForm(t, "/api/narrations", form, g.cookie);
   await t.flush();
   const good: FakeClaudeReply = {
     kind: "json",
@@ -185,11 +197,12 @@ async function setup(opts: { speaker?: ReturnType<typeof fakeSpeaker> | null; cl
     model: "claude-sonnet-5-5",
   };
   inner = onlyPurpose(fakeClaude({ replies: [good, good] }).claude, "entrance");
-  return { t, familyId: f.familyId, cookie: f.cookie, elder, grandchild, speaker: speaker ?? fakeSpeaker() };
+  return { t, familyId: f.familyId, cookie: g.cookie, elderCookie: e.cookie, elder, grandchild, speaker: speaker ?? fakeSpeaker() };
 }
 
-const todayOf = async (s: Setup, memberId: string, cookie = s.cookie) => {
-  const res = await s.t.app.request(`/api/entrances/today?memberId=${memberId}`, { headers: { Cookie: cookie } });
+/** cookie の人の今日の入り口（既定は祖母の端末） */
+const todayOf = async (s: Setup, cookie = s.elderCookie) => {
+  const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: cookie } });
   return ((await res.json()) as { entrance: { id: string; question: string | null; questionAudioUrl: string | null } }).entrance;
 };
 const audioRows = async (familyId: string) =>
@@ -217,7 +230,7 @@ describe("毎朝の処理: 問いかけの読み上げ", () => {
     expect(s.t.store.keys().filter((k) => k.includes("/speech/")).sort()).toEqual(rows.map((r) => r.k).sort());
 
     s.t.setNow(NOW);
-    const e = await todayOf(s, s.elder);
+    const e = await todayOf(s);
     expect(e.questionAudioUrl).toBe(`/api/entrances/${e.id}/question-audio`);
     // 応答に鍵・モデル・声を出さない
     const body = JSON.stringify(e);
@@ -233,7 +246,8 @@ describe("毎朝の処理: 問いかけの読み上げ", () => {
     const none = await s.t.app.request(e.questionAudioUrl!);
     expect(none.status).toBe(401);
     const other = await createFamily(s.t);
-    const cross = await s.t.app.request(e.questionAudioUrl!, { headers: { Cookie: other.cookie } });
+    const otherMember = await addMember(s.t, other.cookie);
+    const cross = await s.t.app.request(e.questionAudioUrl!, { headers: { Cookie: otherMember.cookie } });
     expect(cross.status).toBe(404);
     expect(await cross.json()).toEqual({ error: "not_found" });
   });
@@ -249,7 +263,7 @@ describe("毎朝の処理: 問いかけの読み上げ", () => {
     expect(summary.speech.failed.map((f) => f.reason).sort()).toEqual(["timeout", "upstream"]);
     expect(s.t.store.keys().filter((k) => k.includes("/speech/"))).toEqual([]);
     s.t.setNow(NOW);
-    const e = await todayOf(s, s.elder);
+    const e = await todayOf(s);
     expect(e).toMatchObject({ question: QUESTION, questionAudioUrl: null });
     expect((await s.t.app.request(`/api/entrances/${e.id}/question-audio`, { headers: { Cookie: s.cookie } })).status).toBe(404);
   });
@@ -283,7 +297,7 @@ describe("毎朝の処理: 問いかけの読み上げ", () => {
     await runMorning(s.t.deps, NOW, { familyId: s.familyId });
     // 祖母だけが開いた
     s.t.setNow(NOW);
-    await todayOf(s, s.elder);
+    await todayOf(s);
     const again = await runMorning(s.t.deps, NOW, { familyId: s.familyId });
     expect(again.speech).toEqual({ made: 1, failed: [] });
     const rows = await audioRows(s.familyId);

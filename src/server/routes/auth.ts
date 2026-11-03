@@ -1,10 +1,11 @@
 // 合言葉の確認。ここ一か所で行い、既定で閉じる（docs/implementation-policy.md 4）。
 // 確認しない入り口は PUBLIC_ROUTES に明示的に並べる。それ以外の /api/* はすべて確認を通す。
 // 一覧が変わったら test/auth.test.ts が気づく。
+// リンクは一人ずつ（0036）。合言葉から家族と人を引き、人のいない「最初の人のリンク」で通せる入り口は FIRST_PERSON_ROUTES に並べる。
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { hashToken, timingSafeEqual } from "../core/secrets";
-import type { AppConfig } from "../core/ports";
+import type { AppConfig, MemberRow } from "../core/ports";
 import type { AppEnv } from "./env";
 import { fail } from "./http";
 
@@ -17,10 +18,27 @@ export const PUBLIC_ROUTES: readonly (readonly [method: string, path: string])[]
   ["POST", "/api/families"], // 家族を作る。合言葉の代わりに CREATE_FAMILY_TOKEN（Bearer）で守る
 ];
 
+/**
+ * 「最初の人のリンク」（人を指さないリンク。家族を作ったときの一度きり）で通せる入り口。
+ * それ以外は、合言葉が有効でも 403 forbidden（cookie は消さない）。0036
+ */
+export const FIRST_PERSON_ROUTES: readonly (readonly [method: string, path: string])[] = [
+  ["GET", "/api/family"], // 家族の様子（me は null）
+  ["POST", "/api/members"], // 最初の一人を入れる（家族に人がいないときだけ。routes/members.ts）
+];
+
 // Hono のルーターはパスの大文字・小文字を区別しないので、ここでも小文字にそろえて比べる（/API/... で素通りさせない）
-export function isPublicRoute(method: string, path: string): boolean {
+function inRoutes(routes: typeof PUBLIC_ROUTES, method: string, path: string): boolean {
   const p = path.toLowerCase();
-  return PUBLIC_ROUTES.some(([m, pub]) => m === method.toUpperCase() && pub === p);
+  return routes.some(([m, r]) => m === method.toUpperCase() && r === p);
+}
+
+export function isPublicRoute(method: string, path: string): boolean {
+  return inRoutes(PUBLIC_ROUTES, method, path);
+}
+
+export function isFirstPersonRoute(method: string, path: string): boolean {
+  return inRoutes(FIRST_PERSON_ROUTES, method, path);
 }
 
 /** 合言葉を確かめる対象か。/api の下は大文字・小文字によらずすべて */
@@ -76,21 +94,41 @@ export async function hasOpsKey(c: Context<AppEnv>): Promise<boolean> {
   return timingSafeEqual(given, expected);
 }
 
-/** すべての要求に掛ける（app.use("*")）。/api の下で PUBLIC_ROUTES にないものは、合言葉がなければ 401 */
+/**
+ * すべての要求に掛ける（app.use("*")）。/api の下で PUBLIC_ROUTES にないものは、合言葉がなければ 401。
+ * 合言葉が人を指さない（最初の人のリンク）なら、FIRST_PERSON_ROUTES のほかは 403
+ */
 export const requireInvite: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!isApiPath(c.req.path) || isPublicRoute(c.req.method, c.req.path)) return next();
   // 運営の入り口は合言葉では開かない。運営の鍵だけで確かめる（family は置かない）
   if (isOpsPath(c.req.path)) return (await hasOpsKey(c)) ? next() : fail(c, "unauthorized");
   const token = getCookie(c, INVITE_COOKIE);
   if (!token || token.length > 200) return fail(c, "unauthorized");
-  const family = await c.get("deps").repos.families.findByActiveInviteHash(await hashToken(token));
-  if (!family) {
+  const link = await c.get("deps").repos.families.findActiveLink(await hashToken(token));
+  if (!link) {
     deleteCookie(c, INVITE_COOKIE, { path: "/" });
     return fail(c, "unauthorized");
   }
-  c.set("family", family);
+  if (!link.member && !isFirstPersonRoute(c.req.method, c.req.path)) return fail(c, "forbidden");
+  c.set("family", link.family);
+  c.set("member", link.member);
   return next();
 };
+
+/**
+ * この端末の人。FIRST_PERSON_ROUTES 以外の入り口では、requireInvite が人のいるリンクだけを通しているので必ずいる。
+ * いなければ設定の誤り（入り口を FIRST_PERSON_ROUTES に足したのに、人のいない場合を書いていない）なので、通さない
+ */
+export function currentMember(c: Context<AppEnv>): MemberRow {
+  const m = c.get("member");
+  if (!m) throw new Error("member_missing");
+  return m;
+}
+
+/** 家族のこと（人を足す・直す、リンクを作る）を触れるか。祖父母の画面の人は触れない（0036） */
+export function canManageFamily(m: MemberRow | null): m is MemberRow {
+  return m?.role === "family";
+}
 
 export function setInviteCookie(c: Context, token: string): void {
   setCookie(c, INVITE_COOKIE, token, {

@@ -3,7 +3,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createOpenAITranscribeProbe } from "../src/server/adapters/openai-transcriber";
 import { isAcceptableAudio, MAX_AUDIO_BYTES } from "../src/server/routes/narrations";
-import { addMember, addPhoto, cookieOf, createFamily, makeTestApp, postForm, startD1 } from "./helpers";
+import { addMember, addPhoto, cookieOf, createFamily, makeTestApp, postForm, startD1, type TestApp } from "./helpers";
+
+/** 家族を作り、最初の一人の cookie を返す（最初の人のリンクの cookie では、確かめの入り口は 403。0036） */
+async function memberCookie(t: TestApp): Promise<{ cookie: string }> {
+  const f = await createFamily(t);
+  return { cookie: (await addMember(t, f.cookie)).cookie };
+}
 
 let d1: D1Database;
 let dispose: () => Promise<void>;
@@ -71,9 +77,9 @@ describe("語りの受け取りの判定の置き換え（isAcceptableAudio）",
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
     vi.spyOn(console, "log").mockImplementation(() => {});
-    const { cookie } = await createFamily(t);
-    const m = await addMember(t, cookie);
-    const p = await addPhoto(t, cookie, m.id, 1);
+    const f0 = await createFamily(t);
+    const { cookie } = await addMember(t, f0.cookie);
+    const p = await addPhoto(t, cookie, 1);
     // File は type を小文字にするので、ブラウザから届きうる形に絞って比べる
     for (const type of ["audio/webm;codecs=opus", "audio/mp4", "audio/x-m4a", "", "video/mp4", "text/html"]) {
       const check = await postForm(t, "/api/check/transcribe", checkForm(okParams, { type }), cookie);
@@ -81,7 +87,7 @@ describe("語りの受け取りの判定の置き換え（isAcceptableAudio）",
       const accepted = ((await check.json()) as { acceptedByNarrations: boolean }).acceptedByNarrations;
 
       const form = new FormData();
-      form.append("meta", JSON.stringify({ kind: "voice", speakerMemberId: m.id, photoId: p.id, entranceId: null, replyToId: null, text: null }));
+      form.append("meta", JSON.stringify({ kind: "voice", photoId: p.id, entranceId: null, replyToId: null, text: null }));
       form.append("audio", new File([new Uint8Array([1, 2, 3])], "a", { type }));
       const res = await postForm(t, "/api/narrations", form, cookie);
       expect([type, res.status]).toEqual([type, accepted ? 202 : 400]);
@@ -93,7 +99,7 @@ describe("語りの受け取りの判定の置き換え（isAcceptableAudio）",
 describe("POST /api/check/transcribe のすき間", () => {
   it("本番では、キーがなくても 404（500 にならない。入り口があることを見せない）", async () => {
     const t = makeTestApp(d1, { appEnv: "production" });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await postForm(t, "/api/check/transcribe", checkForm(okParams), cookie);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not_found" });
@@ -102,7 +108,7 @@ describe("POST /api/check/transcribe のすき間", () => {
   it("本番では、params が壊れていても 404（中身を見る前に閉じる）", async () => {
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { appEnv: "production", transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     expect((await postForm(t, "/api/check/transcribe", checkForm("{"), cookie)).status).toBe(404);
   });
 
@@ -110,7 +116,7 @@ describe("POST /api/check/transcribe のすき間", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { appEnv: "preview", transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     expect((await postForm(t, "/api/check/transcribe", checkForm(okParams), cookie)).status).toBe(200);
   });
 
@@ -125,7 +131,7 @@ describe("POST /api/check/transcribe のすき間", () => {
   it("Content-Length が上限を超えたら 413（OpenAI を呼ばない）", async () => {
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await t.app.request("/api/check/transcribe", {
       method: "POST",
       body: "x",
@@ -138,7 +144,7 @@ describe("POST /api/check/transcribe のすき間", () => {
   it("Content-Length がなければ 400", async () => {
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await t.app.request("/api/check/transcribe", { method: "POST", body: checkForm(okParams), headers: { Cookie: cookie } });
     expect(res.status).toBe(400);
     expect(f.calls).not.toHaveBeenCalled();
@@ -155,7 +161,7 @@ describe("POST /api/check/transcribe のすき間", () => {
   ])("%s → 400（OpenAI を呼ばない）", async (_n, form) => {
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     expect((await postForm(t, "/api/check/transcribe", form, cookie)).status).toBe(400);
     expect(f.calls).not.toHaveBeenCalled();
   });
@@ -164,7 +170,7 @@ describe("POST /api/check/transcribe のすき間", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const fields = [["prompt", "あ".repeat(2_000)], ...Array.from({ length: 29 }, () => ["keywords[]", "架空"])];
     const res = await postForm(t, "/api/check/transcribe", checkForm({ model: "whisper-1", fields }), cookie);
     expect(res.status).toBe(200);
@@ -175,7 +181,7 @@ describe("POST /api/check/transcribe のすき間", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     const f = fakeFetch(() => Response.json({ text: "x" }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const bytes = new Uint8Array([9, 8, 7, 6, 5]);
     await postForm(t, "/api/check/transcribe", checkForm(okParams, { bytes, type: "audio/webm;codecs=opus" }), cookie);
     const file = f.sent[0]!.form.get("file") as File;
@@ -187,7 +193,7 @@ describe("POST /api/check/transcribe のすき間", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     const f = fakeFetch(() => Response.json({ error: { message: "x" } }, { status }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await postForm(t, "/api/check/transcribe", checkForm(okParams), cookie);
     expect(res.status).toBe(200);
     expect(((await res.json()) as { status: number }).status).toBe(status);
@@ -200,7 +206,7 @@ describe("POST /api/check/transcribe のすき間", () => {
       throw new TypeError("fetch failed");
     });
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const body = await (await postForm(t, "/api/check/transcribe", checkForm(okParams), cookie)).json();
     expect(body).toMatchObject({ status: null, networkError: "network", body: null });
   });
@@ -211,7 +217,7 @@ describe("POST /api/check/transcribe のすき間", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const f = fakeFetch(() => Response.json({ error: { message: `bad prompt: ${SECRET}` } }, { status: 400 }));
     const t = makeTestApp(d1, { transcribeProbe: createOpenAITranscribeProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const params = { model: "gpt-transcribe", fields: [["prompt", SECRET], ["keywords", SECRET], ["languages[]", "ja"]] };
     const res = await postForm(t, "/api/check/transcribe", checkForm(params), cookie);
     expect(res.status).toBe(200);
@@ -225,7 +231,7 @@ describe("POST /api/check/transcribe のすき間", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const t = makeTestApp(d1);
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     await postForm(t, "/api/check/transcribe", checkForm({ model: "gpt-transcribe", fields: [["prompt", SECRET]] }), cookie);
     const all = [...log.mock.calls, ...err.mock.calls].map((a) => a.map(String).join(" ")).join("\n");
     expect(all).not.toContain(SECRET);

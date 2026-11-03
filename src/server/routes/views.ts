@@ -5,7 +5,8 @@ import { displayText, quoteText } from "../core/clean-transcript";
 import { ENTRANCE_QUOTE_MAX_CHARS } from "../core/entrance-claude";
 import type { EntranceRow, MemberRow, NarrationRow, PhotoRow } from "../core/ports";
 
-export const memberView = (m: MemberRow): Member => ({
+/** hasLink: その人のリンクが今使えるか（invite_links の有効な行があるか）。0036 */
+export const memberView = (m: MemberRow, hasLink: boolean): Member => ({
   id: m.id,
   role: m.role,
   relation: m.relation,
@@ -13,6 +14,7 @@ export const memberView = (m: MemberRow): Member => ({
   speechStyle: m.speechStyle,
   dialectRegion: m.dialectRegion,
   setUpByMemberId: m.setUpByMemberId,
+  hasLink,
 });
 
 export const photoView = (p: PhotoRow): Photo => ({

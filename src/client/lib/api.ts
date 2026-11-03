@@ -13,7 +13,7 @@ import {
   type NarrationMeta,
   type Photo,
   type PhotoMeta,
-  type RegenerateInviteResult,
+  type MemberLinkResult,
   type UploadPhotoResult,
 } from "../../shared/api";
 
@@ -28,6 +28,7 @@ export class ApiError extends Error {
 
 function kindFromStatus(status: number): ErrorKind {
   if (status === 401) return "unauthorized";
+  if (status === 403) return "forbidden";
   if (status === 404) return "not_found";
   if (status === 400) return "invalid_request";
   if (status === 409) return "duplicate";
@@ -77,7 +78,9 @@ export const api = {
   addMember: (input: MemberInput) => call<Member>("/api/members", json("POST", input)),
   updateMember: (id: string, input: MemberInput) =>
     call<Member>(`/api/members/${encodeURIComponent(id)}`, json("PATCH", input)),
-  regenerateInvite: () => call<RegenerateInviteResult>("/api/invite/regenerate", { method: "POST" }),
+  /** その人のリンクを作る（作り直す）。自分なら cookie も替わる（0036） */
+  createMemberLink: (memberId: string) =>
+    call<MemberLinkResult>(`/api/members/${encodeURIComponent(memberId)}/link`, { method: "POST" }),
 
   uploadPhoto: (file: Blob, meta: PhotoMeta) => {
     const form = new FormData();
@@ -96,8 +99,8 @@ export const api = {
     return call<{ narration: Narration }>("/api/narrations", { method: "POST", body: form });
   },
   getFeed: () => call<{ items: { photo: Photo; narrations: FeedNarration[] }[] }>("/api/feed"),
-  todayEntrance: (memberId: string) =>
-    call<{ entrance: Entrance | null }>(`/api/entrances/today?memberId=${encodeURIComponent(memberId)}`),
+  /** この端末の人の今日の入り口 */
+  todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
 
   advanceClock: () => call<AdvanceClockResult>("/api/demo/clock/advance", { method: "POST" }),
 };

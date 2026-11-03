@@ -1,7 +1,12 @@
 // 開発用の確かめの入り口（POST /api/check/speech、0019 の試し）。本物の OpenAI は呼ばない（fetch を偽物に差し替える）。
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createOpenAISpeechProbe } from "../src/server/adapters/openai-speech";
-import { createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
+import { addMember, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
+
+/** 家族を作り、最初の一人（家族の画面の人）を入れて、その人の cookie を返す（確かめの入り口は人のいるリンクで開く。0036） */
+async function memberOf(t: TestApp): Promise<{ cookie: string; id: string }> {
+  return addMember(t, (await createFamily(t)).cookie);
+}
 
 let d1: D1Database;
 let dispose: () => Promise<void>;
@@ -49,7 +54,7 @@ describe("POST /api/check/speech", () => {
   it("本番では、合言葉があっても 404（OpenAI を呼ばない）", async () => {
     const f = fakeFetch(audioResponse);
     const t = makeTestApp(d1, { appEnv: "production", speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, params, cookie);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not_found" });
@@ -67,7 +72,7 @@ describe("POST /api/check/speech", () => {
   it("入れた値をそのまま JSON で送り、音声をそのまま返す", async () => {
     const f = fakeFetch(audioResponse);
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, params, cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/mpeg");
@@ -94,7 +99,7 @@ describe("POST /api/check/speech", () => {
   it("instructions が空なら送らない。組み合わせは検査せずに送る（tts-1 と marin）", async () => {
     const f = fakeFetch(audioResponse);
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, { ...params, model: "tts-1", instructions: "  " }, cookie);
     expect(res.status).toBe(200);
     expect(f.sent[0]!.body).not.toHaveProperty("instructions");
@@ -105,7 +110,7 @@ describe("POST /api/check/speech", () => {
     const upstream = { error: { message: "Invalid voice.", type: "invalid_request_error" } };
     const f = fakeFetch(() => Response.json(upstream, { status: 400 }));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, params, cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("x-check-speech")).toBe("failure");
@@ -116,7 +121,7 @@ describe("POST /api/check/speech", () => {
   it("200 でも JSON が返ったら音声ではないので、失敗として本文を見せる", async () => {
     const f = fakeFetch(() => Response.json({ unexpected: true }));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, params, cookie);
     expect(res.headers.get("x-check-speech")).toBe("failure");
     expect(await res.json()).toMatchObject({ status: 200, body: { unexpected: true } });
@@ -125,7 +130,7 @@ describe("POST /api/check/speech", () => {
   it("JSON でない失敗の本文は、先頭 20,000 字まで", async () => {
     const f = fakeFetch(() => new Response("あ".repeat(25_000), { status: 500 }));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const body = (await (await post(t, params, cookie)).json()) as { body: string };
     expect(body.body).toHaveLength(20_000);
   });
@@ -135,7 +140,7 @@ describe("POST /api/check/speech", () => {
       throw new DOMException("timed out", "TimeoutError");
     });
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, params, cookie);
     expect(res.headers.get("x-check-speech")).toBe("failure");
     expect(await res.json()).toMatchObject({ status: null, networkError: "timeout", body: null });
@@ -146,7 +151,7 @@ describe("POST /api/check/speech", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const f = fakeFetch(audioResponse);
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     await (await post(t, params, cookie)).arrayBuffer();
     const lines = [...log.mock.calls, ...err.mock.calls].map((a) => a.map(String).join(" "));
     expect(lines.join("\n")).not.toContain(SECRET_INPUT);
@@ -169,7 +174,7 @@ describe("POST /api/check/speech", () => {
   it("キーがないときは internal（invalid_request にしない）", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const t = makeTestApp(d1);
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, params, cookie);
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "internal" });
@@ -178,7 +183,7 @@ describe("POST /api/check/speech", () => {
   it("大きすぎる本文は 413（OpenAI を呼ばない）", async () => {
     const f = fakeFetch(audioResponse);
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, { ...params, instructions: "x".repeat(20_000) }, cookie);
     expect(res.status).toBe(413);
     expect(f.calls).not.toHaveBeenCalled();
@@ -197,7 +202,7 @@ describe("POST /api/check/speech", () => {
   ])("%s → 400（OpenAI を呼ばない）", async (_name, p) => {
     const f = fakeFetch(audioResponse);
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberOf(t);
     const res = await post(t, p, cookie);
     expect(res.status).toBe(400);
     expect(f.calls).not.toHaveBeenCalled();

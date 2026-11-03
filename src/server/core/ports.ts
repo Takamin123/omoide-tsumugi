@@ -164,14 +164,24 @@ export type NewClaudeEntrance = Pick<
 // ---- リポジトリ ----
 // 家族の中のものを引くときは、必ず familyId を渡す（ほかの家族のものは見えない = 404）。
 
+/** リンク（合言葉）を作るときの値。平文の合言葉は持たない */
+export interface NewInviteLink {
+  id: string;
+  tokenHash: string;
+}
+
+/** 有効なリンクが指すもの。member が null なら「最初の人のリンク」（家族を作ったときの一度きり。0036） */
+export interface ActiveLink {
+  family: FamilyRow;
+  member: MemberRow | null;
+}
+
 export interface FamilyRepository {
-  /** 家族と、最初の招待の合言葉（のハッシュ）を一緒に作る。 */
-  create(family: Omit<FamilyRow, "createdAt">, invite: { id: string; tokenHash: string }, now: number): Promise<void>;
+  /** 家族と、最初の人のリンク（のハッシュ）を一緒に作る。 */
+  create(family: Omit<FamilyRow, "createdAt">, firstLink: NewInviteLink, now: number): Promise<void>;
   get(familyId: string): Promise<FamilyRow | null>;
-  /** 取り消されていない招待の合言葉のハッシュから家族を引く。 */
-  findByActiveInviteHash(tokenHash: string): Promise<FamilyRow | null>;
-  /** 今の合言葉を取り消し、新しいものに替える（一度に行う）。 */
-  regenerateInvite(familyId: string, invite: { id: string; tokenHash: string }, now: number): Promise<void>;
+  /** 取り消されていないリンクのハッシュから、家族と人を引く。 */
+  findActiveLink(tokenHash: string): Promise<ActiveLink | null>;
   setClock(familyId: string, clock: Clock): Promise<void>;
   /** 毎朝の処理の対象: 時計を持たない（本当の時刻で動く）家族 */
   listIdsWithoutClock(): Promise<string[]>;
@@ -182,6 +192,15 @@ export interface MemberRepository {
   get(familyId: string, memberId: string): Promise<MemberRow | null>;
   create(row: MemberRow): Promise<void>;
   update(familyId: string, memberId: string, fields: MemberFields): Promise<MemberRow | null>;
+  /**
+   * 最初の一人を入れる。家族に人がまだいないときだけ、一度に「人を入れる → その人のリンクを作る → 最初の人のリンクを取り消す」。
+   * 入れられたら true（ほかの端末が先に入れていたら false で、何も入れない）
+   */
+  addFirst(row: MemberRow, link: NewInviteLink, now: number): Promise<boolean>;
+  /** その人の有効なリンクを取り消し、新しいリンクを作る（一度に）。ほかの人のリンクには触れない */
+  replaceLink(familyId: string, memberId: string, link: NewInviteLink, now: number): Promise<void>;
+  /** 有効なリンクを持つ人の ID */
+  listIdsWithActiveLink(familyId: string): Promise<string[]>;
 }
 
 export interface PhotoRepository {

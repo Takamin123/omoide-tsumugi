@@ -5,6 +5,7 @@ import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
 import type { NarrationRow, NewNarration } from "../core/ports";
 import { transcribeNarration } from "../core/transcribe";
+import { currentMember } from "./auth";
 import type { AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm } from "./http";
 import { privateBody } from "./photos";
@@ -47,14 +48,15 @@ export const narrations = new Hono<AppEnv>()
       if (prior) return c.json({ narration: narrationView(prior) }, 202);
     }
 
-    // 指している人・写真・入り口・語りが、同じ家族のものか
-    const [speaker, photo, entrance, replyTo] = await Promise.all([
-      repos.members.get(family.id, meta.speakerMemberId),
+    // 話した人は、この端末の人（リンクの人）。クライアントからは受け取らない（0036）
+    const speaker = currentMember(c);
+    // 指している写真・入り口・語りが、同じ家族のものか
+    const [photo, entrance, replyTo] = await Promise.all([
       repos.photos.get(family.id, meta.photoId),
       meta.entranceId ? repos.entrances.getById(family.id, meta.entranceId) : null,
       meta.replyToId ? repos.narrations.get(family.id, meta.replyToId) : null,
     ]);
-    if (!speaker || !photo) return fail(c, "not_found");
+    if (!photo) return fail(c, "not_found");
     if (meta.entranceId && !entrance) return fail(c, "not_found");
     if (meta.replyToId && !replyTo) return fail(c, "not_found");
 

@@ -38,7 +38,8 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
     if (!confirm(w.regenerateConfirm)) return;
     setError(null);
     try {
-      const { token } = await api.regenerateInvite();
+      // 画面は作り直す予定（0036）。それまでは、自分のリンクを作り直す
+      const { token } = await api.createMemberLink(me.id);
       onInviteToken(token);
     } catch (e) {
       setError(errorText(e));

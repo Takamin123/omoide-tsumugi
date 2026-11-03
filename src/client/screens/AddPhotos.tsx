@@ -13,10 +13,10 @@ type Props = { view: FamilyView; me: Member; reload: () => Promise<void> };
 
 type Outcome = "added" | "duplicate" | "unreadable" | "failed";
 
-async function uploadOne(file: File, ownerMemberId: string): Promise<Outcome> {
+async function uploadOne(file: File): Promise<Outcome> {
   let prepared;
   try {
-    prepared = await preparePhoto(file, ownerMemberId);
+    prepared = await preparePhoto(file);
   } catch (e) {
     if (e instanceof UnreadableImageError) return "unreadable";
     return "failed";
@@ -30,7 +30,7 @@ async function uploadOne(file: File, ownerMemberId: string): Promise<Outcome> {
   }
 }
 
-export function AddPhotos({ me }: Props) {
+export function AddPhotos(_props: Props) {
   const [tally, setTally] = useState<UploadTally | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,7 +44,7 @@ export function AddPhotos({ me }: Props) {
     setTally(t);
     try {
       for (const file of files) {
-        t = tallyOne(t, await uploadOne(file, me.id));
+        t = tallyOne(t, await uploadOne(file));
         setTally(t);
       }
     } catch (e) {

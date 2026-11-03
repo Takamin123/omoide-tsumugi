@@ -31,7 +31,7 @@ export function Elder({ view, me, onSwitch, demo }: Props) {
   useEffect(() => {
     let alive = true;
     setLoad({ state: "loading" });
-    api.todayEntrance(me.id).then(
+    api.todayEntrance().then(
       ({ entrance }) => alive && setLoad({ state: "ready", entrance }),
       (e) => alive && setLoad({ state: "error", unauthorized: e instanceof ApiError && e.kind === "unauthorized" }),
     );

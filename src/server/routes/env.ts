@@ -1,7 +1,10 @@
-import type { AppConfig, AppDeps, FamilyRow } from "../core/ports";
+import type { AppConfig, AppDeps, FamilyRow, MemberRow } from "../core/ports";
 
-/** Hono の変数。family は合言葉の確認（auth.ts）を通った後にだけある。 */
-export type AppEnv = { Variables: { deps: AppDeps; family: FamilyRow } };
+/**
+ * Hono の変数。family と member は合言葉の確認（auth.ts）を通った後にだけある。
+ * member はリンクが指す人。null は「最初の人のリンク」で、通れるのは auth.ts の FIRST_PERSON_ROUTES だけ（0036）
+ */
+export type AppEnv = { Variables: { deps: AppDeps; family: FamilyRow; member: MemberRow | null } };
 
 /**
  * 開発用の入り口（/api/check/*）を開くか。本番（APP_ENV=production）では閉じて 404 にする（0014）。

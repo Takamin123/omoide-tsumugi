@@ -30,7 +30,7 @@ const guarded: [string, string][] = [
   ["GET", "/api/narrations/x/audio"],
   ["GET", "/api/feed"],
   ["POST", "/api/demo/clock/advance"],
-  ["POST", "/api/invite/regenerate"],
+  ["POST", "/api/members/x/link"],
 ];
 
 const variants = (p: string): string[] => [

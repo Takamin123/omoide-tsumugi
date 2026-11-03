@@ -49,7 +49,8 @@ describe("本番では、運営の鍵を付けても /check の入り口は 404 
   it("POST /api/check/transcribe と /api/check/speech", async () => {
     const t = makeTestApp(d1, { appEnv: "production" });
     const f = await createFamily(t, true);
-    const headers = { Cookie: f.cookie, Authorization: `Bearer ${OPS_TOKEN}` };
+    const m = await addMember(t, f.cookie);
+    const headers = { Cookie: m.cookie, Authorization: `Bearer ${OPS_TOKEN}` };
     const form = new FormData();
     form.set("params", JSON.stringify({ model: "x", fields: [] }));
     form.set("audio", new File([new Uint8Array([1, 2, 3])], "a.m4a", { type: "audio/mp4" }));
@@ -77,8 +78,8 @@ describe("許可の一覧に載せた家族の記録に、ほかの家族のも�
     const b = await createFamily(t, false);
     const aMember = await addMember(t, a.cookie);
     const bMember = await addMember(t, b.cookie);
-    const aPhoto = await addPhoto(t, a.cookie, aMember.id, 1);
-    const bPhoto = await addPhoto(t, b.cookie, bMember.id, 2);
+    const aPhoto = await addPhoto(t, aMember.cookie, 1);
+    const bPhoto = await addPhoto(t, bMember.cookie, 2);
     t.deps.config.opsRecordFamilies = [a.familyId];
     const res = await t.app.request(recordUrl(a.familyId), { headers: { Authorization: `Bearer ${OPS_TOKEN}` } });
     expect(res.status).toBe(200);

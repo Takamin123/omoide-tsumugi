@@ -287,11 +287,11 @@ beforeAll(async () => {
 afterAll(() => dispose());
 
 const fakeAudio = { bytes: new Uint8Array([1, 2, 3, 4]), type: "audio/webm;codecs=opus" };
-function voiceForm(speakerMemberId: string, photoId: string, kind: "voice" | "text" = "voice"): FormData {
+function voiceForm(photoId: string, kind: "voice" | "text" = "voice"): FormData {
   const form = new FormData();
   form.append(
     "meta",
-    JSON.stringify({ kind, speakerMemberId, photoId, entranceId: null, replyToId: null, text: kind === "text" ? TRANSCRIPT : null }),
+    JSON.stringify({ kind, photoId, entranceId: null, replyToId: null, text: kind === "text" ? TRANSCRIPT : null }),
   );
   if (kind === "voice") form.append("audio", new File([fakeAudio.bytes], "a", { type: fakeAudio.type }));
   return form;
@@ -303,13 +303,15 @@ async function setup(replies: FakeClaudeReply[], transcript: { ok: true; text: s
   const fc = fakeClaude({ replies });
   const t = makeTestApp(d1, { claude: onlyPurpose(fc.claude, "clean_transcript"), transcriber: fakeTranscriber(() => transcript) });
   const f = await createFamily(t);
-  const m = await addMember(t, f.cookie, { calledAs: "ばあば", role: "elder", relation: "祖母", speechStyle: "dialect", dialectRegion: "広島" });
-  const p = await addPhoto(t, f.cookie, m.id, 1);
+  // 家族を作った人（最初の一人は家族の画面の人）が、話し手のばあばを足す。語りはばあばの端末（cookie）から送る
+  const creator = await addMember(t, f.cookie);
+  const m = await addMember(t, creator.cookie, { calledAs: "ばあば", role: "elder", relation: "祖母", speechStyle: "dialect", dialectRegion: "広島" });
+  const p = await addPhoto(t, m.cookie, 1);
   return { t, f, m, p, fc };
 }
 
 async function post(s: Awaited<ReturnType<typeof setup>>, kind: "voice" | "text" = "voice"): Promise<string> {
-  const res = await postForm(s.t, "/api/narrations", voiceForm(s.m.id, s.p.id, kind), s.f.cookie);
+  const res = await postForm(s.t, "/api/narrations", voiceForm(s.p.id, kind), s.m.cookie);
   expect(res.status).toBe(202);
   const id = ((await res.json()) as { narration: { id: string } }).narration.id;
   await s.t.flush();
@@ -324,7 +326,7 @@ async function dbRow(id: string) {
 }
 
 async function listed(s: Awaited<ReturnType<typeof setup>>) {
-  const res = await s.t.app.request(`/api/narrations?photoId=${s.p.id}`, { headers: { Cookie: s.f.cookie } });
+  const res = await s.t.app.request(`/api/narrations?photoId=${s.p.id}`, { headers: { Cookie: s.m.cookie } });
   return { raw: await res.clone().text(), body: (await res.json()) as { narrations: { id: string; text: string | null }[] } };
 }
 

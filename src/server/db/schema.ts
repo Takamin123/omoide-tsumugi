@@ -25,11 +25,17 @@ export const inviteLinks = sqliteTable(
     id: text("id").primaryKey(),
     familyId: text("family_id").notNull().references(() => families.id),
     tokenHash: text("token_hash").notNull().unique(), // 合言葉の SHA-256。平文は持たない
+    // その人のリンク（開いた端末は最初からその人）。NULL は「最初の人のリンク」（家族を作ったときの一度きり）。0036
+    memberId: text("member_id").references(() => members.id),
     createdAt: integer("created_at").notNull(),
     revokedAt: integer("revoked_at"),
   },
-  // 有効な合言葉は家族ごとに一つ
-  (t) => [uniqueIndex("invite_links_one_active").on(t.familyId).where(sql`${t.revokedAt} IS NULL`)],
+  (t) => [
+    // 有効なリンクは人ごとに一つ
+    uniqueIndex("invite_links_member_active").on(t.familyId, t.memberId).where(sql`${t.revokedAt} IS NULL`),
+    // 有効な「最初の人のリンク」は家族ごとに一つ（NULL は一意の索引で互いに別とみなされるので、別に縛る）
+    uniqueIndex("invite_links_first_active").on(t.familyId).where(sql`${t.revokedAt} IS NULL AND ${t.memberId} IS NULL`),
+  ],
 );
 
 export const members = sqliteTable(

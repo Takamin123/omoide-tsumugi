@@ -224,18 +224,30 @@ export function fakeClaude(
 // ---- 手元の D1（wrangler の getPlatformProxy。メモリの中だけに持ち、.wrangler/ に残さない） ----
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export async function startD1(): Promise<{ d1: D1Database; bucket: R2Bucket; dispose: () => Promise<void> }> {
+const MIGRATIONS_DIR = path.join(repoRoot, "drizzle/migrations");
+
+/** マイグレーションのファイル名（名前の順） */
+export function migrationFiles(): string[] {
+  return fs.readdirSync(MIGRATIONS_DIR).filter((f: string) => f.endsWith(".sql")).sort();
+}
+
+/** マイグレーションのファイルを一つ適用する */
+export async function applyMigration(d1: D1Database, file: string): Promise<void> {
+  const statements = (fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf8") as string)
+    .split("--> statement-breakpoint")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  await d1.batch(statements.map((s) => d1.prepare(s)));
+}
+
+/** 手元の D1 を立てて、マイグレーションを適用する。before を渡すと、その名前より前のファイルだけ（移行のテスト用） */
+export async function startD1(opts: { before?: string } = {}): Promise<{ d1: D1Database; bucket: R2Bucket; dispose: () => Promise<void> }> {
   const wrangler: any = await import("wrangler" as string);
   const proxy = await wrangler.getPlatformProxy({ configPath: path.join(repoRoot, "wrangler.jsonc"), persist: false });
   const d1 = proxy.env.DB as D1Database;
-  const dir = path.join(repoRoot, "drizzle/migrations");
-  const files: string[] = fs.readdirSync(dir).filter((f: string) => f.endsWith(".sql")).sort();
-  for (const f of files) {
-    const statements = (fs.readFileSync(path.join(dir, f), "utf8") as string)
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    await d1.batch(statements.map((s) => d1.prepare(s)));
+  for (const f of migrationFiles()) {
+    if (opts.before !== undefined && f >= opts.before) break;
+    await applyMigration(d1, f);
   }
   return { d1, bucket: proxy.env.BUCKET as R2Bucket, dispose: () => proxy.dispose() };
 }
@@ -303,7 +315,16 @@ export function makeTestApp(
 
 export const cookieOf = (token: string) => `${INVITE_COOKIE}=${token}`;
 
-/** 家族を作り、合言葉の cookie を返す */
+/** set-cookie から合言葉の cookie（omoide_invite=...）を取り出す。なければ null */
+export function inviteCookieFrom(res: Response): string | null {
+  const m = (res.headers.get("set-cookie") ?? "").match(new RegExp(`${INVITE_COOKIE}=([^;]*)`));
+  return m && m[1] ? cookieOf(m[1]) : null;
+}
+
+/**
+ * 家族を作り、「最初の人のリンク」の cookie を返す。
+ * この cookie は一度きりで、最初の一人を入れる（addMember）と使えなくなる。以後はその人の cookie（addMember の戻り値）を使う（0036）
+ */
 export async function createFamily(t: TestApp, isDemo = false): Promise<{ familyId: string; token: string; cookie: string }> {
   const res = await t.app.request("/api/families", {
     method: "POST",
@@ -324,14 +345,28 @@ export const defaultMember = {
   setUpByMemberId: null,
 } as const;
 
-export async function addMember(t: TestApp, cookie: string, input: Record<string, unknown> = {}): Promise<{ id: string }> {
+/**
+ * 人を足し、その人の cookie（その人のリンクで開いた端末）も返す。
+ * cookie が最初の人のリンクなら、足した人が最初の一人になる（その cookie は使えなくなる）。
+ * そうでなければ、cookie の人（role = family）が足し、続けてその人のリンクを作る
+ */
+export async function addMember(t: TestApp, cookie: string, input: Record<string, unknown> = {}): Promise<{ id: string; cookie: string }> {
   const res = await t.app.request("/api/members", {
     method: "POST",
     headers: { Cookie: cookie, "Content-Type": "application/json" },
     body: JSON.stringify({ ...defaultMember, ...input }),
   });
   if (res.status !== 201) throw new Error(`addMember ${res.status}`);
-  return (await res.json()) as { id: string };
+  const { id } = (await res.json()) as { id: string };
+  const own = inviteCookieFrom(res) ?? (await memberLinkCookie(t, cookie, id));
+  return { id, cookie: own };
+}
+
+/** cookie の人（role = family）が、その人のリンクを作り、その cookie を返す */
+export async function memberLinkCookie(t: TestApp, cookie: string, memberId: string): Promise<string> {
+  const res = await t.app.request(`/api/members/${memberId}/link`, { method: "POST", headers: { Cookie: cookie } });
+  if (res.status !== 200) throw new Error(`memberLink ${res.status}`);
+  return cookieOf(((await res.json()) as { token: string }).token);
 }
 
 /** JPEG の先頭だけを持つ、架空の小さなバイト列（本物の写真ではない） */
@@ -357,14 +392,9 @@ export async function postForm(t: TestApp, url: string, form: FormData, cookie: 
   });
 }
 
-export async function addPhoto(
-  t: TestApp,
-  cookie: string,
-  ownerMemberId: string,
-  n: number,
-  extra: Record<string, unknown> = {},
-): Promise<{ id: string }> {
-  const meta = { ownerMemberId, contentHash: hashOf(n), width: 10, height: 10, takenAt: null, latitude: null, longitude: null, ...extra };
+/** 写真を足す。持ち主は cookie の人（0036） */
+export async function addPhoto(t: TestApp, cookie: string, n: number, extra: Record<string, unknown> = {}): Promise<{ id: string }> {
+  const meta = { contentHash: hashOf(n), width: 10, height: 10, takenAt: null, latitude: null, longitude: null, ...extra };
   const res = await postForm(t, "/api/photos", photoForm(meta, tinyJpeg(n)), cookie);
   if (res.status !== 201 && res.status !== 200) throw new Error(`addPhoto ${res.status}`);
   return ((await res.json()) as { photo: { id: string } }).photo;

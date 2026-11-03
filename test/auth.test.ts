@@ -2,7 +2,7 @@
 // 確認しない入り口の一覧をここで固定する。入り口を足したら、ここが気づく。
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/server/app";
-import { isOpsPath, PUBLIC_ROUTES } from "../src/server/routes/auth";
+import { FIRST_PERSON_ROUTES, isFirstPersonRoute, isOpsPath, PUBLIC_ROUTES } from "../src/server/routes/auth";
 import { fakeDeps } from "./helpers";
 
 const app = createApp(() => fakeDeps());
@@ -43,15 +43,35 @@ describe("合言葉の確認", () => {
       "POST /api/check/transcribe",
       "POST /api/demo/clock/advance",
       "POST /api/families",
-      "POST /api/invite/regenerate",
       "POST /api/members",
+      "POST /api/members/:id/link",
       "POST /api/narrations",
       "POST /api/photos",
       "POST /api/session",
     ]);
   });
 
-  it("合言葉の代わりに運営の鍵で守る入り口は、/api/ops/ の下の読み取り 2 つだけ（0025）", () => {
+  it("最初の人のリンク（人を指さないリンク）で通せる入り口は、この 2 つだけ（0036）", () => {
+    expect(FIRST_PERSON_ROUTES.map(([m, p]) => `${m} ${p}`).sort()).toEqual(["GET /api/family", "POST /api/members"]);
+    // 一覧の入り口は、どれも登録されている（消したのに一覧に残っていない）
+    for (const [m, p] of FIRST_PERSON_ROUTES) expect(apiRoutes).toContain(`${m} ${p}`);
+  });
+
+  it.each([
+    ["GET", "/api/family", true],
+    ["get", "/API/Family", true],
+    ["POST", "/api/members", true],
+    ["POST", "/api/members/x/link", false],
+    ["PATCH", "/api/members/x", false],
+    ["GET", "/api/members", false],
+    ["POST", "/api/family", false],
+    ["GET", "/api/family/", false],
+    ["GET", "/api/feed", false],
+  ])("最初の人のリンクで通すか: %s %s → %s", (method, p, expected) => {
+    expect(isFirstPersonRoute(method, p)).toBe(expected);
+  });
+
+  it("合言葉の代わりに運営の鍵で守る入り口、/api/ops/ の下の読み取り 2 つだけ（0025）", () => {
     expect(apiRoutes.filter((r) => isOpsPath(r.split(" ")[1]!))).toEqual([
       "GET /api/ops/families/:familyId/photos/:photoId/image",
       "GET /api/ops/families/:familyId/record",
@@ -75,7 +95,7 @@ describe("合言葉の確認", () => {
     ["GET", "/Api/photos"],
     ["GET", "/API/photos/x/image"],
     ["POST", "/Api/demo/clock/advance"],
-    ["POST", "/api/Invite/regenerate"],
+    ["POST", "/api/Members/x/link"],
     ["GET", "/api"],
   ])("大文字・小文字を変えても素通りしない: %s %s → 401", async (method, p) => {
     const res = await app.request(p, { method });

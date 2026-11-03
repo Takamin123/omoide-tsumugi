@@ -100,16 +100,13 @@ export async function resizeToJpeg(file: Blob): Promise<{ blob: Blob; width: num
   }
 }
 
-/** 一枚分の送る準備。EXIF は縮小の前に読む */
-export async function preparePhoto(
-  file: File,
-  ownerMemberId: string,
-): Promise<{ blob: Blob; meta: PhotoMeta }> {
+/** 一枚分の送る準備。EXIF は縮小の前に読む。持ち主はサーバーが端末の人に決める（0036） */
+export async function preparePhoto(file: File): Promise<{ blob: Blob; meta: PhotoMeta }> {
   const facts = await readExifFacts(file);
   const contentHash = await sha256Hex(file);
   const resized = await resizeToJpeg(file);
   return {
     blob: resized.blob,
-    meta: { ownerMemberId, contentHash, width: resized.width, height: resized.height, ...facts },
+    meta: { contentHash, width: resized.width, height: resized.height, ...facts },
   };
 }

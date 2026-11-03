@@ -1,11 +1,10 @@
-// 家族の場: 作る、合言葉で入る、合言葉を作り直す、家族の様子を見る。
+// 家族の場: 作る、リンクの合言葉で入る、家族の様子を見る。一人ずつのリンクは routes/members.ts（0036）
 import { Hono } from "hono";
 import {
   createFamilyInputSchema,
   sessionInputSchema,
   type CreateFamilyResult,
   type FamilyView,
-  type RegenerateInviteResult,
 } from "../../shared/api";
 import { canAdvanceClock, familyClock, jstDate } from "../core/clock";
 import { hashToken, newInviteToken, timingSafeEqual } from "../core/secrets";
@@ -39,33 +38,23 @@ export const family = new Hono<AppEnv>()
     return c.json({ familyId, token } satisfies CreateFamilyResult, 201);
   })
 
-  // 合言葉で入る
+  // リンクの合言葉で入る。この端末は、そのリンクの人になる
   .post("/session", async (c) => {
     const input = parseWith(sessionInputSchema, await readJson(c));
     if (!input) return fail(c, "invalid_request");
-    const found = await c.get("deps").repos.families.findByActiveInviteHash(await hashToken(input.token));
+    const found = await c.get("deps").repos.families.findActiveLink(await hashToken(input.token));
     if (!found) return fail(c, "unauthorized");
     setInviteCookie(c, input.token);
     return c.body(null, 204);
   })
 
-  // 合言葉を作り直す。古いものはすぐ無効になる
-  .post("/invite/regenerate", async (c) => {
-    const deps = c.get("deps");
-    const token = newInviteToken();
-    await deps.repos.families.regenerateInvite(
-      c.get("family").id,
-      { id: crypto.randomUUID(), tokenHash: await hashToken(token) },
-      deps.now().getTime(),
-    );
-    setInviteCookie(c, token);
-    return c.json({ token } satisfies RegenerateInviteResult);
-  })
-
+  // 最初の人のリンク（member が null）でも開ける（FIRST_PERSON_ROUTES）
   .get("/family", async (c) => {
     const deps = c.get("deps");
     const f = c.get("family");
-    const members = await deps.repos.members.list(f.id);
+    const me = c.get("member");
+    const [members, linked] = await Promise.all([deps.repos.members.list(f.id), deps.repos.members.listIdsWithActiveLink(f.id)]);
+    const hasLink = new Set(linked);
     const view: FamilyView = {
       family: {
         id: f.id,
@@ -73,7 +62,8 @@ export const family = new Hono<AppEnv>()
         clock: familyClock(f, deps.now()),
         canAdvanceClock: canAdvanceClock(deps.config, f),
       },
-      members: members.map(memberView),
+      members: members.map((m) => memberView(m, hasLink.has(m.id))),
+      me: me ? memberView(me, hasLink.has(me.id)) : null,
     };
     return c.json(view);
   });

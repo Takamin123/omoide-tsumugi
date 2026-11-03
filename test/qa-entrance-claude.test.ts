@@ -158,7 +158,10 @@ type Setup = {
   t: TestApp;
   requests: FakeClaudeRequest[];
   familyId: string;
+  /** 孫（家族の画面の人）の cookie */
   cookie: string;
+  /** 祖母の cookie（祖母のリンクで開いた端末） */
+  elderCookie: string;
   elder: string;
   child: string;
   photoId: string;
@@ -188,12 +191,15 @@ async function setup(
   };
   const t = makeTestApp(d1, { claude: opts.claude === "none" ? notConfiguredClaude : late });
   const f = await createFamily(t, opts.isDemo ?? false);
-  const elder = (await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: NAME_ELDER + marker, speechStyle: "dialect", dialectRegion: "架空の地方" })).id;
-  const child = (await addMember(t, f.cookie, { relation: "孫", calledAs: NAME_CHILD + marker })).id;
-  const p = await addPhoto(t, f.cookie, child, 1, { latitude: 35.0, longitude: 135.0, takenAt: "2019-10-20T08:00:00" });
+  // 最初の一人は家族の画面の人（0036）。孫が家族を作り、祖母を足す
+  const c = await addMember(t, f.cookie, { relation: "孫", calledAs: NAME_CHILD + marker });
+  const e = await addMember(t, c.cookie, { role: "elder", relation: "祖母", calledAs: NAME_ELDER + marker, speechStyle: "dialect", dialectRegion: "架空の地方" });
+  const elder = e.id;
+  const child = c.id;
+  const p = await addPhoto(t, c.cookie, 1, { latitude: 35.0, longitude: 135.0, takenAt: "2019-10-20T08:00:00" });
   const form = new FormData();
-  form.append("meta", JSON.stringify({ kind: "text", speakerMemberId: child, photoId: p.id, entranceId: null, replyToId: null, text: NARRATION_TEXT + marker }));
-  const nr = await postForm(t, "/api/narrations", form, f.cookie);
+  form.append("meta", JSON.stringify({ kind: "text", photoId: p.id, entranceId: null, replyToId: null, text: NARRATION_TEXT + marker }));
+  const nr = await postForm(t, "/api/narrations", form, c.cookie);
   const narrationId = ((await nr.json()) as { narration: { id: string } }).narration.id;
   await t.flush();
   await d1
@@ -202,7 +208,7 @@ async function setup(
     .run();
   const fake = fakeClaude({ replies: replies(p.id, narrationId) });
   inner = onlyPurpose(fake.claude, "entrance");
-  return { t, requests: fake.requests, familyId: f.familyId, cookie: f.cookie, elder, child, photoId: p.id, narrationId };
+  return { t, requests: fake.requests, familyId: f.familyId, cookie: c.cookie, elderCookie: e.cookie, elder, child, photoId: p.id, narrationId };
 }
 
 const NOW = new Date("2026-11-02T21:00:00Z"); // 日本時間 11/3 6:00
@@ -282,7 +288,7 @@ describe("QA デモの時計のボタンも、Cron と同じ処理（runMorning�
     for (const r of rows) expect(r).toMatchObject({ kind: "claude", for_date: "2026-11-03", prompt_version: PROMPTS.entrance.version });
 
     const before = s.requests.length;
-    const res = await s.t.app.request(`/api/entrances/today?memberId=${s.elder}`, { headers: { Cookie: s.cookie } });
+    const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
     const body = (await res.json()) as { entrance: { question: string; forDate: string; quote: { text: string } | null } };
     expect(body.entrance).toMatchObject({ forDate: "2026-11-03", question: QUESTION, quote: { text: "全然抜けなかった" } });
     expect(s.requests.length).toBe(before);
@@ -293,7 +299,7 @@ describe("QA 画面を先に開いたとき", () => {
   it("朝の処理より先に開くと固定の入り口をその場で作り（Claude は呼ばない）、後の朝の処理はそれを残す", async () => {
     const s = await setup((pid, nid) => [good(pid, nid), good(pid, nid)]);
     s.t.setNow(NOW);
-    const res = await s.t.app.request(`/api/entrances/today?memberId=${s.elder}`, { headers: { Cookie: s.cookie } });
+    const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
     expect(res.status).toBe(200);
     expect(messageCalls(s.requests)).toHaveLength(0);
 
@@ -326,17 +332,16 @@ describe("QA ほかの家族のものを渡さない・見せない", () => {
     const s = await setup((pid, nid) => [good(pid, nid), good(pid, nid)]);
     await runMorning(s.t.deps, NOW, { familyId: s.familyId });
     s.t.setNow(NOW);
-    const h = { headers: { Cookie: s.cookie } };
-    const urls = [
-      `/api/entrances/today?memberId=${s.elder}`,
-      `/api/entrances/today?memberId=${s.child}`,
-      "/api/family",
-      "/api/photos",
-      `/api/narrations?photoId=${s.photoId}`,
-      "/api/feed",
+    const urls: [url: string, cookie: string][] = [
+      ["/api/entrances/today", s.elderCookie],
+      ["/api/entrances/today", s.cookie],
+      ["/api/family", s.cookie],
+      ["/api/photos", s.cookie],
+      [`/api/narrations?photoId=${s.photoId}`, s.cookie],
+      ["/api/feed", s.cookie],
     ];
-    for (const url of urls) {
-      const res = await s.t.app.request(url, h);
+    for (const [url, cookie] of urls) {
+      const res = await s.t.app.request(url, { headers: { Cookie: cookie } });
       expect(res.status, url).toBe(200);
       const body = await res.text();
       for (const secret of [SECRET_REASON, SECRET_GUESS, MODEL, PROMPTS.entrance.version, "inputNarrationIds", "input_narration_ids", "promptVersion", "inputTokens"]) {

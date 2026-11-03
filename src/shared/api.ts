@@ -6,6 +6,7 @@ import { z } from "zod";
 
 export const errorKinds = [
   "unauthorized", // 合言葉がない・無効（401）
+  "forbidden", // 合言葉は有効だが、この端末の人にはできない（403。cookie はそのまま。0036）
   "not_found", // ない、またはほかの家族のもの（404）
   "invalid_request", // 検証に失敗（400）。受け取った値は返さない
   "duplicate", // 同じものがすでにある（409。写真は 200 で duplicate: true を返すので使わない）
@@ -51,6 +52,8 @@ export type Member = {
   speechStyle: z.infer<typeof speechStyleSchema>;
   dialectRegion: string | null;
   setUpByMemberId: string | null;
+  /** その人のリンクが今使える（作ってあり、作り直されていない）か。0036 */
+  hasLink: boolean;
 };
 
 export type FamilyView = {
@@ -58,24 +61,39 @@ export type FamilyView = {
   // canAdvanceClock: デモの時計を進められるか（本番ではデモの家族だけ、手元・プレビューではどの家族も）
   family: { id: string; isDemo: boolean; clock: Clock; canAdvanceClock: boolean };
   members: Member[];
+  /**
+   * この端末の人（リンクが指す人）。null は「最初の人のリンク」で開いた端末で、まだ誰も入っていない家族。
+   * このときできるのは GET /api/family と、最初の一人を入れる POST /api/members だけ（ほかは 403 forbidden）。0036
+   */
+  me: Member | null;
 };
 
 /**
  * POST /api/families（Authorization: Bearer <CREATE_FAMILY_TOKEN>）
- * 家族の場を作り、招待の合言葉を返す。cookie も付ける。
+ * 家族の場を作り、「最初の人のリンク」の合言葉を返す。cookie も付ける。
+ * このリンクは一度きりで、最初の一人が自分を入れた（POST /api/members）時点で使えなくなる。0036
  */
 export const createFamilyInputSchema = z.object({ isDemo: z.boolean().default(false) });
 export type CreateFamilyResult = { familyId: string; token: string };
 
-/** POST /api/session { token } → 204 と cookie。無効なら 401 */
+/** POST /api/session { token } → 204 と cookie。無効なら 401。リンクを開いた端末は、そのリンクの人になる */
 export const sessionInputSchema = z.object({ token: z.string().min(20).max(100) });
 
-/** POST /api/invite/regenerate → { token }。古い合言葉は無効になり、cookie は新しいものに替わる */
-export type RegenerateInviteResult = { token: string };
+/**
+ * POST /api/members/:id/link → { token }。その人のリンクを作る（作り直す）。0036
+ * - できるのは role = family の人だけ（ほかは 403 forbidden）。対象がその家族にいなければ 404
+ * - その人の前のリンクだけが使えなくなる。ほかの人のリンクはそのまま
+ * - 対象が自分なら、この端末の cookie も新しいものに替わる
+ */
+export type MemberLinkResult = { token: string };
 
 // GET  /api/family → FamilyView
-// POST /api/members（memberInputSchema）→ Member
+// POST /api/members（memberInputSchema）→ 201 Member
+//   - 最初の人のリンクの端末（me が null）: 家族に人が一人もいないときだけ（いれば 403 forbidden）。role は family だけ（elder は 400）。
+//     setUpByMemberId は null。入れたら、その人のリンクを作り、新しい合言葉を cookie に置く（本文には返さない）。最初の人のリンクは使えなくなる
+//   - それ以外: role = family の人だけ（ほかは 403 forbidden）
 // PATCH /api/members/:id（memberInputSchema）→ Member
+//   - role = family の人だけ（ほかは 403 forbidden）。自分の role は変えられない（403 forbidden）。ほかの欄は自分でも直せる
 
 // ---- 写真 ----
 
@@ -84,9 +102,10 @@ export type RegenerateInviteResult = { token: string };
  *   file: 縮小した JPEG
  *   meta: JSON 文字列（photoMetaSchema）
  * → 201 { photo, duplicate: false } / 200 { photo, duplicate: true }（同じ持ち主・同じ content_hash）
+ * 持ち主は、この端末の人（cookie のリンクの人）
  */
 export const photoMetaSchema = z.object({
-  ownerMemberId: z.string(),
+  // 持ち主は、この端末の人（cookie のリンクの人）。クライアントからは送らない。0036
   contentHash: z.string().regex(/^[0-9a-f]{64}$/), // 縮小の前の元ファイルの SHA-256
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -127,7 +146,7 @@ export const MAX_VOICE_DURATION_MS = 60 * 60_000;
 export const narrationMetaSchema = z
   .object({
     kind: z.enum(["voice", "text"]),
-    speakerMemberId: z.string(),
+    // 話した人は、この端末の人（cookie のリンクの人）。クライアントからは送らない。0036
     photoId: z.string(),
     entranceId: z.string().nullable(),
     replyToId: z.string().nullable(), // 家族同士のやり取りで、どの語りへの返事か
@@ -196,7 +215,7 @@ export type Entrance = {
   questionAudioUrl?: string | null;
 };
 
-// GET /api/entrances/today?memberId= → { entrance: Entrance | null }
+// GET /api/entrances/today → { entrance: Entrance | null }（この端末の人の入り口）
 //   なければその場で固定の入り口を作って保存する（Claude は呼ばない）。写真が一枚もなければ null
 // GET /api/entrances/:id/question-audio → 問いかけの読み上げの音声（ないもの、ほかの家族のものは 404）
 

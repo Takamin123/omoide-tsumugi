@@ -141,16 +141,18 @@ async function setup(replies: FakeClaudeReply[], transcriptText = TRANSCRIPT) {
   const fc = fakeClaude({ replies });
   const t = makeTestApp(d1, { claude: onlyPurpose(fc.claude, "clean_transcript"), transcriber: fakeTranscriber(() => ({ ok: true, text: transcriptText })) });
   const f = await createFamily(t);
-  const m = await addMember(t, f.cookie, { calledAs: "ばあば", role: "elder", relation: "祖母", speechStyle: "dialect", dialectRegion: "広島" });
-  const p = await addPhoto(t, f.cookie, m.id, 1);
+  // 家族を作った人が、話し手のばあばを足す。語りはばあばの端末（cookie）から送る
+  const creator = await addMember(t, f.cookie);
+  const m = await addMember(t, creator.cookie, { calledAs: "ばあば", role: "elder", relation: "祖母", speechStyle: "dialect", dialectRegion: "広島" });
+  const p = await addPhoto(t, m.cookie, 1);
   return { t, f, m, p, fc };
 }
 
 async function postVoice(s: Awaited<ReturnType<typeof setup>>): Promise<string> {
   const form = new FormData();
-  form.append("meta", JSON.stringify({ kind: "voice", speakerMemberId: s.m.id, photoId: s.p.id, entranceId: null, replyToId: null, text: null }));
+  form.append("meta", JSON.stringify({ kind: "voice", photoId: s.p.id, entranceId: null, replyToId: null, text: null }));
   form.append("audio", new File([new Uint8Array([1, 2, 3, 4])], "a", { type: "audio/webm;codecs=opus" }));
-  const res = await postForm(s.t, "/api/narrations", form, s.f.cookie);
+  const res = await postForm(s.t, "/api/narrations", form, s.m.cookie);
   expect(res.status).toBe(202);
   const id = ((await res.json()) as { narration: { id: string } }).narration.id;
   await s.t.flush();
@@ -174,7 +176,7 @@ describe("整形の背景の流れ（QA）", () => {
     const s = await setup([ok(t)], t);
     const id = await postVoice(s);
     expect(messages(s)).toHaveLength(0);
-    const res = await s.t.app.request(`/api/narrations?photoId=${s.p.id}`, { headers: { Cookie: s.f.cookie } });
+    const res = await s.t.app.request(`/api/narrations?photoId=${s.p.id}`, { headers: { Cookie: s.m.cookie } });
     const body = (await res.json()) as { narrations: { id: string; text: string | null }[] };
     expect(body.narrations.find((n) => n.id === id)!.text).toBe(t);
   });
@@ -213,7 +215,7 @@ describe("整形の背景の流れ（QA）", () => {
     const s = await setup([ok(GOOD)]);
     const id = await postVoice(s);
     await d1.prepare("UPDATE narrations SET uncertain_spans = ? WHERE id = ?").bind(raw, id).run();
-    const res = await s.t.app.request(`/api/narrations?photoId=${s.p.id}`, { headers: { Cookie: s.f.cookie } });
+    const res = await s.t.app.request(`/api/narrations?photoId=${s.p.id}`, { headers: { Cookie: s.m.cookie } });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { narrations: { id: string; text: string | null }[] };
     expect(body.narrations.find((n) => n.id === id)!.text).toBe(TRANSCRIPT);

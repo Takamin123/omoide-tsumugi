@@ -167,6 +167,7 @@ export const words = {
 
   errors: {
     unauthorized: "リンクを開きなおしてください",
+    forbidden: "この端末からはできません",
     not_found: "見つかりませんでした",
     invalid_request: "うまくいきませんでした。もう一度お試しください",
     duplicate: "うまくいきませんでした。もう一度お試しください",

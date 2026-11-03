@@ -3,7 +3,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createOpenAISpeechProbe } from "../src/server/adapters/openai-speech";
 import type { Repositories, SpeechProbe, SpeechProbeInput } from "../src/server/core/ports";
-import { createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
+import { addMember, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
 
 let d1: D1Database;
 let dispose: () => Promise<void>;
@@ -36,6 +36,12 @@ function fakeFetch(respond: () => Response | Promise<Response>) {
 
 const audioResponse = (type: string | null = "audio/wav") =>
   new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2]), { status: 200, headers: type ? { "Content-Type": type } : {} });
+
+/** 家族を作り、最初の一人の cookie を返す（最初の人のリンクの cookie では、確かめの入り口は 403。0036） */
+async function memberCookie(t: TestApp): Promise<{ cookie: string }> {
+  const f = await createFamily(t);
+  return { cookie: (await addMember(t, f.cookie)).cookie };
+}
 
 function post(t: TestApp, body: unknown, cookie: string, contentLength: "auto" | "none" | string = "auto") {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -88,7 +94,7 @@ describe("音声はメモリに載せず、ストリームのまま返す", () =
     push.enqueue(new Uint8Array([1, 2, 3]));
     const probe: SpeechProbe = { probe: async () => ({ ok: true, status: 200, elapsedMs: 5, contentType: "audio/mpeg", audio }) };
     const t = makeTestApp(d1, { speechProbe: probe });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     // 上流をまだ閉じていない。全部を読んでから返すつくりなら、ここで止まる
     const res = await Promise.race([
       post(t, params, cookie),
@@ -110,7 +116,7 @@ describe("応答のヘッダー", () => {
   it("Content-Type は上流のもの（wav）をそのまま", async () => {
     const f = fakeFetch(() => audioResponse("audio/wav"));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, params, cookie);
     expect(res.headers.get("content-type")).toBe("audio/wav");
     expect(res.headers.get("x-check-speech")).toBe("audio");
@@ -119,7 +125,7 @@ describe("応答のヘッダー", () => {
   it("上流に Content-Type がなければ application/octet-stream", async () => {
     const f = fakeFetch(() => audioResponse(null));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, params, cookie);
     expect(res.headers.get("x-check-speech")).toBe("audio");
     expect(res.headers.get("content-type")).toBe("application/octet-stream");
@@ -128,7 +134,7 @@ describe("応答のヘッダー", () => {
   it("失敗の応答も Cache-Control: no-store。x-check-elapsed-ms は付けない（音声のときだけ）", async () => {
     const f = fakeFetch(() => Response.json({ error: { message: "x" } }, { status: 429 }));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, params, cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("x-check-speech")).toBe("failure");
@@ -150,7 +156,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   ])("%s → 通る", async (_n, patch) => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, { ...params, ...patch }, cookie);
     expect(res.headers.get("x-check-speech")).toBe("audio");
     expect(f.calls).toHaveBeenCalledTimes(1);
@@ -168,7 +174,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   ])("%s → 400", async (_n, patch) => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, patch === null ? [params] : { ...params, ...patch }, cookie);
     expect(res.status).toBe(400);
     expect(f.calls).not.toHaveBeenCalled();
@@ -177,7 +183,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   it("文は前後の空白を落として送る（trim）。501 字でも、空白を落として 500 字なら通る", async () => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, { ...params, input: ` ${"あ".repeat(500)} ` }, cookie);
     expect(res.headers.get("x-check-speech")).toBe("audio");
     expect(f.sent[0]!.body.input).toBe("あ".repeat(500));
@@ -186,7 +192,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   it("Content-Length 16,384 バイトちょうどは通り、16,385 は 413", async () => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const ok = await post(t, jsonOfBytes(params, 16 * 1024), cookie);
     expect(ok.headers.get("x-check-speech")).toBe("audio");
     const big = await post(t, jsonOfBytes(params, 16 * 1024 + 1), cookie);
@@ -197,7 +203,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   it("Content-Length がない、または数でないときは 400（OpenAI を呼ばない）", async () => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     expect((await post(t, params, cookie, "none")).status).toBe(400);
     expect((await post(t, params, cookie, "abc")).status).toBe(400);
     expect(f.calls).not.toHaveBeenCalled();
@@ -206,7 +212,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   it("知らない欄（familyId など）は OpenAI へ送らない", async () => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     await post(t, { ...params, familyId: "fam-x", stream_format: "sse" }, cookie);
     expect(Object.keys(f.sent[0]!.body).sort()).toEqual(["input", "instructions", "model", "response_format", "speed", "voice"]);
   });
@@ -214,7 +220,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
   it("空白でない指示は、そのまま（前後の空白も落とさずに）送る", async () => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     await post(t, { ...params, instructions: " ゆっくり " }, cookie);
     expect(f.sent[0]!.body.instructions).toBe(" ゆっくり ");
   });
@@ -223,7 +229,7 @@ describe("境界値（ちょうどは通し、一つ越えたら 400 か 413。�
 describe("閉じる・断る", () => {
   it("本番では、キーがなくても 404（500 にしない）", async () => {
     const t = makeTestApp(d1, { appEnv: "production" });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, params, cookie);
     expect(res.status).toBe(404);
   });
@@ -248,7 +254,7 @@ describe("家族のデータを読まない", () => {
   it("リポジトリは合言葉の確認（families）だけ。語り・写真・人は読まない。写真の置き場にも触れない", async () => {
     const f = fakeFetch(() => audioResponse());
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const used = recordRepos(t);
     const photoGet = vi.spyOn(t.store, "get");
     const res = await post(t, params, cookie);
@@ -267,7 +273,7 @@ describe("ログ", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const f = fakeFetch(() => Response.json({ error: { message: `bad input: ${SECRET_INPUT} / ${SECRET_INSTRUCTIONS}` } }, { status: 400 }));
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("k", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, params, cookie);
     // 画面には本文を見せる（確かめの道具なので）
     expect(JSON.stringify(await res.json())).toContain(SECRET_INPUT);
@@ -285,7 +291,7 @@ describe("ログ", () => {
       throw new TypeError("fetch failed");
     });
     const t = makeTestApp(d1, { speechProbe: createOpenAISpeechProbe("sk-fake-secret-key", f.impl) });
-    const { cookie } = await createFamily(t);
+    const { cookie } = await memberCookie(t);
     const res = await post(t, params, cookie);
     expect(await res.json()).toMatchObject({ status: null, networkError: "network", body: null });
     const all = [...log.mock.calls, ...err.mock.calls].map((a) => a.map(String).join(" ")).join("\n");

@@ -25,9 +25,9 @@ const recordUrl = (familyId: string) => `/api/ops/families/${familyId}/record`;
 /** 入り口（Claude、理由つき）・整形済みの声の語り・写真の説明を一つずつ持つ家族 */
 async function seed(t: TestApp, isDemo = true) {
   const f = await createFamily(t, isDemo);
-  const elder = await addMember(t, f.cookie, { role: "elder", relation: "祖母", calledAs: "おばあちゃん" });
   const child = await addMember(t, f.cookie);
-  const photo = await addPhoto(t, f.cookie, child.id, 1);
+  const elder = await addMember(t, child.cookie, { role: "elder", relation: "祖母", calledAs: "おばあちゃん" });
+  const photo = await addPhoto(t, child.cookie, 1);
   const db = drizzle(d1, { schema });
   const narrationId = crypto.randomUUID();
   const cleaned = "あの日は海へ行きました。浜で貝を拾いました。";
@@ -97,19 +97,19 @@ describe("運営の記録: 鍵", () => {
 
   it("家族の合言葉の cookie では、自分の家族の記録も開けない", async () => {
     const t = makeTestApp(d1);
-    const { f, photo } = await seed(t);
-    const res = await t.app.request(recordUrl(f.familyId), { headers: { Cookie: f.cookie } });
+    const { f, child, photo } = await seed(t);
+    const res = await t.app.request(recordUrl(f.familyId), { headers: { Cookie: child.cookie } });
     expect(res.status).toBe(401);
     expect(await res.text()).not.toContain(SECRET_REASON);
-    const img = await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: { Cookie: f.cookie } });
+    const img = await t.app.request(`/api/ops/families/${f.familyId}/photos/${photo.id}/image`, { headers: { Cookie: child.cookie } });
     expect(img.status).toBe(401);
   });
 
   it("大文字・小文字を変えても、合言葉の cookie では開かない", async () => {
     const t = makeTestApp(d1);
-    const { f } = await seed(t);
+    const { f, child } = await seed(t);
     for (const p of [`/API/ops/families/${f.familyId}/record`, `/api/OPS/families/${f.familyId}/record`]) {
-      const res = await t.app.request(p, { headers: { Cookie: f.cookie } });
+      const res = await t.app.request(p, { headers: { Cookie: child.cookie } });
       expect([401, 404], p).toContain(res.status);
       expect(await res.text()).not.toContain(SECRET_REASON);
     }
@@ -202,9 +202,9 @@ describe("運営の記録: 見てよい家族（0030）", () => {
 
   it("許可の一覧に載せても、家族の合言葉の cookie と家族を作る鍵では開かない", async () => {
     const t = makeTestApp(d1, { appEnv: "production" });
-    const { f } = await seed(t, false);
+    const { f, child } = await seed(t, false);
     t.deps.config.opsRecordFamilies = [f.familyId];
-    expect((await t.app.request(recordUrl(f.familyId), { headers: { Cookie: f.cookie } })).status).toBe(401);
+    expect((await t.app.request(recordUrl(f.familyId), { headers: { Cookie: child.cookie } })).status).toBe(401);
     expect((await t.app.request(recordUrl(f.familyId), { headers: bearer(CREATE_TOKEN) })).status).toBe(401);
   });
 });
@@ -411,7 +411,7 @@ describe("運営の記録: 中身", () => {
 
   it("理由と写真の説明は、家族向けの入り口（合言葉）には出ない", async () => {
     const t = makeTestApp(d1);
-    const { f, elder, photo } = await seed(t);
+    const { elder, child, photo } = await seed(t);
     // 入り口の日付に合わせて、今日を 2026-11-03（日本時間）にする
     t.setNow(new Date("2026-11-03T00:00:00Z"));
     const urls = [
@@ -420,10 +420,15 @@ describe("運営の記録: 中身", () => {
       "/api/feed",
       "/api/narrations",
       `/api/narrations?photoId=${photo.id}`,
-      `/api/entrances/today?memberId=${elder.id}`,
     ];
-    for (const url of urls) {
-      const res = await t.app.request(url, { headers: { Cookie: f.cookie } });
+    // 家族の画面の人の端末と、祖母の端末（今日の入り口は cookie の人の入り口）
+    const requests = [
+      ...urls.map((url) => [url, child.cookie] as const),
+      ...[...urls, "/api/entrances/today"].map((url) => [url, elder.cookie] as const),
+    ];
+    for (const [url, cookie] of requests) {
+      const res = await t.app.request(url, { headers: { Cookie: cookie } });
+      expect(res.status, url).not.toBe(401);
       const text = await res.text();
       expect(text, url).not.toContain(SECRET_REASON);
       expect(text, url).not.toContain(SECRET_GUESS);

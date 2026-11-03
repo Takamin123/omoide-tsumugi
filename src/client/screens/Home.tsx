@@ -46,7 +46,7 @@ export function Home({ view, me, onSwitchUser, demo }: Props) {
   }, []);
 
   useEffect(() => {
-    api.todayEntrance(me.id).then(
+    api.todayEntrance().then(
       (r) => setEntrance(r.entrance),
       (e) => {
         setEntrance(null);

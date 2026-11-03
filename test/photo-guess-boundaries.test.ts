@@ -72,9 +72,9 @@ async function familyWithPhotos(t: TestApp, n: number, opts: { isDemo?: boolean 
   const f = await createFamily(t, opts.isDemo ?? false);
   const m = await addMember(t, f.cookie);
   const ids: string[] = [];
-  for (let i = 0; i < n; i++) ids.push((await addPhoto(t, f.cookie, m.id, 500 + i)).id);
+  for (let i = 0; i < n; i++) ids.push((await addPhoto(t, m.cookie, 500 + i)).id);
   await t.flush();
-  return { ...f, memberId: m.id, photoIds: ids };
+  return { ...f, cookie: m.cookie, memberId: m.id, photoIds: ids };
 }
 
 /** 保存先の画像を、架空の大きなバイト列に差し替える（登録の上限 10MB の内側なら API からも届きうる大きさ） */
@@ -201,7 +201,7 @@ describe("登録の後の背景処理", () => {
     const t = makeTestApp(d1, { claude: notConfiguredClaude });
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
-    await addPhoto(t, f.cookie, m.id, 1);
+    await addPhoto(t, m.cookie, 1);
     await t.flush();
     const spy = vi.fn();
     const orig = t.deps.runInBackground;
@@ -209,8 +209,8 @@ describe("登録の後の背景処理", () => {
       spy();
       orig(p);
     };
-    const meta = { ownerMemberId: m.id, contentHash: hashOf(1), width: 10, height: 10, takenAt: null, latitude: null, longitude: null };
-    const res = await postForm(t, "/api/photos", photoForm(meta, tinyJpeg(1)), f.cookie);
+    const meta = { contentHash: hashOf(1), width: 10, height: 10, takenAt: null, latitude: null, longitude: null };
+    const res = await postForm(t, "/api/photos", photoForm(meta, tinyJpeg(1)), m.cookie);
     expect(res.status).toBe(200);
     expect(((await res.json()) as { duplicate: boolean }).duplicate).toBe(true);
     expect(spy).not.toHaveBeenCalled();
@@ -345,7 +345,7 @@ describe("登録の後の背景処理の予算", () => {
     const jump = PHOTO_GUESS_BACKGROUND_BUDGET_MS + 1;
     expect(jump).toBeLessThan(PHOTO_GUESS_TIME_BUDGET_MS);
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + (messageCalls(f0.requests).length > 0 ? jump : 0));
-    await addPhoto(t, fam.cookie, fam.memberId, 900);
+    await addPhoto(t, fam.cookie, 900);
     await t.flush();
     vi.mocked(Date.now).mockRestore();
     expect(messageCalls(f0.requests)).toHaveLength(PHOTO_GUESS_CALL_CONCURRENCY);
@@ -367,7 +367,7 @@ describe("Batch ごとの回収の失敗", () => {
     await runPhotoGuesses(t.deps, fam.familyId);
     // Batch の外に、新しい写真を一枚（キーなしで戻しておく）
     t.deps.claude = notConfiguredClaude;
-    const extra = await addPhoto(t, fam.cookie, fam.memberId, 901);
+    const extra = await addPhoto(t, fam.cookie, 901);
     await t.flush();
 
     const f0 = fakeClaude({ replies: [guessReply()] });

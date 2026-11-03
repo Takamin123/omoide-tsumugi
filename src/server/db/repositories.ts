@@ -2,7 +2,7 @@
 // 実行環境ごとに違うのは「drizzle のデータベース」と「いくつかの文を一度に行う方法」だけで、入り口の層が渡す。
 // - D1: db.batch()（対話的なトランザクションは使えない）
 // - better-sqlite3: db.transaction() の中で順に run する
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, notExists, or, sql } from "drizzle-orm";
 import type { BatchItem as DrizzleBatchItem } from "drizzle-orm/batch";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type {
@@ -129,7 +129,7 @@ function changes(result: unknown): number {
 export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Repositories {
   return {
     families: {
-      async create(family, invite, now) {
+      async create(family, firstLink, now) {
         await runBatch([
           db.insert(families).values({
             id: family.id,
@@ -139,30 +139,25 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
             clockSlot: family.clock?.slot ?? null,
             createdAt: now,
           }),
-          db.insert(inviteLinks).values({ id: invite.id, familyId: family.id, tokenHash: invite.tokenHash, createdAt: now }),
+          db.insert(inviteLinks).values({ id: firstLink.id, familyId: family.id, tokenHash: firstLink.tokenHash, memberId: null, createdAt: now }),
         ]);
       },
       async get(familyId) {
         const r = await db.select().from(families).where(eq(families.id, familyId)).get();
         return r ? toFamily(r) : null;
       },
-      async findByActiveInviteHash(tokenHash) {
+      async findActiveLink(tokenHash) {
         const r = await db
-          .select({ family: families })
+          .select({ family: families, member: members, memberId: inviteLinks.memberId })
           .from(inviteLinks)
           .innerJoin(families, eq(families.id, inviteLinks.familyId))
+          .leftJoin(members, and(eq(members.id, inviteLinks.memberId), eq(members.familyId, inviteLinks.familyId)))
           .where(and(eq(inviteLinks.tokenHash, tokenHash), isNull(inviteLinks.revokedAt)))
           .get();
-        return r ? toFamily(r.family) : null;
-      },
-      async regenerateInvite(familyId, invite, now) {
-        await runBatch([
-          db
-            .update(inviteLinks)
-            .set({ revokedAt: now })
-            .where(and(eq(inviteLinks.familyId, familyId), isNull(inviteLinks.revokedAt))),
-          db.insert(inviteLinks).values({ id: invite.id, familyId, tokenHash: invite.tokenHash, createdAt: now }),
-        ]);
+        if (!r) return null;
+        // 人を指すリンクなのに、その家族の人が引けない: 使えないリンクとみなす（閉じる側）
+        if (r.memberId !== null && !r.member) return null;
+        return { family: toFamily(r.family), member: (r.member as MemberRow | null) ?? null };
       },
       async setClock(familyId, clock) {
         await db.update(families).set({ clockDate: clock.date, clockSlot: clock.slot }).where(eq(families.id, familyId));
@@ -200,6 +195,71 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .where(and(eq(members.familyId, familyId), eq(members.id, memberId)));
         if (changes(res) === 0) return null;
         return this.get(familyId, memberId);
+      },
+      async addFirst(row, link, now) {
+        // 定数の列（insert ... select に使う。名前は表の列に合わせる）
+        const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+        await runBatch([
+          // 家族に人がまだいないときだけ入れる（二つの端末が同時に最初の人になろうとしても、一人だけ）
+          db.insert(members).select(
+            db
+              .select({
+                id: v(row.id, "id"),
+                familyId: families.id,
+                role: v(row.role, "role"),
+                relation: v(row.relation, "relation"),
+                calledAs: v(row.calledAs, "calledAs"),
+                speechStyle: v(row.speechStyle, "speechStyle"),
+                dialectRegion: v(row.dialectRegion, "dialectRegion"),
+                setUpByMemberId: v(row.setUpByMemberId, "setUpByMemberId"),
+                createdAt: v(row.createdAt, "createdAt"),
+              })
+              .from(families)
+              .where(
+                and(
+                  eq(families.id, row.familyId),
+                  notExists(db.select({ one: sql`1` }).from(members).where(eq(members.familyId, row.familyId))),
+                ),
+              ),
+          ),
+          // その人のリンク。人が入ったときだけ
+          db.insert(inviteLinks).select(
+            db
+              .select({
+                id: v(link.id, "id"),
+                familyId: members.familyId,
+                tokenHash: v(link.tokenHash, "tokenHash"),
+                memberId: members.id,
+                createdAt: v(now, "createdAt"),
+                revokedAt: v<number | null>(null, "revokedAt"),
+              })
+              .from(members)
+              .where(and(eq(members.id, row.id), eq(members.familyId, row.familyId))),
+          ),
+          // 最初の人のリンクは一度きり
+          db
+            .update(inviteLinks)
+            .set({ revokedAt: now })
+            .where(and(eq(inviteLinks.familyId, row.familyId), isNull(inviteLinks.memberId), isNull(inviteLinks.revokedAt))),
+        ]);
+        return (await this.get(row.familyId, row.id)) !== null;
+      },
+      async replaceLink(familyId, memberId, link, now) {
+        await runBatch([
+          db
+            .update(inviteLinks)
+            .set({ revokedAt: now })
+            .where(and(eq(inviteLinks.familyId, familyId), eq(inviteLinks.memberId, memberId), isNull(inviteLinks.revokedAt))),
+          db.insert(inviteLinks).values({ id: link.id, familyId, tokenHash: link.tokenHash, memberId, createdAt: now }),
+        ]);
+      },
+      async listIdsWithActiveLink(familyId) {
+        const rows = await db
+          .selectDistinct({ memberId: inviteLinks.memberId })
+          .from(inviteLinks)
+          .where(and(eq(inviteLinks.familyId, familyId), isNull(inviteLinks.revokedAt), isNotNull(inviteLinks.memberId)))
+          .all();
+        return rows.flatMap((r) => (r.memberId ? [r.memberId] : []));
       },
     },
 

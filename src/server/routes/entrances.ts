@@ -3,20 +3,18 @@ import type { AdvanceClockResult, Entrance } from "../../shared/api";
 import { canAdvanceClock, familyClock, familyToday, nextClock } from "../core/clock";
 import { ensureFixedEntrance } from "../core/entrances";
 import { runMorning } from "../core/morning";
+import { currentMember } from "./auth";
 import type { AppEnv } from "./env";
 import { fail } from "./http";
 import { privateBody } from "./photos";
 import { entranceView } from "./views";
 
 export const entrances = new Hono<AppEnv>()
-  // 今日の入り口。なければその場で固定の入り口を作って保存する（Claude は呼ばない）
+  // この端末の人（リンクの人）の今日の入り口。なければその場で固定の入り口を作って保存する（Claude は呼ばない）
   .get("/entrances/today", async (c) => {
-    const memberId = c.req.query("memberId");
-    if (!memberId) return fail(c, "invalid_request");
     const deps = c.get("deps");
     const family = c.get("family");
-    const member = await deps.repos.members.get(family.id, memberId);
-    if (!member) return fail(c, "not_found");
+    const member = currentMember(c);
     const now = deps.now();
     const r = await ensureFixedEntrance(deps, family, member, familyToday(family, now), now.getTime());
     if (!r) return c.json({ entrance: null as Entrance | null });
