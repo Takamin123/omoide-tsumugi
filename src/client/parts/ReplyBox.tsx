@@ -1,4 +1,5 @@
-// 文字か声で送る。入り口への答えにも、語りへの返事にも使う
+// 文字か声で送る。入り口への答えにも、語りへの返事にも使う。
+// 送ったら入力欄を閉じる。入り口への答えはこの中で「送りました」を出し、返事は呼ぶ側（onSent）が閉じて出す。
 import { useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
 import { errorText } from "../lib/errors";
@@ -14,27 +15,35 @@ export function ReplyBox({ target, onSent, onCancel }: Props) {
   const [micError, setMicError] = useState(false);
   const sender = useSender(target, () => {
     setText("");
+    setMode("choose");
     onSent();
   });
   const w = words.home;
   const busy = sender.state === "sending";
+  const close = () => {
+    setMicError(false);
+    if (onCancel) onCancel();
+    else setMode("choose");
+  };
 
   return (
-    <div className="stack">
+    <div className={onCancel ? "stack reply-box" : "stack answer"}>
       {mode === "choose" && (
-        <div className="row">
-          <button type="button" onClick={() => setMode("text")}>
-            {w.byText}
-          </button>
-          <button type="button" onClick={() => setMode("voice")}>
-            {w.byVoice}
-          </button>
+        <>
+          <div className="grid2">
+            <button type="button" onClick={() => setMode("voice")}>
+              {w.byVoice}
+            </button>
+            <button type="button" onClick={() => setMode("text")}>
+              {w.byText}
+            </button>
+          </div>
           {onCancel && (
-            <button type="button" onClick={onCancel}>
+            <button type="button" className="aux" onClick={onCancel}>
               {w.cancel}
             </button>
           )}
-        </div>
+        </>
       )}
       {mode === "text" && (
         <form
@@ -48,54 +57,53 @@ export function ReplyBox({ target, onSent, onCancel }: Props) {
             else sender.sendText(t);
           }}
         >
-          <textarea value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} aria-label={w.byText} />
-          <div className="row">
+          <textarea value={text} maxLength={2000} rows={4} onChange={(e) => setText(e.target.value)} aria-label={w.byText} />
+          <div className="grid2">
+            <button type="button" onClick={close}>
+              {w.cancel}
+            </button>
             <button type="submit" className="primary" disabled={busy || !text.trim()}>
               {w.send}
-            </button>
-            <button type="button" onClick={() => (onCancel ? onCancel() : setMode("choose"))}>
-              {w.cancel}
             </button>
           </div>
         </form>
       )}
       {mode === "voice" &&
         (sender.state === "failed" ? (
-          <>
-            <button type="button" className="primary" onClick={sender.retry}>
-              {words.elder.resend}
-            </button>
+          <div className="grid2">
             <button
               type="button"
               onClick={() => {
                 sender.discard();
-                if (onCancel) onCancel();
-                else setMode("choose");
+                close();
               }}
             >
               {w.cancel}
             </button>
-          </>
+            <button type="button" className="primary" onClick={sender.retry}>
+              {w.send}
+            </button>
+          </div>
         ) : (
           <>
             <VoiceRecorder
-              variant="primary"
-              startLabel={words.elder.speak}
-              stopLabel={words.elder.stop}
+              startLabel={w.speak}
+              stopLabel={w.stop}
               disabled={busy}
               onBlob={sender.sendVoice}
               onMicError={() => setMicError(true)}
               onStarted={() => setMicError(false)}
             />
-            <button type="button" onClick={() => (onCancel ? onCancel() : setMode("choose"))}>
+            <button type="button" className="aux" onClick={close}>
               {w.cancel}
             </button>
           </>
         ))}
       <div aria-live="polite">
-        {sender.state === "sent" && <p className="sub">{words.elder.sent}</p>}
+        {/* 返事（onCancel あり）は、閉じた後に呼ぶ側が「送りました」を出す */}
+        {!onCancel && sender.state === "sent" && mode === "choose" && <p className="done">{w.sent}</p>}
         {sender.state === "failed" && <p className="sub">{errorText(sender.error)}</p>}
-        {micError && <p className="sub">{words.elder.micDenied}</p>}
+        {micError && <p className="sub">{w.micDenied}</p>}
       </div>
     </div>
   );

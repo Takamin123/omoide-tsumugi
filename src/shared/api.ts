@@ -115,6 +115,9 @@ export type UploadPhotoResult = { photo: Photo; duplicate: boolean };
 
 // ---- 語り ----
 
+/** 語りの録音の長さとして受け取る上限（1 時間）。これを超える値は測り違いとして送らない */
+export const MAX_VOICE_DURATION_MS = 60 * 60_000;
+
 /**
  * POST /api/narrations（multipart/form-data）
  *   meta: JSON 文字列（narrationMetaSchema）
@@ -131,6 +134,8 @@ export const narrationMetaSchema = z
     text: z.string().trim().min(1).max(2000).nullable(), // kind = text のとき
     // 語り一つごとにクライアントが作る UUID。同じ requestId の再送には、作ってある語りを 202 で返す
     requestId: z.uuid().optional(),
+    // 録音の長さ（ミリ秒）。クライアントが測る。測れなければ null か省く。画面の「（13 秒）」にだけ使う
+    durationMs: z.number().int().min(0).max(MAX_VOICE_DURATION_MS).nullable().optional(),
   })
   .refine((n) => (n.kind === "text") === (n.text !== null), { path: ["text"] });
 export type NarrationMeta = z.infer<typeof narrationMetaSchema>;
@@ -143,6 +148,8 @@ export type Narration = {
   replyToId: string | null;
   kind: "voice" | "text";
   audioUrl: string | null; // /api/narrations/:id/audio
+  /** 録音の長さ（ミリ秒）。分からなければ null */
+  durationMs: number | null;
   transcriptStatus: "pending" | "done" | "failed";
   /** 画面に出す文字。整えた文字があればそれ、なければ文字起こし。どちらもなければ null */
   text: string | null;
@@ -161,8 +168,17 @@ export type Entrance = {
   forDate: string;
   photo: Photo;
   focus: { x: number; y: number; w: number; h: number } | null;
-  /** 添える家族の言葉。本文はサーバーが語りから引く */
-  quote: { narrationId: string; speakerMemberId: string; text: string } | null;
+  /**
+   * 添える家族の言葉。本文はサーバーが語りから引く。
+   * 元の語りが声なら audioUrl（語り全体の録音。/api/narrations/:id/audio）と durationMs、文字なら両方 null（0015）
+   */
+  quote: {
+    narrationId: string;
+    speakerMemberId: string;
+    text: string;
+    audioUrl: string | null;
+    durationMs: number | null;
+  } | null;
   /** Claude の問いかけ。null のときクライアントの固定の一文を出す */
   question: string | null;
   /**

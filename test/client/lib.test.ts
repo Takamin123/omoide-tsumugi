@@ -148,10 +148,21 @@ describe("語りを送る流れ（voice.ts）", () => {
     expect(calls[0]!.init.method).toBe("POST");
     const form = calls[0]!.init.body as FormData;
     const meta = JSON.parse(form.get("meta") as string);
-    expect(meta).toEqual({ kind: "voice", text: null, ...target, requestId });
+    // 長さを渡さなければ null（画面は秒を出さない）
+    expect(meta).toEqual({ kind: "voice", text: null, ...target, requestId, durationMs: null });
     const sent = form.get("audio") as File;
     expect(sent.name).toBe("voice.m4a");
     expect(sent.size).toBe(4);
+  });
+
+  it("声: 測った長さは整数のミリ秒で送り、測れていない・ありえない値は null にする", async () => {
+    const lens: unknown[] = [];
+    for (const ms of [13_400.6, 0, -5, Number.NaN, Number.POSITIVE_INFINITY, 2 * 60 * 60_000]) {
+      const calls = stubFetch([() => jsonRes(202, { narration })]);
+      await sendVoice(new Blob([new Uint8Array([1])], { type: "audio/webm" }), target, requestId, ms);
+      lens.push(JSON.parse((calls[0]!.init.body as FormData).get("meta") as string).durationMs);
+    }
+    expect(lens).toEqual([13_401, null, null, null, null, null]);
   });
 
   it("サーバーの約束（narrationMetaSchema）に合う", async () => {

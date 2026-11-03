@@ -79,7 +79,7 @@ export const narrations = new Hono<AppEnv>()
       kind: meta.kind,
       audioKey,
       audioContentType,
-      durationMs: null,
+      durationMs: meta.kind === "voice" ? (meta.durationMs ?? null) : null,
       transcript: meta.kind === "text" ? meta.text : null,
       transcriptStatus: meta.kind === "text" ? "done" : "pending",
       forDate: familyToday(family, now),
