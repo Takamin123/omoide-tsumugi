@@ -41,9 +41,9 @@ frontend-developer や backend-developer から頼まれます。
 
 1. **架空の家族の語りのサンプル**を使う。置き場所は `evals/fixtures/` とする（なければ作る）。架空の三世代の家族で、方言のある語り、短い語り、話がそれる語り、推測を誘う語りを入れる。実在の人のことは書かない
 2. 変更前と変更後のプロンプトで、同じサンプルから出力を作る。モデルと設定は本番と同じにする
-3. `docs/_wip/prompt-evals/YYYY-MM-DD-<名前>.md` に、サンプルごとに変更前と変更後を並べて記録する
+3. `docs/evals/YYYY-MM-DD-<名前>.md` に、サンプルごとに変更前と変更後を並べて記録する
 4. **良し悪しは自分で決めない。** 記録を fable-advisor に渡して（Agent ツールで `fable-advisor` を呼ぶ）、判断を求める
-5. fable-advisor の判断を、**あなた自身が** `docs/decisions/NNNN-短い名前.md` に記録する。`docs/_wip/` の記録は後で消えるため、判断の根拠になった出力の抜粋は、decisions のファイルの中に写しておく
+5. fable-advisor の判断を、**あなた自身が** `docs/decisions/NNNN-短い名前.md` に記録する。出し比べの記録は `docs/evals/` に残る（docs/README.md）。decisions のファイルには、判断の根拠になった出力の抜粋を写し、記録へのリンクを書く
 
 ### 出し比べで見ること（記録に書く観点）
 

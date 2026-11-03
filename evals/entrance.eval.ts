@@ -7,7 +7,7 @@
 //   EVAL_AVOID=0 で 0042 の前を再現する: 同じ日にほかの人へ出した写真を外さず、候補の並びに返事（g0）を使わない
 //   （pickEntranceCandidates にだけ replyToId を null にした語りを渡す。Claude には元のまま渡す）。既定は本番と同じ
 //   EVAL_IMAGES=0 で画像を渡さない。fixtures の imageFile は EVAL_IMAGES_DIR（既定 ~/omoide-demo-seed/prepared）から読む
-// 結果は docs/_wip/prompt-evals/<日本時間の日付>-entrance-<名前>-avoid<0|1>.md に書く。
+// 結果は docs/evals/<日本時間の日付>-entrance-<名前>-avoid<0|1>.md に書く。
 // アプリと同じ部品（pickEntranceCandidates、buildEntranceInput、checkEntrance、locateQuote、pickFixedPhoto、PROMPTS）を使う。
 // 毎朝の処理と同じく、一回の朝の中で fixtures の人の順に一人ずつ作り、先に作った人の写真（固定に倒れたときは固定の写真）を
 // 次の人の avoidPhotoIds に渡す。過去の入り口（pastEntrances）はその人の提示の履歴として渡す。朝と朝のあいだで履歴は増やさない（同じ朝を繰り返す）
@@ -200,7 +200,7 @@ describe.skipIf(!apiKey)("出し比べ: entrance", () => {
       }
     }
 
-    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/_wip/prompt-evals/${jstDate()}-entrance-${fixture.id}-avoid${avoid ? 1 : 0}.md`);
+    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/evals/${jstDate()}-entrance-${fixture.id}-avoid${avoid ? 1 : 0}.md`);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, report(fixture, outcomes, images.size));
     fs.writeFileSync(out.replace(/\.md$/, ".json"), JSON.stringify({ fixture: fixture.id, avoid, images: images.size, repeat, outcomes }, null, 2));

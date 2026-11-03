@@ -35,7 +35,7 @@
 
 ## 根拠にしたもの
 
-出し比べ（架空の家族 family-a、本物の Sonnet、画像なしで説明だけ。focus は null だけを許した）。記録は docs/_wip/prompt-evals/2026-11-03-entrance-v1.md と 2026-11-03-entrance.md。抜粋:
+出し比べ（架空の家族 family-a、本物の Sonnet、画像なしで説明だけ。focus は null だけを許した）。記録は docs/evals/2026-11-03-entrance-v1.md と 2026-11-03-entrance.md。抜粋:
 
 | 受け取る人 | v1（5 人 × 1 回） | v2（5 人 × 2 回のうち 1 回目） |
 |---|---|---|

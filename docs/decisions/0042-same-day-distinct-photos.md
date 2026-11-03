@@ -35,7 +35,7 @@
 
 ## 根拠にしたもの
 - fable-advisor との相談（2026-11-03、2 回）、docs/requirements.md、0017、0023、0024、0035、0038
-- 出し比べ: docs/_wip/prompt-evals/2026-11-03-entrance-distinct.md
+- 出し比べ: docs/evals/2026-11-03-entrance-distinct.md
 
 ## 出し比べの結果（2026-11-03、qa-engineer。判定は fable-advisor に相談（qa-engineer））
 - 前 = 0042 の前の並び（g0 なし、外さない）、後 = g0 と、同じ朝に先に作った人の写真を外す。本物の Sonnet、entrance/v2。家族は family-a（9 枚・5 人、2 回の朝）、demo-yamagata（デモの種の写し、12 枚・4 人、画像あり、3 回の朝）、family-a-small（2 枚・5 人、2 回の朝）。evals/entrance.eval.ts の EVAL_AVOID=0/1

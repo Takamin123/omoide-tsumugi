@@ -24,8 +24,7 @@ argument-hint: "[local|preview|production] [名前]"
 | `CREATE_FAMILY_TOKEN` | 家族を作る API（`POST /api/families`）を守る |
 | `OPS_RECORD_TOKEN` | 運営の記録の画面（`/ops/record`）を守る。32 文字以上のランダムな値（例: `openssl rand -base64 32`）で、`CREATE_FAMILY_TOKEN` とは別の値にする。短い・同じ値なら誰も開けない（0030） |
 | `OPS_RECORD_FAMILIES` | 運営が記録を見てよい、デモでない家族の ID（カンマ区切り）。親の同意を得た家族だけ。実際の家族の識別子なので vars ではなく秘密に置く。家族を消すときはここからも外す（0030） |
-| `DEMO_RESET_TOKEN` | デモの初期化の API を守る |
-| `HEALTHCHECK_TOKEN` | デプロイ後の確かめの API を守る |
+| `DEMO_RESET_TOKEN` | デモの初期化の API を守る。本番にはデモの家族を置かないので、本番には要らない（人間の決定、2026-11-04） |
 
 R2 のバケットそのものは、秘密の値ではなく、`wrangler.jsonc` の `r2_buckets` のバインディングでつなぎます。
 
