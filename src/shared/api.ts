@@ -11,6 +11,8 @@ export const errorKinds = [
   "invalid_request", // 検証に失敗（400）。受け取った値は返さない
   "duplicate", // 同じものがすでにある（409。写真は 200 で duplicate: true を返すので使わない）
   "not_demo", // デモの家族ではない（404 と同じ扱いでよいが、種類は分ける）
+  "demo_seed_mismatch", // デモの初期化: 家族の人の呼ばれ方と役が種と合わない（409。何も変えていない。0038）
+  "demo_seed_missing", // デモの初期化: 種の写真・録音が置かれていない（409。何も変えていない。0038）
   "too_large", // 413
   "internal", // 500
 ] as const;
@@ -226,3 +228,27 @@ export type Entrance = {
  * 使えるのは FamilyView.family.canAdvanceClock が真の家族だけ。ほかは 404 { error: "not_demo" }
  */
 export type AdvanceClockResult = { clock: Clock };
+
+/**
+ * POST /api/demo/families/:familyId/reset（Authorization: Bearer <DEMO_RESET_TOKEN>）。0038
+ * デモの家族（is_demo）を、種の写真・語り・入り口の状態に戻し、最後に毎朝の処理と同じ関数を呼ぶ。返すのは ID と件数だけ。
+ * 家族がない・デモでない → 404 not_found。人が種と合わない → 409 demo_seed_mismatch。素材がない → 409 demo_seed_missing（どれも何も変えない）
+ */
+export type DemoResetResult = {
+  familyId: string;
+  /** 戻した「今日」（日本時間）。時計はこの日の朝 */
+  asOfDate: string;
+  deleted: { rows: Record<string, number>; files: number };
+  inserted: { photos: number; narrations: number; entrances: number; files: number };
+  /** 毎朝の処理の結果（ID と件数だけ）。全員が失敗したときは null */
+  morning: {
+    runId: string;
+    created: number;
+    existing: number;
+    byClaude: number;
+    fallbacks: { memberId: string; reason: string; violation?: string }[];
+    noPhoto: number;
+    failed: { memberId: string; kind: string }[];
+    speech: { made: number; failed: { memberId: string; reason: string }[] };
+  } | null;
+};

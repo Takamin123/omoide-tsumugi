@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { childProcess, fs, path, processEnv, repoRoot } from "./node";
 
 const serverDir = path.join(repoRoot, "src/server");
-const coreRoots = ["app.ts", "core", "db", "routes"];
+const coreRoots = ["app.ts", "core", "db", "routes", "demo"];
 
 function listTs(p: string): string[] {
   const abs = path.join(serverDir, p);

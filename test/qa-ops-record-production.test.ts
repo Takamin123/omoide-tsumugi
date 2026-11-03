@@ -39,9 +39,9 @@ describe("運営の鍵の長さの境目", () => {
 
   it("家族を作る鍵の設定がないときは、同じ値の比べで誤って弾かない", () => {
     expect(
-      opsKeyMisconfig({ appEnv: "production", createFamilyToken: null, opsRecordToken: OPS_TOKEN, opsRecordFamilies: [] }),
+      opsKeyMisconfig({ appEnv: "production", createFamilyToken: null, opsRecordToken: OPS_TOKEN, opsRecordFamilies: [], demoResetToken: null }),
     ).toBeNull();
-    expect(opsKeyMisconfig({ appEnv: "production", createFamilyToken: CREATE_TOKEN, opsRecordToken: null, opsRecordFamilies: [] })).toBeNull();
+    expect(opsKeyMisconfig({ appEnv: "production", createFamilyToken: CREATE_TOKEN, opsRecordToken: null, opsRecordFamilies: [], demoResetToken: null })).toBeNull();
   });
 });
 

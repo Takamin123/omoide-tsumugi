@@ -18,6 +18,8 @@ type Secrets = {
   OPS_RECORD_TOKEN?: string;
   /** 運営が記録を見てよい、デモでない家族の ID（カンマ区切り）。実際の家族の識別子なので、vars ではなく秘密に置く（0030） */
   OPS_RECORD_FAMILIES?: string;
+  /** デモの初期化の鍵。32 文字以上で、ほかの鍵と別の値（0038） */
+  DEMO_RESET_TOKEN?: string;
 };
 
 /** カンマ区切りの家族 ID を、空白と空の項目を除いて並べる */
@@ -45,6 +47,7 @@ export function createCloudflareDeps(env: Env, ctx: Pick<ExecutionContext, "wait
       createFamilyToken: secrets.CREATE_FAMILY_TOKEN || null,
       opsRecordToken: secrets.OPS_RECORD_TOKEN || null,
       opsRecordFamilies: parseFamilyIds(secrets.OPS_RECORD_FAMILIES),
+      demoResetToken: secrets.DEMO_RESET_TOKEN || null,
     },
     now: () => new Date(),
   };

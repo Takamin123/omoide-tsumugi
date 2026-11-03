@@ -48,7 +48,7 @@ export function fakeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     speechProbe: null,
     speaker: null,
     runInBackground: () => {},
-    config: { appEnv: "development", createFamilyToken: null, opsRecordToken: null, opsRecordFamilies: [] },
+    config: { appEnv: "development", createFamilyToken: null, opsRecordToken: null, opsRecordFamilies: [], demoResetToken: null },
     now: () => new Date(),
     ...overrides,
   };
@@ -255,6 +255,8 @@ export async function startD1(opts: { before?: string } = {}): Promise<{ d1: D1D
 export const CREATE_TOKEN = "fake-create-tok";
 /** 運営の記録の鍵（架空）。下限の 32 文字を超える長さにする（0030） */
 export const OPS_TOKEN = "fake-ops-record-".padEnd(40, "x");
+/** デモの初期化の鍵（架空）。下限の 32 文字を超え、ほかの鍵と違う値にする（0038） */
+export const DEMO_RESET_TOKEN = "fake-demo-reset-".padEnd(40, "y");
 
 export interface TestApp {
   app: ReturnType<typeof createApp>;
@@ -296,6 +298,7 @@ export function makeTestApp(
       createFamilyToken: CREATE_TOKEN,
       opsRecordToken: OPS_TOKEN,
       opsRecordFamilies: [],
+      demoResetToken: DEMO_RESET_TOKEN,
     },
     now: () => now,
   };

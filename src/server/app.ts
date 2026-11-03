@@ -1,6 +1,7 @@
 import { Hono, type Context } from "hono";
 import type { AppDeps } from "./core/ports";
 import { check } from "./routes/check";
+import { demo } from "./routes/demo";
 import { requireInvite } from "./routes/auth";
 import { entrances } from "./routes/entrances";
 import type { AppEnv } from "./routes/env";
@@ -27,7 +28,7 @@ export function createApp<B extends object = object>(
     c.set("deps", makeDeps(c));
     await next();
   });
-  // 合言葉の確認。/api/* はすべてここを通る（確認しない入り口は routes/auth.ts の PUBLIC_ROUTES だけ。/api/ops/* は合言葉の代わりに運営の鍵）
+  // 合言葉の確認。/api/* はすべてここを通る（確認しない入り口は routes/auth.ts の PUBLIC_ROUTES だけ。/api/ops/* は合言葉の代わりに運営の鍵、/api/demo/families/* はデモの初期化の鍵）
   app.use("*", requireInvite);
 
   const api = new Hono<AppEnv>()
@@ -38,7 +39,8 @@ export function createApp<B extends object = object>(
     .route("/", narrations)
     .route("/", entrances)
     .route("/", check)
-    .route("/", ops);
+    .route("/", ops)
+    .route("/", demo);
   app.route("/api", api);
   app.all("/api/*", (c) => fail(c, "not_found"));
 

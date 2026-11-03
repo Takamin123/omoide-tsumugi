@@ -133,7 +133,13 @@ describe("createCloudflareDeps の設定", () => {
       createFamilyToken: "t",
       opsRecordToken: null,
       opsRecordFamilies: [],
+      demoResetToken: null,
     });
+  });
+
+  it("デモの初期化の鍵を読む（0038）", () => {
+    const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "production", DEMO_RESET_TOKEN: "d" } as unknown as Env;
+    expect(createCloudflareDeps(env, fakeCtx()).config.demoResetToken).toBe("d");
   });
 
   it("運営の記録の鍵と、見てよい家族の ID（カンマ区切り、空白と空の項目は捨てる）を読む（0030）", () => {
