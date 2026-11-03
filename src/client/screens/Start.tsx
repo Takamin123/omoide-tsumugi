@@ -24,7 +24,8 @@ export function Start({ onCreated }: { onCreated: () => void }) {
       setCreateToken(""); // 運営の合言葉は手元に残さない
       setCreated(token);
     } catch (err) {
-      setError(errorText(err));
+      // 運営の画面なので、家族向けの「リンクを開きなおして」ではなく、合言葉が違うと出す
+      setError(err instanceof ApiError && err.kind === "unauthorized" ? words.start.createUnauthorized : errorText(err));
     } finally {
       setBusy(false);
     }

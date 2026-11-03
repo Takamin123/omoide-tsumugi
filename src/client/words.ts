@@ -20,6 +20,7 @@ export const words = {
   start: {
     title: "家族の場を作る",
     createToken: "作るための合言葉",
+    createUnauthorized: "作るための合言葉が違います。家族は作っていません",
     isDemo: "デモの家族として作る",
     submit: "作る",
     /** 作った後の見出し。運営がコピーして、始める人に送る（一度きり。0036） */
