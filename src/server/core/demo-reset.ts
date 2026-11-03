@@ -3,7 +3,7 @@
 // - 種は人を呼ばれ方で指す。家族の人の呼ばれ方と role が種と一致しなければ、何も変えずに止める
 // - 種の写真と録音は保存先の demo/seed/ から families/<id>/ の新しい鍵に写す。欠けていれば、写した分を消して止める
 // - D1 の「消す＋入れる＋時計を合わせる」は一つの batch。古いファイルは batch の後に消す
-// - 最後に毎朝の処理（runMorning。Cron・時計のボタンと同じ関数）をその家族について呼ぶ
+// - 最後に毎朝の処理（runMorning。Cron・時計のボタンと同じ関数）をその家族について呼ぶ。写真の説明は Batch にしない（一枚ずつ）
 // - ログと戻り値は ID と件数だけ（名前・本文・保存先の鍵は出さない）
 import type { Clock } from "../../shared/api";
 import { SEED_CLEANED } from "../demo/seed-cleaned";
@@ -21,6 +21,7 @@ import {
 import { addDays, jstDate } from "./clock";
 import { locateQuote } from "./clean-transcript";
 import { runMorning, type MorningSummary } from "./morning";
+import { PHOTO_GUESS_DEMO_RESET_BUDGET_MS } from "./photo-guess";
 import type { AppDeps, DemoResetTable, EntranceRow, MemberRow, NarrationRow, PhotoRow } from "./ports";
 
 export interface DemoResetSummary {
@@ -252,7 +253,8 @@ export async function resetDemoFamily(deps: AppDeps, familyId: string): Promise<
 
   let morning: MorningSummary | null = null;
   try {
-    morning = await runMorning(deps, now, { familyId });
+    // 写真を入れ直した直後なので、写真の説明は Batch にせず一枚ずつその場で作り、そろってから入り口を作る
+    morning = await runMorning(deps, now, { familyId, photoGuess: { noBatch: true, budgetMs: PHOTO_GUESS_DEMO_RESET_BUDGET_MS } });
   } catch (e) {
     // 外の本文を出さない: 毎朝の処理が投げる決まった種類のほかは、名前だけ
     const kind = e instanceof Error ? (e.message === "morning_all_failed" ? e.message : e.name) : "unknown";

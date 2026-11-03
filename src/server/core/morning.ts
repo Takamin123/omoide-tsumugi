@@ -1,6 +1,6 @@
 import { familyToday } from "./clock";
 import { ensureMorningEntrance } from "./entrance-claude";
-import { runPhotoGuesses } from "./photo-guess";
+import { runPhotoGuesses, type PhotoGuessOptions } from "./photo-guess";
 import type { AppDeps, EntranceRow } from "./ports";
 import { ensureQuestionAudio } from "./question-speech";
 import { runRecordExtraction } from "./record-extraction";
@@ -44,11 +44,13 @@ export interface MorningSummary {
  * - 全員の入り口を作った後に、今日の Claude の入り口に問いかけの読み上げの音声を作る（ensureQuestionAudio。0029）
  *   入り口づくりを先に済ませ、音声は MORNING_SPEECH_DEADLINE_MS まで。作れなくても入り口はそのまま
  * - 失敗した人だけ飛ばして続ける。全員が失敗したときだけ、全体を失敗にする
+ * - photoGuess は写真の説明づくりにそのまま渡す。デモの初期化だけが { noBatch: true, budgetMs } を渡す（0038）。
+ *   Cron と時計のボタンは渡さない（しきい値を超えたら Batch）
  */
 export async function runMorning(
   deps: AppDeps,
   now: Date = new Date(),
-  opts: { familyId?: string } = {},
+  opts: { familyId?: string; photoGuess?: PhotoGuessOptions } = {},
 ): Promise<MorningSummary> {
   const runId = crypto.randomUUID();
   const started = Date.now();
@@ -71,7 +73,7 @@ export async function runMorning(
     const family = await deps.repos.families.get(familyId);
     if (!family) continue;
     // 写真の説明（推測）づくりを先に進める: 終わった Batch の回収と、まだ説明のない写真。投げない
-    await runPhotoGuesses(deps, familyId);
+    await runPhotoGuesses(deps, familyId, opts.photoGuess);
     // 語りからの記録の取り出し（本文のまま。投げない。予算を超えた語りは翌朝）
     await runRecordExtraction(deps, familyId, { traceId: runId });
     const forDate = familyToday(family, now);
