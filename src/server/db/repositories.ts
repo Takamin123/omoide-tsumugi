@@ -437,6 +437,14 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .all();
         return rows.map(toEntrance);
       },
+      async listByDate(familyId, forDate) {
+        const rows = await db
+          .select()
+          .from(entrances)
+          .where(and(eq(entrances.familyId, familyId), eq(entrances.forDate, forDate)))
+          .all();
+        return rows.map(toEntrance);
+      },
       async insertFixedIfAbsent(row) {
         const res = await db
           .insert(entrances)

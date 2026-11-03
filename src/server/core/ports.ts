@@ -236,6 +236,8 @@ export interface EntranceRepository {
   get(familyId: string, memberId: string, forDate: string): Promise<EntranceRow | null>;
   getById(familyId: string, entranceId: string): Promise<EntranceRow | null>;
   listByMember(familyId: string, memberId: string): Promise<EntranceRow[]>;
+  /** その家族の、その日の入り口の全員分（同じ日にほかの人へ出した写真を避けるため。0042） */
+  listByDate(familyId: string, forDate: string): Promise<EntranceRow[]>;
   /** (member_id, for_date) がすでにあれば入れずに false を返す。 */
   insertFixedIfAbsent(row: NewFixedEntrance): Promise<boolean>;
   /** (member_id, for_date) がすでにあれば入れずに false を返す。 */

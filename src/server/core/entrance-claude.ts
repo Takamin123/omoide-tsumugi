@@ -1,5 +1,6 @@
 // 入り口づくり（Sonnet、構造化出力）。判断は docs/decisions/0017（と 0020、0023）。
 // - 候補はルールで 6 枚まで絞る（同じ写真を続けて出さないことは、プロンプトではなくここで止める）
+// - 同じ日にほかの家族へ出した写真は、なるべく候補から外す（0042）
 // - 渡すのは、縮小済みの画像、写真の説明（推測として）、持ち主の呼ばれ方、撮影日（年月日）、提示の履歴、語り、家族の一覧、受け取る人
 // - 渡さない: 緯度経度（あるかどうかも）、storageKey と URL、合言葉。語りは新しいものから 20,000 字まで
 // - 受け取った後に機械的に検査する（checkEntrance）。違反は 1 回だけ再試行（ClaudeClient の check）。だめなら固定の入り口
@@ -101,7 +102,8 @@ export type EntranceOutput = z.infer<typeof entranceSchema>;
 // ---- 候補の絞り込み ----
 
 type PastEntrance = Pick<EntranceRow, "photoId" | "forDate" | "createdAt">;
-type NarrationForPick = Pick<NarrationRow, "photoId" | "speakerMemberId" | "createdAt">;
+type NarrationForPick = Pick<NarrationRow, "photoId" | "speakerMemberId" | "createdAt"> &
+  Partial<Pick<NarrationRow, "id" | "replyToId">>;
 
 export interface EntranceCandidate {
   photo: PhotoRow;
@@ -112,11 +114,15 @@ export interface EntranceCandidate {
 
 /**
  * 候補の写真を、0017 の順に MAX_ENTRANCE_CANDIDATES 枚まで選ぶ。
+ * 0. ほかの家族が、この人の語りに返事をした写真で、その返事の後にこの人の入り口に出していないもの（返事の新しい順。0042）。
+ *    一段だけ（返事の返事は追わない）
  * 1. ほかの家族が語った写真で、その語りの後にこの人の入り口に出していないもの（語りの新しい順）
  * 2. ほかの家族の写真で、まだ出していないもの（撮影日の古い順）
  * 3. 自分の写真で、まだ出していないもの（撮影日の古い順）
  * 4. 最後に出したのがいちばん古いもの
- * 前の ENTRANCE_RECENT_DAYS 日に出した写真は、1 以外では候補にしない。forDate 以降の入り口は数えない
+ * 前の ENTRANCE_RECENT_DAYS 日に出した写真は、0・1 以外では候補にしない。forDate 以降の入り口は数えない
+ * avoidPhotoIds（同じ家族で、今日すでにほかの人の入り口に出した写真）は 0〜4 から外す。
+ * 外すと 0 枚になるなら外さない（元の並び）。重ねないのは「なるべく」（0042）
  */
 export function pickEntranceCandidates(
   photos: PhotoRow[],
@@ -124,6 +130,7 @@ export function pickEntranceCandidates(
   past: PastEntrance[],
   memberId: string,
   forDate: string,
+  avoidPhotoIds: ReadonlySet<string> = new Set(),
 ): EntranceCandidate[] {
   const shown = new Map<string, { count: number; lastDate: string; lastAt: number }>();
   for (const e of past) {
@@ -137,14 +144,23 @@ export function pickEntranceCandidates(
     }
   }
   const latestOther = new Map<string, number>();
+  // この人の語りへの、ほかの家族の返事（写真ごとに最新の時刻）
+  const speakerOf = new Map<string, string>();
+  for (const n of narrations) if (n.id) speakerOf.set(n.id, n.speakerMemberId);
+  const latestReply = new Map<string, number>();
   for (const n of narrations) {
     if (n.speakerMemberId === memberId) continue;
     const prev = latestOther.get(n.photoId);
     if (prev === undefined || n.createdAt > prev) latestOther.set(n.photoId, n.createdAt);
+    if (n.replyToId && speakerOf.get(n.replyToId) === memberId) {
+      const r = latestReply.get(n.photoId);
+      if (r === undefined || n.createdAt > r) latestReply.set(n.photoId, n.createdAt);
+    }
   }
   const recentFrom = addDays(forDate, -ENTRANCE_RECENT_DAYS);
   const byTaken = [...photos].sort(compareTaken);
 
+  const g0: PhotoRow[] = [];
   const g1: PhotoRow[] = [];
   const g2: PhotoRow[] = [];
   const g3: PhotoRow[] = [];
@@ -152,15 +168,20 @@ export function pickEntranceCandidates(
   for (const p of byTaken) {
     const s = shown.get(p.id);
     const told = latestOther.get(p.id);
-    if (told !== undefined && (!s || told > s.lastAt)) g1.push(p);
+    const replied = latestReply.get(p.id);
+    if (replied !== undefined && (!s || replied > s.lastAt)) g0.push(p);
+    else if (told !== undefined && (!s || told > s.lastAt)) g1.push(p);
     else if (!s) (p.ownerMemberId !== memberId ? g2 : g3).push(p);
     else if (s.lastDate < recentFrom) g4.push(p);
   }
+  g0.sort((a, b) => latestReply.get(b.id)! - latestReply.get(a.id)!);
   g1.sort((a, b) => latestOther.get(b.id)! - latestOther.get(a.id)!);
   // 最後に出した日の古い順（同じなら撮影日の古い順。sort は安定）
   g4.sort((a, b) => shown.get(a.id)!.lastDate.localeCompare(shown.get(b.id)!.lastDate));
 
-  return [...g1, ...g2, ...g3, ...g4].slice(0, MAX_ENTRANCE_CANDIDATES).map((photo) => {
+  const ordered = [...g0, ...g1, ...g2, ...g3, ...g4];
+  const kept = ordered.filter((p) => !avoidPhotoIds.has(p.id));
+  return (kept.length > 0 ? kept : ordered).slice(0, MAX_ENTRANCE_CANDIDATES).map((photo) => {
     const s = shown.get(photo.id);
     return { photo, shownCount: s?.count ?? 0, lastShownDate: s?.lastDate ?? null };
   });
@@ -397,14 +418,17 @@ export async function makeClaudeEntrance(
 ): Promise<MakeClaudeEntranceResult> {
   const { repos } = deps;
   const none = (reason: EntranceClaudeFailure): MakeClaudeEntranceResult => ({ ok: false, reason, inputTokens: 0, outputTokens: 0 });
-  const [photos, past, narrations, members, guesses] = await Promise.all([
+  const [photos, past, narrations, members, guesses, today] = await Promise.all([
     repos.photos.list(family.id),
     repos.entrances.listByMember(family.id, member.id),
     repos.narrations.listAll(family.id),
     repos.members.list(family.id),
     repos.photoGuesses.listByFamily(family.id),
+    repos.entrances.listByDate(family.id, forDate),
   ]);
-  const picked = pickEntranceCandidates(photos, narrations, past, member.id, forDate);
+  // 今日すでにほかの人の入り口に出した写真（毎朝の処理は一人ずつ順なので、先に作った人の分。0042）
+  const usedToday = new Set(today.filter((e) => e.memberId !== member.id).map((e) => e.photoId));
+  const picked = pickEntranceCandidates(photos, narrations, past, member.id, forDate, usedToday);
   if (picked.length === 0) return none("no_candidates");
 
   // 新しい説明を使う（listByFamily は古い順）

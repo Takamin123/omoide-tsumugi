@@ -1,0 +1,323 @@
+{
+  "id": "demo-yamagata",
+  "summary": "デモの家族（src/server/demo/seed.ts の写し。架空の山形の三世代、標準語）。じいちゃん（elder）、お母さん・まさとおじさん・ゆい（family）。写真 12 枚、語り 12 本、過去の固定の入り口 2 つ。写真の説明は qa-engineer が画像を見て書いた推測",
+  "asOfDate": "2026-11-03",
+  "members": [
+    {
+      "id": "m-okaasan",
+      "role": "family",
+      "relation": "母",
+      "calledAs": "お母さん",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    },
+    {
+      "id": "m-jiichan",
+      "role": "elder",
+      "relation": "祖父",
+      "calledAs": "じいちゃん",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": "m-okaasan"
+    },
+    {
+      "id": "m-masato",
+      "role": "family",
+      "relation": "叔父",
+      "calledAs": "まさとおじさん",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    },
+    {
+      "id": "m-yui",
+      "role": "family",
+      "relation": "孫",
+      "calledAs": "ゆい",
+      "speechStyle": "standard",
+      "dialectRegion": null,
+      "setUpByMemberId": null
+    }
+  ],
+  "photos": [
+    {
+      "id": "P1",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-03T14:02:00",
+      "description": "曲線のガラス張りの駅舎と、その前の広い駐車場。駅舎に「二見浦駅」の看板があり、花壇と赤いポストが見える。晴れた日の昼間",
+      "note": "デモの種の写真",
+      "imageFile": "20190503_140219.jpg"
+    },
+    {
+      "id": "P2",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-03T14:22:00",
+      "description": "松並木の続く石畳の道。石灯籠が並び、赤いコーンが置かれている。左手に海沿いの堤防があり、奥に人が歩いている",
+      "note": "デモの種の写真",
+      "imageFile": "20190503_142231.jpg"
+    },
+    {
+      "id": "P3",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-03T14:24:00",
+      "description": "海沿いの堤防の前に、松の木と「二見浦」と書かれた木の看板が立っている。手前に丸太の柵がある",
+      "note": "デモの種の写真",
+      "imageFile": "20190503_142416.jpg"
+    },
+    {
+      "id": "P4",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-03T14:52:00",
+      "description": "海の中に大小二つの岩が並び、太いしめ縄で結ばれている。大きい岩の上に小さな白い鳥居がある",
+      "note": "デモの種の写真",
+      "imageFile": "20190503_145224.jpg"
+    },
+    {
+      "id": "P5",
+      "ownerMemberId": "m-yui",
+      "takenAt": "2019-05-03T19:44:00",
+      "description": "舟の形の器に盛られた刺身。サーモン、ほたて、甘えびなどが並び、赤いさじの形の小皿もある",
+      "note": "デモの種の写真",
+      "imageFile": "20190503_194446.jpg"
+    },
+    {
+      "id": "P6",
+      "ownerMemberId": "m-yui",
+      "takenAt": "2019-05-03T19:55:00",
+      "description": "黒い鉄鍋に、霜降りの薄切りの牛肉と白菜、えのきが入っている。すき焼きの支度のよう",
+      "note": "デモの種の写真",
+      "imageFile": "20190503_195517.jpg"
+    },
+    {
+      "id": "P7",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-04T12:33:00",
+      "description": "菊の紋の入った紫の幕が掛かった、神社の木造の建物。「神楽殿」と書かれた札がある",
+      "note": "デモの種の写真",
+      "imageFile": "20190504_123300.jpg"
+    },
+    {
+      "id": "P8",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-04T09:35:00",
+      "description": "太い枝が四方に伸びた大きな古木。枝を木の支柱が支え、まわりを木の柵が囲んでいる。新緑で空が青い",
+      "note": "デモの種の写真",
+      "imageFile": "DSC_0170.jpg"
+    },
+    {
+      "id": "P9",
+      "ownerMemberId": "m-okaasan",
+      "takenAt": "2019-05-04T15:25:00",
+      "description": "「猿田彦神社」と刻まれた古い石柱と、石灯籠。後ろに道路と標識が見える",
+      "note": "デモの種の写真",
+      "imageFile": "20190504_152550.jpg"
+    },
+    {
+      "id": "Y1",
+      "ownerMemberId": "m-masato",
+      "takenAt": "2026-06-25T11:30:00",
+      "description": "車の窓越しに見た、一面の青い田んぼ。遠くに雪の残る山と、背の高い白い建物が見える",
+      "note": "デモの種の写真",
+      "imageFile": "20260625_113003.jpg"
+    },
+    {
+      "id": "Y2",
+      "ownerMemberId": "m-masato",
+      "takenAt": "2026-06-25T11:38:00",
+      "description": "柵越しに見た広い川。左に緑の濃い山があり、川の中に浅瀬が広がる。遠くに橋が見える",
+      "note": "デモの種の写真",
+      "imageFile": "20260625_113849.jpg"
+    },
+    {
+      "id": "Y3",
+      "ownerMemberId": "m-masato",
+      "takenAt": "2026-06-25T12:44:00",
+      "description": "車の窓越しの景色。手前に草地と田んぼ、その向こうに川と、緑の山が続く。空に雲が広がる",
+      "note": "デモの種の写真",
+      "imageFile": "20260625_124417.jpg"
+    }
+  ],
+  "narrations": [
+    {
+      "id": "n1",
+      "speakerMemberId": "m-jiichan",
+      "photoId": "P4",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-10-29",
+      "at": "10:20",
+      "transcript": "夫婦岩は、テレビでしか見たことなかったんだ。本物は思ったより小さくてな、でも縄がぴんと張ってて、きれいだった。ばあちゃんと並んで、うちらみたいだなって言ったら、みんなに笑われたんだよ。",
+      "cleanedText": "夫婦岩は、テレビでしか見たことなかったんだ。本物は思ったより小さくてな、でも縄がぴんと張ってて、きれいだった。ばあちゃんと並んで、うちらみたいだなって言ったら、みんなに笑われたんだよ。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n2",
+      "speakerMemberId": "m-okaasan",
+      "photoId": "P4",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-29",
+      "at": "21:05",
+      "transcript": "二人を伊勢に連れていくのは、ずっと前からの約束だった。令和になったばかりの連休で、どこも人がいっぱいだったけど、夫婦岩の前だけは不思議と静かだった。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n3",
+      "speakerMemberId": "m-yui",
+      "photoId": "P6",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-30",
+      "at": "20:30",
+      "transcript": "伊勢の宿の夜ごはん。すき焼きのお肉がすごくいいお肉で、ばあちゃんが『ゆいが先に食べな』って、自分の分まで鍋に入れてくれた。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n4",
+      "speakerMemberId": "m-yui",
+      "photoId": "P5",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-30",
+      "at": "20:40",
+      "transcript": "舟盛りが出てきたとき、じいちゃんが一番に『写真撮っとけ』って言った。家族旅行でごはんの写真を撮ったのは、たぶんこれが初めて。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n5",
+      "speakerMemberId": "m-yui",
+      "photoId": "P4",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-31",
+      "at": "08:10",
+      "transcript": "わたしは岩より、じいちゃんとばあちゃんが並んで写真を撮ってもらってるところばかり見てた。じいちゃん、あのとき帽子をとってたよね。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n6",
+      "speakerMemberId": "m-okaasan",
+      "photoId": "P4",
+      "replyToId": "n5",
+      "kind": "text",
+      "forDate": "2026-10-31",
+      "at": "12:15",
+      "transcript": "帽子をとったのは、神様の前だからって言ってた。お父さんらしいね。",
+      "traits": [
+        "reply"
+      ],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n7",
+      "speakerMemberId": "m-jiichan",
+      "photoId": "P6",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-11-01",
+      "at": "09:20",
+      "transcript": "ばあちゃんはいつもそうなんだ。孫が食べてるとこ見てるのが、一番のごちそうなんだって。山形の芋煮もうまいけど、あの肉は口の中でとけたなぁ。",
+      "cleanedText": "ばあちゃんはいつもそうなんだ。孫が食べてるとこ見てるのが、一番のごちそうなんだって。山形の芋煮もうまいけど、あの肉は口の中でとけたなぁ。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n8",
+      "speakerMemberId": "m-jiichan",
+      "photoId": "Y2",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-11-01",
+      "at": "15:40",
+      "transcript": "最上川のこのあたりは、若いころよく舟で渡ったんだ。川の真ん中に大きな岩があってな、伊勢で夫婦岩を見たとき、あの岩を思い出したんだよ。",
+      "cleanedText": "最上川のこのあたりは、若いころよく舟で渡ったんだ。川の真ん中に大きな岩があってな、伊勢で夫婦岩を見たとき、あの岩を思い出したんだよ。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n9",
+      "speakerMemberId": "m-masato",
+      "photoId": "Y1",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-11-01",
+      "at": "18:30",
+      "transcript": "今年も田植えが終わった。父さんはもう田んぼには出ないけど、毎朝この道を歩いて、苗の伸び具合を見に来る。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n10",
+      "speakerMemberId": "m-yui",
+      "photoId": "Y1",
+      "replyToId": "n9",
+      "kind": "text",
+      "forDate": "2026-11-02",
+      "at": "07:45",
+      "transcript": "夏休み、じいちゃんと一緒にこの道を歩きたい。",
+      "traits": [
+        "reply"
+      ],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n11",
+      "speakerMemberId": "m-okaasan",
+      "photoId": "P8",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-11-02",
+      "at": "12:30",
+      "transcript": "二日目の朝、大きな木の前で父が長いこと手を合わせてた。何をお願いしたのか聞いたら、内緒って笑ってた。",
+      "traits": [],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    },
+    {
+      "id": "n12",
+      "speakerMemberId": "m-jiichan",
+      "photoId": "P8",
+      "replyToId": "n11",
+      "kind": "voice",
+      "forDate": "2026-11-02",
+      "at": "16:10",
+      "transcript": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。",
+      "cleanedText": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。",
+      "traits": [
+        "reply"
+      ],
+      "mishearings": [],
+      "note": "デモの種の語り（台本）"
+    }
+  ],
+  "pastEntrances": [
+    {
+      "memberId": "m-yui",
+      "photoId": "P4",
+      "forDate": "2026-10-31",
+      "at": "03:00"
+    },
+    {
+      "memberId": "m-jiichan",
+      "photoId": "P6",
+      "forDate": "2026-11-01",
+      "at": "03:00"
+    }
+  ]
+}

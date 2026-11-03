@@ -31,6 +31,11 @@ export type FixturePhoto = {
   description: string;
   /** このデータの意図。アプリにもプロンプトにも渡さない */
   note: string;
+  /**
+   * 画像のファイル名（リポジトリに入れない。出し比べのときに手元の置き場所から読む）。
+   * 置き場所は EVAL_IMAGES_DIR（既定は ~/omoide-demo-seed/prepared）。なければ説明だけを渡す
+   */
+  imageFile?: string;
 };
 
 /** 聞き間違いのつもりの箇所。heard は transcript の中にちょうど一度だけ出てくる */
@@ -48,13 +53,27 @@ export type FixtureNarration = {
   kind: "voice" | "text";
   /** 日本時間の YYYY-MM-DD */
   forDate: string;
+  /** 日本時間の HH:MM（語った時刻）。なければ 12:00 とみなす */
+  at?: string;
   /** 文字起こしそのまま（kind が "text" のときは打った文字） */
   transcript: string;
+  /** 声の語りの整えた文字（なければ transcript を整形済みとみなす） */
+  cleanedText?: string;
   traits: NarrationTrait[];
   /** 期待値。プロンプトにもアプリにも渡さない */
   mishearings: FixtureMishearing[];
   /** このデータの意図。アプリにもプロンプトにも渡さない */
   note: string;
+};
+
+/** その人の入り口に、過去に出した写真（候補の絞り込みの「提示の履歴」） */
+export type FixturePastEntrance = {
+  memberId: string;
+  photoId: string;
+  /** 日本時間の YYYY-MM-DD */
+  forDate: string;
+  /** 日本時間の HH:MM（作った時刻） */
+  at: string;
 };
 
 export type FamilyFixture = {
@@ -65,4 +84,6 @@ export type FamilyFixture = {
   members: FixtureMember[];
   photos: FixturePhoto[];
   narrations: FixtureNarration[];
+  /** 過去の入り口。なければ全員、初めての入り口 */
+  pastEntrances?: FixturePastEntrance[];
 };

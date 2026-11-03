@@ -16,7 +16,7 @@ import {
   type NarrationForEntrance,
 } from "../src/server/core/entrance-claude";
 import { runMorning } from "../src/server/core/morning";
-import type { ClaudeClient, PhotoRow } from "../src/server/core/ports";
+import type { ClaudeCallRequest, ClaudeCallResult, ClaudeClient, PhotoRow } from "../src/server/core/ports";
 import { PROMPTS } from "../src/server/prompts";
 import {
   addMember,
@@ -105,6 +105,91 @@ describe("pickEntranceCandidates: 0017 の順と、前の 7 日の除外", () =>
   it(`${MAX_ENTRANCE_CANDIDATES} 枚まで`, () => {
     const photos = Array.from({ length: 10 }, (_, i) => photo(`p${i}`, "x", null, i));
     expect(pickEntranceCandidates(photos, [], [], me, "2026-11-03")).toHaveLength(MAX_ENTRANCE_CANDIDATES);
+  });
+});
+
+describe("pickEntranceCandidates: この人の語りへの返事がある写真を先頭に（0042）", () => {
+  const me = "me";
+  const day = (d: string) => Date.parse(`${d}T00:00:00Z`);
+  const n = (id: string, photoId: string, speakerMemberId: string, createdAt: number, replyToId: string | null = null) => ({
+    id,
+    photoId,
+    speakerMemberId,
+    createdAt,
+    replyToId,
+  });
+
+  it("ほかの家族の、この人の語りへの返事がある写真は、ほかの語りより新しくなくても先頭", () => {
+    const photos = [photo("replied", "x"), photo("told-newer", "x")];
+    const narrations = [
+      n("mine", "replied", me, day("2026-10-30")),
+      n("reply", "replied", "x", day("2026-10-31"), "mine"),
+      n("other", "told-newer", "y", day("2026-11-02")),
+    ];
+    expect(pickEntranceCandidates(photos, narrations, [], me, "2026-11-03").map((c) => c.photo.id)).toEqual(["replied", "told-newer"]);
+  });
+
+  it("返事の返事・自分で自分に返したもの・返事の後に出したものは先頭にしない", () => {
+    const photos = [photo("chain", "x"), photo("self", "x"), photo("shown", "x"), photo("told-newer", "x")];
+    const narrations = [
+      // me の語りへの x の返事（その後に出した）に、z がさらに返した（me の語りへの返事ではない → 1 の扱い）
+      n("mine-c", "chain", me, day("2026-10-20")),
+      n("x-c", "chain", "x", day("2026-10-21"), "mine-c"),
+      n("z-c", "chain", "z", day("2026-11-01"), "x-c"),
+      // 自分の語りに自分で返した
+      n("mine-s", "self", me, day("2026-10-20")),
+      n("mine-s2", "self", me, day("2026-11-02"), "mine-s"),
+      // 返事の後に、この人に出した
+      n("mine-h", "shown", me, day("2026-10-20")),
+      n("x-h", "shown", "x", day("2026-10-21"), "mine-h"),
+      n("other", "told-newer", "y", day("2026-11-02")),
+    ];
+    const past = [
+      { photoId: "shown", forDate: "2026-10-22", createdAt: day("2026-10-22") },
+      { photoId: "chain", forDate: "2026-10-22", createdAt: day("2026-10-22") },
+    ];
+    const r = pickEntranceCandidates(photos, narrations, past, me, "2026-11-03").map((c) => c.photo.id);
+    // 0 は一枚もない。chain は z-c が 1（ほかの家族の新しい語り）として told-newer の後。self は未提示のほかの家族の写真（2）。
+    // shown は返事の後に出したので、最後に出したのが古いもの（4）
+    expect(r).toEqual(["told-newer", "chain", "self", "shown"]);
+  });
+
+  it("返事の写真も、今日ほかの人に出していれば外す", () => {
+    const photos = [photo("replied", "x"), photo("other", "x")];
+    const narrations = [n("mine", "replied", me, day("2026-10-30")), n("reply", "replied", "x", day("2026-10-31"), "mine")];
+    expect(pickEntranceCandidates(photos, narrations, [], me, "2026-11-03", new Set(["replied"])).map((c) => c.photo.id)).toEqual(["other"]);
+  });
+});
+
+describe("pickEntranceCandidates: 今日ほかの人に出した写真をなるべく外す（0042）", () => {
+  const me = "me";
+  const day = (d: string) => Date.parse(`${d}T00:00:00Z`);
+
+  it("外した写真の分は、後ろの候補で埋める。並びは変えない", () => {
+    const photos = Array.from({ length: 8 }, (_, i) => photo(`p${i}`, "x", `199${i}-01-01T00:00:00`));
+    const narrations = [{ photoId: "p7", speakerMemberId: "x", createdAt: day("2026-11-01") }];
+    const r = pickEntranceCandidates(photos, narrations, [], me, "2026-11-03", new Set(["p7", "p1"]));
+    expect(r.map((c) => c.photo.id)).toEqual(["p0", "p2", "p3", "p4", "p5", "p6"]);
+  });
+
+  it("ほかの家族の新しい語りがある写真（1）でも外す", () => {
+    const photos = [photo("told", "x"), photo("other", "x")];
+    const narrations = [{ photoId: "told", speakerMemberId: "x", createdAt: day("2026-11-01") }];
+    expect(pickEntranceCandidates(photos, narrations, [], me, "2026-11-03", new Set(["told"])).map((c) => c.photo.id)).toEqual(["other"]);
+  });
+
+  it("外すと 0 枚になるなら外さない（元の並び）", () => {
+    const photos = [photo("a", "x", "1990-01-01T00:00:00"), photo("b", me, "1980-01-01T00:00:00")];
+    const r = pickEntranceCandidates(photos, [], [], me, "2026-11-03", new Set(["a", "b"]));
+    expect(r.map((c) => c.photo.id)).toEqual(["a", "b"]);
+  });
+
+  it("前の 7 日の除外は、外さない場合でも緩めない", () => {
+    const photos = [photo("recent", "x"), photo("today-used", "x")];
+    const past = [{ photoId: "recent", forDate: "2026-11-01", createdAt: day("2026-11-01") }];
+    expect(pickEntranceCandidates(photos, [], past, me, "2026-11-03", new Set(["today-used"])).map((c) => c.photo.id)).toEqual([
+      "today-used",
+    ]);
   });
 });
 
@@ -357,6 +442,41 @@ const good = (photoId: string, narrationId: string, question = "この日のこ�
 
 const NOW = new Date("2026-11-02T21:00:00Z"); // 日本時間 11/3 6:00
 
+/**
+ * 同じ日の入り口の重なりを見るための家族: family の 3 人、写真 photoCount 枚（一人目の写真）。
+ * Claude は、渡された候補の先頭を選ぶ偽物（呼ばれた順に、候補と選んだ写真を記録する）
+ */
+async function sameDayFamily(photoCount: number) {
+  const calls: { candidates: string[]; chosen: string }[] = [];
+  const claude: ClaudeClient = {
+    async call<T>(req: ClaudeCallRequest<T>): Promise<ClaudeCallResult<T>> {
+      const text = req.content.map((p) => (p.type === "text" ? p.text : "")).join("\n");
+      const candidates = [...text.matchAll(/<photo photo_id="([^"]+)">/g)].map((m) => m[1]!);
+      const value = { reason: "架空の理由", photo_id: candidates[0]!, focus: null, quote: null, question: "この日のことを、聞かせてください" } as T;
+      const meta = { purpose: req.prompt.purpose, model: "claude-fake", promptVersion: req.prompt.version, inputTokens: 1, outputTokens: 1, attempts: 1 };
+      const violation = req.check?.(value) ?? null;
+      if (violation) return { ok: false, reason: "check_failed", violation, meta };
+      calls.push({ candidates, chosen: candidates[0]! });
+      return { ok: true, value, meta };
+    },
+    createBatch: (req) => notConfiguredClaude.createBatch(req),
+    getBatch: (id) => notConfiguredClaude.getBatch(id),
+    getBatchResults: (req) => notConfiguredClaude.getBatchResults(req),
+  };
+  const t = makeTestApp(d1, { claude: onlyPurpose(claude, "entrance") });
+  const f = await createFamily(t);
+  const a = await addMember(t, f.cookie, { calledAs: "架空のはは" });
+  const b = await addMember(t, a.cookie, { calledAs: "架空のおじ" });
+  const c = await addMember(t, a.cookie, { calledAs: "架空のまご" });
+  const photoIds: string[] = [];
+  for (let i = 0; i < photoCount; i++) photoIds.push((await addPhoto(t, a.cookie, 100 + i)).id);
+  return { t, familyId: f.familyId, memberIds: [a.id, b.id, c.id], photoIds, calls };
+}
+
+const todayPhotos = async (familyId: string) =>
+  (await d1.prepare("SELECT photo_id FROM entrances WHERE family_id = ? AND for_date = ?").bind(familyId, "2026-11-03").all<{ photo_id: string }>())
+    .results.map((r) => r.photo_id);
+
 describe("毎朝の処理: Claude の入り口を試し、だめなら固定の入り口", () => {
   it("通った応答を kind='claude' で保存し、引用の位置はアプリが決める。家族向けの API に reason・model・説明を出さない", async () => {
     const s = await setup((pid, nid) => [good(pid, nid), good(pid, nid)]);
@@ -459,6 +579,54 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     const r = await ensureMorningEntrance(s.t.deps, family, { id: s.elder }, "2026-11-03", NOW.getTime(), { useClaude: false });
     expect(r).toMatchObject({ via: "fixed", fallback: "past_deadline" });
     expect(messageCalls(s.requests)).toHaveLength(0);
+  });
+
+  it("同じ日に先に作った人の写真は、次の人の候補から外す（0042）", async () => {
+    const d = await sameDayFamily(3);
+    const summary = await runMorning(d.t.deps, NOW, { familyId: d.familyId });
+    expect(summary).toMatchObject({ created: 3, byClaude: 3, fallbacks: [] });
+    expect(d.calls).toHaveLength(3);
+    // 先の人が選んだ写真は、後の人に渡らない
+    for (let i = 1; i < d.calls.length; i++) {
+      for (const earlier of d.calls.slice(0, i)) expect(d.calls[i]!.candidates).not.toContain(earlier.chosen);
+    }
+    const photos = await todayPhotos(d.familyId);
+    expect(new Set(photos).size).toBe(3);
+  });
+
+  it("外すと 0 枚になるなら外さない（写真が一枚の家族でも、全員に Claude の入り口）", async () => {
+    const d = await sameDayFamily(1);
+    const summary = await runMorning(d.t.deps, NOW, { familyId: d.familyId });
+    expect(summary).toMatchObject({ created: 3, byClaude: 3, fallbacks: [] });
+    expect(d.calls.map((c) => c.candidates)).toEqual([[d.photoIds[0]], [d.photoIds[0]], [d.photoIds[0]]]);
+  });
+
+  it("同じ日にもう一度呼んだとき、すでにある入り口の写真も外す（冪等）", async () => {
+    const d = await sameDayFamily(3);
+    // 一人目だけ先に作っておく（途中で止まった朝のつもり）
+    const first = await ensureMorningEntrance(d.t.deps, { id: d.familyId }, { id: d.memberIds[0]! }, "2026-11-03", NOW.getTime(), {
+      useClaude: true,
+    });
+    expect(first.via).toBe("claude");
+    const used = first.result!.entrance.photoId;
+    const summary = await runMorning(d.t.deps, NOW, { familyId: d.familyId });
+    expect(summary).toMatchObject({ created: 2, existing: 1, byClaude: 2 });
+    expect(d.calls).toHaveLength(3);
+    for (const c of d.calls.slice(1)) expect(c.candidates).not.toContain(used);
+    expect(new Set(await todayPhotos(d.familyId)).size).toBe(3);
+  });
+
+  it("ほかの家族の今日の入り口は数えない", async () => {
+    const other = await sameDayFamily(3);
+    await runMorning(other.t.deps, NOW, { familyId: other.familyId });
+    const d = await sameDayFamily(3);
+    // 別の家族の入り口と、別の日の入り口は返さない
+    await ensureMorningEntrance(d.t.deps, { id: d.familyId }, { id: d.memberIds[0]! }, "2026-11-02", NOW.getTime(), { useClaude: true });
+    expect(await d.t.deps.repos.entrances.listByDate(d.familyId, "2026-11-03")).toEqual([]);
+    await runMorning(d.t.deps, NOW, { familyId: d.familyId });
+    const today = await d.t.deps.repos.entrances.listByDate(d.familyId, "2026-11-03");
+    expect(today.map((e) => e.familyId)).toEqual([d.familyId, d.familyId, d.familyId]);
+    expect(new Set(today.map((e) => e.memberId))).toEqual(new Set(d.memberIds));
   });
 
   it("Claude の失敗（時間切れや 5xx）でも、その人には固定の入り口を作る", async () => {
