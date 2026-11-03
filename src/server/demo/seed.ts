@@ -59,10 +59,10 @@ export const seedVoiceKey = (n: Pick<SeedNarration, "label">) => `${DEMO_SEED_PR
  * 測るまでは null（長さを作らない）
  */
 export const SEED_VOICE_DURATION_MS: Record<string, number | null> = {
-  n1: null,
-  n7: null,
-  n8: null,
-  n12: null,
+  n1: 18240,
+  n7: 12139,
+  n8: 12308,
+  n12: 8746,
 };
 
 export const SEED_MEMBERS: readonly SeedMember[] = [
