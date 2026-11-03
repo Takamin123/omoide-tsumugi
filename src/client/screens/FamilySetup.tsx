@@ -22,7 +22,17 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
   const [error, setError] = useState<string | null>(null);
   const editor = useMemberEditor(reload);
   const w = words.family;
+  const [idCopied, setIdCopied] = useState(false);
   const nameOf = (id: string | null) => view.members.find((m) => m.id === id)?.calledAs ?? null;
+
+  async function copyFamilyId() {
+    try {
+      await navigator.clipboard.writeText(view.family.id);
+      setIdCopied(true);
+    } catch {
+      setIdCopied(false);
+    }
+  }
 
   async function regenerate() {
     if (!confirm(w.regenerateConfirm)) return;
@@ -103,12 +113,17 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
         <ErrorLine text={error} />
       </section>
 
-      {/* 家族の番号（家族 ID）。鍵ではない。折り返して読める。iOS は触れると全部選べ、Android はふつうの長押しの選択。ボタンは付けない（0033） */}
-      <p className="sub family-id">
-        {w.familyIdLabel}
-        <br />
-        <span className="family-id-value">{view.family.id}</span>
-      </p>
+      {/* 家族の番号（家族 ID）。鍵ではない。折り返して読める。写すのはボタンで（長押しの選択は Android で一部しか選べないため。0033） */}
+      <div className="stack family-id">
+        <p className="sub">
+          {w.familyIdLabel}
+          <br />
+          <span className="family-id-value">{view.family.id}</span>
+        </p>
+        <button type="button" onClick={() => void copyFamilyId()}>
+          {idCopied ? w.copied : w.copyFamilyId}
+        </button>
+      </div>
     </main>
   );
 }

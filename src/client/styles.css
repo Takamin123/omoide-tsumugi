@@ -535,13 +535,6 @@ main.elder {
 .family-id-value {
   word-break: break-all;
 }
-/* 触れると全部選ぶのは iOS Safari だけにする。Android の Chrome は user-select: all だと長押しの選択がすぐ外れる（人間が実機で確かめた。0033） */
-@supports (-webkit-touch-callout: none) {
-  .family-id-value {
-    -webkit-user-select: all;
-    user-select: all;
-  }
-}
 
 nav.top {
   display: flex;

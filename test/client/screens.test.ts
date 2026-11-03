@@ -153,15 +153,17 @@ describe("家族のこと: 一人ひとりを直す", () => {
       h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} }),
     ) as string;
     expect(words.family.familyIdLabel).toBe("家族の番号");
-    const block = `<p class="sub family-id">${words.family.familyIdLabel}<br/><span class="family-id-value">${familyId}</span></p>`;
+    expect(words.family.copyFamilyId).toBe("番号を写す");
+    const block =
+      `<div class="stack family-id"><p class="sub">${words.family.familyIdLabel}<br/><span class="family-id-value">${familyId}</span></p>` +
+      `<button type="button">${words.family.copyFamilyId}</button></div>`;
     expect(html).toContain(block);
     // 画面の最後の要素（招待の節より下）
     expect(html.endsWith(`${block}</main>`)).toBe(true);
     const css = read("src/client/styles.css");
     expect(css).toMatch(/\.family-id-value \{[^}]*word-break: break-all;[^}]*\}/);
-    // 全部選ぶのは iOS だけ（Android の Chrome は長押しの選択がすぐ外れる）
-    expect(css).toMatch(/@supports \(-webkit-touch-callout: none\) \{\s*\.family-id-value \{[^}]*user-select: all;[^}]*\}/);
-    expect(css).not.toMatch(/\.family-id-value \{\s*word-break: break-all;[^}]*user-select/);
+    // 長押しで全部選ぶ設定はやめた（Android の Chrome で一部しか選べず、検索の帯が出る。写すのはボタン）
+    expect(css).not.toMatch(/\.family-id-value \{[^}]*user-select/);
   });
   it("祖父母の画面とその部品には、/family への道がない（/family へ動かすのは家族の画面だけ）", () => {
     const callers = listFiles(clientDir).filter((f) => /navigate\(\s*["']\/family/.test(fs.readFileSync(f, "utf8")));
