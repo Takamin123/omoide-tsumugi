@@ -522,7 +522,15 @@ main.elder {
 .invite-url {
   font-size: var(--font-sub);
   word-break: break-all;
+  -webkit-user-select: all; /* iOS Safari は接頭辞つきが要る */
   user-select: all;
+}
+
+/* 家族のこと（/family）の一番下の家族の番号。区切りの線の下に、補助の文字で静かに出す（0033） */
+.family-id {
+  margin-top: var(--tap-gap);
+  padding-top: var(--tap-gap);
+  border-top: 1px solid var(--line);
 }
 
 nav.top {

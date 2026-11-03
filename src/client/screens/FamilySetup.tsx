@@ -1,4 +1,4 @@
-// /family: 家族の一人ひとりを足す・直す、招待リンク
+// /family: 家族の一人ひとりを足す・直す、招待リンク、家族の番号
 import { useState } from "react";
 import type { FamilyView, Member } from "../../shared/api";
 import { api } from "../lib/api";
@@ -102,6 +102,13 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
         </button>
         <ErrorLine text={error} />
       </section>
+
+      {/* 家族の番号（家族 ID）。鍵ではない。長押しで全部選べ、折り返して読める。ボタンは付けない（0033） */}
+      <p className="sub family-id">
+        {w.familyIdLabel}
+        <br />
+        <span className="invite-url">{view.family.id}</span>
+      </p>
     </main>
   );
 }

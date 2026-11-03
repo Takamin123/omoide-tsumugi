@@ -145,6 +145,27 @@ describe("家族のこと: 一人ひとりを直す", () => {
     expect(html).toMatch(/<button type="submit"[^>]*>足す<\/button>/);
     expect(html).not.toContain(words.home.cancel);
   });
+  it("一番下に「家族の番号」と家族 ID を、補助の文字で出す（長押しで全部選べる。ボタンは付けない。0033）", () => {
+    const mother = { id: "m-mother", role: "family", relation: "母", calledAs: "おかあさん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null };
+    const familyId = "00000000-0000-4000-8000-000000000abc";
+    const view = { family: { id: familyId, isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: true }, members: [grandma, mother] };
+    const html = renderToStaticMarkup(
+      h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} }),
+    ) as string;
+    expect(words.family.familyIdLabel).toBe("家族の番号");
+    const block = `<p class="sub family-id">${words.family.familyIdLabel}<br/><span class="invite-url">${familyId}</span></p>`;
+    expect(html).toContain(block);
+    // 画面の最後の要素（招待の節より下）
+    expect(html.endsWith(`${block}</main>`)).toBe(true);
+    const css = read("src/client/styles.css");
+    expect(css).toMatch(/\.invite-url \{[^}]*user-select: all;[^}]*\}/);
+    expect(css).toMatch(/\.invite-url \{[^}]*word-break: break-all;[^}]*\}/);
+  });
+  it("祖父母の画面とその部品には、/family への道がない（/family へ動かすのは家族の画面だけ）", () => {
+    const callers = listFiles(clientDir).filter((f) => /navigate\(\s*["']\/family/.test(fs.readFileSync(f, "utf8")));
+    expect(callers.map((f) => path.relative(clientDir, f))).toEqual([path.join("screens", "Home.tsx")]);
+    expect(stripComments(read("src/client/screens/Elder.tsx"))).not.toContain("/family");
+  });
   it("直すときは、代わりに設定した人を今の値のまま送る", () => {
     expect(stripComments(read("src/client/screens/FamilySetup.tsx"))).toContain("setUpByMemberId={m.setUpByMemberId}");
   });
