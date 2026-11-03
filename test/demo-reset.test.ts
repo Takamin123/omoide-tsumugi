@@ -5,8 +5,9 @@ import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { is } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { checkMarked, quoteText } from "../src/server/core/clean-transcript";
+import { notConfiguredClaude } from "../src/server/core/claude";
 import { buildSeedRows, matchSeedMembers } from "../src/server/core/demo-reset";
-import { DEMO_RESET_TABLES, type MemberRow } from "../src/server/core/ports";
+import { DEMO_RESET_TABLES, type ClaudeClient, type MemberRow } from "../src/server/core/ports";
 import { SEED_CLEANED } from "../src/server/demo/seed-cleaned";
 import { SEED_ENTRANCES, SEED_MEMBERS, SEED_NARRATIONS, SEED_PHOTOS, seedPhotoKey, seedVoiceKey } from "../src/server/demo/seed";
 import * as schema from "../src/server/db/schema";
@@ -19,6 +20,7 @@ import {
   addMember,
   addPhoto,
   createFamily,
+  fakeClaude,
   makeTestApp,
   startD1,
   type TestApp,
@@ -426,6 +428,51 @@ describe("戻した後の状態", () => {
     expect(text).toContain(f.familyId);
     expect(text).not.toContain("families/");
     for (const m of SEED_MEMBERS) expect(text).not.toContain(m.calledAs);
+  });
+
+  it("写真の説明は Batch にせず一枚ずつその場で作り、全部そろってから入り口を作る。一枚失敗しても入り口は作る", async () => {
+    const t = appWithR2();
+    const f = await demoFamily(t);
+    // 写真の説明（photo_guess）と Batch だけを偽の API に通し、ほかの用途はキーなし（固定の入り口になる）。
+    // 11 枚分だけ説明を返し、残りの一枚は 500（再試行しても失敗）
+    const fake = fakeClaude({
+      replies: Array.from({ length: SEED_PHOTOS.length - 1 }, () => ({ kind: "json" as const, value: { description: "屋外。大人が二人並んで立っている。" }, model: "claude-haiku-5-5" })),
+    });
+    /** 入り口の呼び出しが来た時点での、その家族の説明の数 */
+    const guessesAtEntrance: number[] = [];
+    const claude: ClaudeClient = {
+      call: async (req) => {
+        if (req.prompt.purpose === "photo_guess") return fake.claude.call(req);
+        if (req.prompt.purpose === "entrance") {
+          const n = await d1.prepare("SELECT COUNT(*) AS n FROM photo_guesses WHERE family_id = ?").bind(f.familyId).first<{ n: number }>();
+          guessesAtEntrance.push(n!.n);
+        }
+        return notConfiguredClaude.call(req);
+      },
+      createBatch: (req) => fake.claude.createBatch(req),
+      getBatch: (id, traceId) => fake.claude.getBatch(id, traceId),
+      getBatchResults: (req) => fake.claude.getBatchResults(req),
+    };
+    t.deps.claude = claude;
+
+    const res = await reset(t, f.familyId);
+    expect(res.status).toBe(200);
+    // 種の写真はしきい値（10 枚）を超えるが、Batch は作らない
+    expect(SEED_PHOTOS.length).toBeGreaterThan(10);
+    expect(fake.requests.filter((r) => r.path.startsWith("/v1/messages/batches"))).toHaveLength(0);
+    const photoIds = new Set((await d1.prepare("SELECT id FROM photos WHERE family_id = ?").bind(f.familyId).all<{ id: string }>()).results.map((r) => r.id));
+    const sent = fake.requests.filter((r) => r.method === "POST" && r.path === "/v1/messages");
+    // 12 枚 + 失敗した一枚の再試行
+    expect(sent).toHaveLength(SEED_PHOTOS.length + 1);
+    const guesses = (await d1.prepare("SELECT photo_id FROM photo_guesses WHERE family_id = ?").bind(f.familyId).all<{ photo_id: string }>()).results;
+    expect(guesses).toHaveLength(SEED_PHOTOS.length - 1);
+    for (const g of guesses) expect(photoIds.has(g.photo_id)).toBe(true);
+    // 失敗した一枚は失敗の記録（Batch なし）で、次の回に取り直せる
+    const reqs = (await d1.prepare("SELECT state, batch_id FROM photo_guess_requests WHERE family_id = ?").bind(f.familyId).all()).results;
+    expect(reqs).toEqual([{ state: "failed", batch_id: null }]);
+    // 入り口づくりは、説明がそろった後（4 人とも、呼ばれた時点で 11 件）。入り口は 4 人とも作る
+    expect(guessesAtEntrance).toEqual([11, 11, 11, 11]);
+    expect(((await res.json()) as any).morning).toMatchObject({ created: 4, failed: [] });
   });
 
   it("二度呼んでも同じ状態（ID のほか）。古いファイルは残らない", async () => {

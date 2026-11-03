@@ -12,6 +12,7 @@ import {
   checkPhotoGuess,
   runPhotoGuesses,
 } from "../src/server/core/photo-guess";
+import { runMorning } from "../src/server/core/morning";
 import { PROMPTS } from "../src/server/prompts";
 import {
   addMember,
@@ -330,6 +331,35 @@ describe("毎朝の処理（デモの時計のボタン）から同じ関数で�
       expect(res.status).toBe(200);
     }
     expect(await t.deps.repos.photoGuesses.listByFamily(fam.familyId)).toHaveLength(n);
+  });
+});
+
+describe("Batch にしない指定（デモの初期化だけが使う。0038）", () => {
+  it("noBatch なら、しきい値を超えても一枚ずつ呼び、Batch を作らない", async () => {
+    const n = PHOTO_GUESS_CALL_THRESHOLD + 2;
+    const t = makeTestApp(d1, { claude: notConfiguredClaude });
+    const fam = await familyWithPhotos(t, n);
+    const f0 = fakeClaude({ replies: Array.from({ length: n }, () => guessReply()) });
+    t.deps.claude = f0.claude;
+    const s = await runPhotoGuesses(t.deps, fam.familyId, { noBatch: true });
+    expect(s).toMatchObject({ mode: "call", claimed: n, saved: n, failed: 0, batchId: null });
+    expect(batchCreates(f0.requests)).toHaveLength(0);
+    expect(messageCalls(f0.requests)).toHaveLength(n);
+    expect(await requestRows(fam.familyId)).toEqual([]);
+  });
+
+  it("毎朝の処理（Cron と同じ runMorning、指定なし）では、従来どおりしきい値を超えたら Batch", async () => {
+    const n = PHOTO_GUESS_CALL_THRESHOLD + 1;
+    const t = makeTestApp(d1, { claude: notConfiguredClaude });
+    const fam = await familyWithPhotos(t, n);
+    const f0 = fakeClaude({ batch: { status: "in_progress" } });
+    t.deps.claude = f0.claude;
+    await runMorning(t.deps, new Date("2026-11-05T00:00:00Z"), { familyId: fam.familyId });
+    expect(batchCreates(f0.requests)).toHaveLength(1);
+    // 写真の説明は一枚ずつ呼ばない（入り口の呼び出しはある）
+    const guessCalls = messageCalls(f0.requests).filter((r) => (r.body as any).system === PROMPTS.photo_guess.text);
+    expect(guessCalls).toHaveLength(0);
+    for (const r of await requestRows(fam.familyId)) expect(r).toMatchObject({ state: "working", batch_id: "msgbatch_fake" });
   });
 });
 

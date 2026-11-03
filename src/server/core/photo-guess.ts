@@ -30,6 +30,12 @@ export const PHOTO_GUESS_BATCH_STALE_MS = 25 * 60 * 60_000;
 export const PHOTO_GUESS_TIME_BUDGET_MS = 60_000;
 /** 応答の後の背景処理での予算（waitUntil は応答の後 30 秒まで） */
 export const PHOTO_GUESS_BACKGROUND_BUDGET_MS = 25_000;
+/**
+ * デモの初期化（0038）での予算。初期化は Batch を使わずにその場で全部の写真を呼ぶので、毎朝の 60 秒より長くとる。
+ * 初期化は要求の中で走る（応答の前。HTTP の要求には時間の上限がなく、waitUntil の 30 秒の外）。この予算は新しい写真を
+ * 呼び始める締め切りで、呼んでいる途中のものは終わるまで待つ。過ぎた写真は次の回（翌朝・時計のボタン）に回る
+ */
+export const PHOTO_GUESS_DEMO_RESET_BUDGET_MS = 90_000;
 /** 説明の文字数の上限 */
 export const PHOTO_GUESS_MAX_CHARS = 200;
 
@@ -110,6 +116,13 @@ export interface PhotoGuessSummary {
 
 type Deps = Pick<AppDeps, "repos" | "photos" | "claude" | "now">;
 
+export interface PhotoGuessOptions {
+  /** 時間の予算（新しい写真を呼び始める締め切り）。既定は PHOTO_GUESS_TIME_BUDGET_MS */
+  budgetMs?: number;
+  /** 真なら、しきい値を超えても Batch にせず一枚ずつ call にする（デモの初期化だけ。0038） */
+  noBatch?: boolean;
+}
+
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 /** 写真一枚ぶんの、Claude に渡すもの。画像が見つからなければ null */
@@ -133,11 +146,15 @@ const NOT_ATTEMPTED: ReadonlySet<ClaudeFailure> = new Set<ClaudeFailure>(["not_c
  * 写真の登録の後（背景処理）と、毎朝の処理（Cron とデモの時計のボタンの両方が通る）から呼ぶ。投げない。
  * 1. 回収を待っている Batch のうち、終わったものの結果を入れる
  * 2. まだ説明のない写真を取り、しきい値以下なら一枚ずつ call、超えたら Batch を作る
+ *
+ * noBatch: 枚数にかかわらず一枚ずつ call にする（Batch を作らない）。デモの初期化だけが使う（0038）。
+ * 初期化は写真を入れ直した直後に入り口を作るので、Batch だと説明がそろう前に入り口ができてしまう。
+ * 毎朝の処理（Cron）と写真の登録の後は渡さない（しきい値で分ける）
  */
 export async function runPhotoGuesses(
   deps: Deps,
   familyId: string,
-  opts: { budgetMs?: number } = {},
+  opts: PhotoGuessOptions = {},
 ): Promise<PhotoGuessSummary> {
   const runId = crypto.randomUUID();
   const started = Date.now();
@@ -155,7 +172,7 @@ export async function runPhotoGuesses(
   try {
     const deadline = started + (opts.budgetMs ?? PHOTO_GUESS_TIME_BUDGET_MS);
     summary.batchesCollected = await collectBatches(deps, familyId, runId, summary);
-    if (Date.now() < deadline) await startGuesses(deps, familyId, runId, summary, deadline);
+    if (Date.now() < deadline) await startGuesses(deps, familyId, runId, summary, deadline, opts.noBatch === true);
   } catch (e) {
     error = e instanceof Error ? e.name : "unknown";
   }
@@ -250,6 +267,7 @@ async function startGuesses(
   runId: string,
   summary: PhotoGuessSummary,
   deadline: number,
+  noBatch: boolean,
 ): Promise<void> {
   const { repos } = deps;
   const prompt = PROMPTS.photo_guess;
@@ -266,7 +284,7 @@ async function startGuesses(
   summary.claimed = claimed.length;
   if (claimed.length === 0) return;
 
-  if (claimed.length <= PHOTO_GUESS_CALL_THRESHOLD) {
+  if (noBatch || claimed.length <= PHOTO_GUESS_CALL_THRESHOLD) {
     summary.mode = "call";
     await callEach(deps, familyId, claimed, runId, summary, deadline);
   } else {
