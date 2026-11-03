@@ -3,6 +3,7 @@ import type { Entrance, Member, Narration, Photo, QuotedFrom } from "../../share
 import { exceedsChars } from "../core/claude-checks";
 import { displayText, quoteText } from "../core/clean-transcript";
 import { ENTRANCE_QUOTE_MAX_CHARS } from "../core/entrance-claude";
+import { placeName } from "../core/place";
 import type { EntranceRow, MemberRow, NarrationRow, PhotoRow } from "../core/ports";
 
 /** hasLink: その人のリンクが今使えるか（invite_links の有効な行があるか）。0036 */
@@ -24,6 +25,8 @@ export const photoView = (p: PhotoRow): Photo => ({
   height: p.height,
   takenAt: p.takenAt,
   hasLocation: p.latitude !== null && p.longitude !== null,
+  // 地名は画面に出すためだけ。Claude に渡す入力・ログ・keywords には入れない（0047）
+  place: placeName(p.latitude, p.longitude),
   imageUrl: `/api/photos/${encodeURIComponent(p.id)}/image`,
 });
 

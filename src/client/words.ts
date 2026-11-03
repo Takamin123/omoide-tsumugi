@@ -175,6 +175,9 @@ export const words = {
     familyIdLabel: "家族の番号",
     /** 家族の番号をコピーするボタン。招待リンクの「コピー」と見分けるため目的語を付ける（0033） */
     copyFamilyId: "番号をコピー",
+    /** 地名の出典（CC BY 4.0 の表示）。家族の番号のさらに下に .sub で一行。祖父母の画面には出さない（0047） */
+    placeSource:
+      "写真の場所の名前は、デジタル庁「アドレス・ベース・レジストリ」をもとに株式会社 Geolonia が作成した住所データ（CC BY 4.0）から引いています",
   },
 
   // 写真
@@ -269,6 +272,8 @@ export const words = {
   slots: { morning: "朝", noon: "昼", night: "夜" } satisfies Record<TimeSlot, string>,
   clockLabel: (month: number, day: number, slot: string) => `${month}月${day}日 ${slot}`,
   dateLabel: (year: number, month: number, day: number) => `${year}年${month}月${day}日`,
+  /** 写真の場所。サーバーが一覧から引いた市区町村の名前（「三重県伊勢市」）に「あたり」を付ける。写真の記録で、推測ではない。文にしない（0047） */
+  placeLabel: (place: string) => `${place}あたり`,
 
   loading: "読んでいます",
   retry: "もう一度",

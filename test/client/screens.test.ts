@@ -162,8 +162,8 @@ describe("家族のこと: 一人ひとりを直す", () => {
       `<div class="stack family-id"><p class="sub">${words.family.familyIdLabel}<br/><span class="family-id-value">${familyId}</span></p>` +
       `<button type="button">${words.family.copyFamilyId}</button></div>`;
     expect(html).toContain(block);
-    // 画面の最後の要素（招待の節より下）
-    expect(html.endsWith(`${block}</main>`)).toBe(true);
+    // 招待の節より下。その下は地名の出典の一行だけ（0047）
+    expect(html.endsWith(`${block}<p class="sub">${words.family.placeSource}</p></main>`)).toBe(true);
     const css = read("src/client/styles.css");
     expect(css).toMatch(/\.family-id-value \{[^}]*word-break: break-all;[^}]*\}/);
     // 長押しで全部選ぶ設定はやめた（Android の Chrome で一部しか選べず、検索の帯が出る。コピーはボタン）

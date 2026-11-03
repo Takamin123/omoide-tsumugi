@@ -115,6 +115,8 @@ export function FamilySetup({ view, me, reload }: Props) {
           {idCopied ? w.copied : w.copyFamilyId}
         </button>
       </div>
+      {/* 写真の場所の名前の出典（CC BY 4.0）。祖父母の画面には出さない（0047） */}
+      <p className="sub">{w.placeSource}</p>
     </main>
   );
 }

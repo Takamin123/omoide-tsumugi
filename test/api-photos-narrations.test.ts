@@ -58,7 +58,10 @@ describe("POST /api/photos", () => {
     const a = (await first.json()) as { photo: Record<string, unknown>; duplicate: boolean };
     expect(a.duplicate).toBe(false);
     expect(a.photo).toMatchObject({ ownerMemberId: m.id, width: 1200, takenAt: "1985-08-12T10:30:00", hasLocation: true });
+    // 場所は文字だけ（架空の座標。鹿児島市の代表点の近く）。緯度経度は返さない（0047）
+    expect(a.photo.place).toBe("鹿児島県鹿児島市");
     expect(a.photo).not.toHaveProperty("latitude");
+    expect(a.photo).not.toHaveProperty("longitude");
     expect(a.photo.imageUrl).toBe(`/api/photos/${a.photo.id}/image`);
 
     const again = await postForm(t, "/api/photos", photoForm(meta()), m.cookie);
@@ -85,7 +88,9 @@ describe("POST /api/photos", () => {
     const f = await createFamily(t);
     const m = await addMember(t, f.cookie);
     const res = await postForm(t, "/api/photos", photoForm(meta({ latitude: null, longitude: null, contentHash: hashOf(9) })), m.cookie);
-    expect(((await res.json()) as { photo: { hasLocation: boolean } }).photo.hasLocation).toBe(false);
+    const { photo } = (await res.json()) as { photo: { hasLocation: boolean; place: string | null } };
+    expect(photo.hasLocation).toBe(false);
+    expect(photo.place).toBeNull();
   });
 
   it("JPEG でないものは 400、大きすぎるものは 413、Content-Length がなければ 400", async () => {
