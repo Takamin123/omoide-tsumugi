@@ -1,6 +1,6 @@
 // Claude Code の PreToolUse フック（Bash）。
 // - git commit: フックを飛ばす指定を止め、ステージした変更を scripts/check-staged.sh で検査する
-// - D1 の本番への変更: 必ず人間に確認を求める
+// - D1 の本番への変更、本番の家族を消すこと、本番の R2 のファイルを消すこと: 必ず人間に確認を求める
 // 理由は docs/decisions/0004-commit-guard.md と .claude/skills/d1-migrate/SKILL.md
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -62,6 +62,16 @@ const isRemoteD1Write =
 const targetsPreview = /--env[=\s]+["']?preview\b/.test(cmd) || /(^|\s)-e[=\s]+["']?preview\b/.test(cmd);
 if (isRemoteD1Write && !targetsPreview) {
   ask("本番の D1 を変更するコマンドです。適用するマイグレーションと影響を確かめてから許可してください。");
+}
+
+// ---- 本番の家族を消す・本番の R2 のファイルを消す（0031） ----
+const isProdFamilyDelete = /\bdelete-family\.mjs\b[^;&|\n]*\bproduction\b/.test(cmd) && /--delete\b/.test(cmd);
+if (isProdFamilyDelete) {
+  ask("本番の家族の場を消すコマンドです。家族 ID と件数を確かめてから許可してください（0031）。");
+}
+const isRemoteR2Delete = /\bwrangler\b[^;&|\n]*\br2\b[^;&|\n]*\bobject\s+delete\b/.test(cmd) && /--remote\b/.test(cmd);
+if (isRemoteR2Delete && !targetsPreview) {
+  ask("本番の R2 のファイルを消すコマンドです。消すキーを確かめてから許可してください（0031）。");
 }
 
 process.exit(0);
