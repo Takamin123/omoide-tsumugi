@@ -153,7 +153,7 @@ describe("家族のこと: 一人ひとりを直す", () => {
       h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} }),
     ) as string;
     expect(words.family.familyIdLabel).toBe("家族の番号");
-    expect(words.family.copyFamilyId).toBe("番号を写す");
+    expect(words.family.copyFamilyId).toBe("番号をコピー");
     const block =
       `<div class="stack family-id"><p class="sub">${words.family.familyIdLabel}<br/><span class="family-id-value">${familyId}</span></p>` +
       `<button type="button">${words.family.copyFamilyId}</button></div>`;
@@ -162,7 +162,7 @@ describe("家族のこと: 一人ひとりを直す", () => {
     expect(html.endsWith(`${block}</main>`)).toBe(true);
     const css = read("src/client/styles.css");
     expect(css).toMatch(/\.family-id-value \{[^}]*word-break: break-all;[^}]*\}/);
-    // 長押しで全部選ぶ設定はやめた（Android の Chrome で一部しか選べず、検索の帯が出る。写すのはボタン）
+    // 長押しで全部選ぶ設定はやめた（Android の Chrome で一部しか選べず、検索の帯が出る。コピーはボタン）
     expect(css).not.toMatch(/\.family-id-value \{[^}]*user-select/);
   });
   it("祖父母の画面とその部品には、/family への道がない（/family へ動かすのは家族の画面だけ）", () => {

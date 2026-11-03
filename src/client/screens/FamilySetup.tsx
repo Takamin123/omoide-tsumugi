@@ -113,7 +113,7 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
         <ErrorLine text={error} />
       </section>
 
-      {/* 家族の番号（家族 ID）。鍵ではない。折り返して読める。写すのはボタンで（長押しの選択は Android で一部しか選べないため。0033） */}
+      {/* 家族の番号（家族 ID）。鍵ではない。折り返して読める。コピーはボタンで（長押しの選択は Android で一部しか選べないため。0033） */}
       <div className="stack family-id">
         <p className="sub">
           {w.familyIdLabel}
