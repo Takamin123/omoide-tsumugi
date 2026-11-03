@@ -1,7 +1,7 @@
 // 文字か声で送る。入り口への答えにも、語りへの返事にも使う。
 // 文字・声の形が開いている間は、家族の画面に「入力中」を知らせる（下のタブを隠す）。
 // 送ったら入力欄を閉じる。入り口への答えはこの中で「送りました」を出し、返事は呼ぶ側（onSent）が閉じて出す。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
 import { useComposing } from "../lib/composing";
 import { errorText } from "../lib/errors";
@@ -9,9 +9,15 @@ import { useSender } from "../lib/useSender";
 import { words } from "../words";
 import { VoiceRecorder } from "./VoiceRecorder";
 
-type Props = { target: VoiceTarget; onSent: () => void; onCancel?: () => void };
+type Props = {
+  target: VoiceTarget;
+  onSent: () => void;
+  onCancel?: () => void;
+  /** 文字の欄・録音を開いた・閉じたを知らせる（今日の入り口の段が、自分の入力の間は残るため。0034） */
+  onComposing?: (on: boolean) => void;
+};
 
-export function ReplyBox({ target, onSent, onCancel }: Props) {
+export function ReplyBox({ target, onSent, onCancel, onComposing }: Props) {
   const [mode, setMode] = useState<"choose" | "text" | "voice">("choose");
   const [text, setText] = useState("");
   const [micError, setMicError] = useState(false);
@@ -22,6 +28,10 @@ export function ReplyBox({ target, onSent, onCancel }: Props) {
   });
   // 入力欄・録音が開いている間は、家族の画面の下のタブを描かない
   useComposing(mode !== "choose");
+  useEffect(() => {
+    onComposing?.(mode !== "choose");
+    return () => onComposing?.(false);
+  }, [mode, onComposing]);
   const w = words.home;
   const busy = sender.state === "sending";
   const close = () => {

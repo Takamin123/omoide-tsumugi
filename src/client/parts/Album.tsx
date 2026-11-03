@@ -1,4 +1,5 @@
-// 家族の画面のアルバム: 上に写真の帯（黒い台紙、白い縁、淡い写真コーナー）、その下に矢印と何枚目か、下に写真ごとの語りの縦の欄。
+// 家族の画面のアルバム: 上に写真の帯（黒い台紙、白い縁、淡い写真コーナー。左右の矢印は写真の両脇に重ねる）、その下に何枚目かの一行、
+// 下に写真ごとの語りの縦の欄。
 // 帯と語りは連動する（lib/album.ts）。縦に読んで次の写真の語りが上に来たら帯が一度だけ切り替わり、
 // 帯をめくるか矢印を押すと語りがその写真の頭まで動く。往復はしない。動きを減らす設定では動かさずに切り替える。
 // 出すのは家族の語り・返事・撮影日だけ。語りのある写真がなければ何も出さない（催促や状態の文を出さない）。
@@ -140,57 +141,58 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
   return (
     <div className="album">
       <section className="album-band" aria-label={w.albumBandLabel} hidden={composing}>
-        <div
-          ref={bandRef}
-          className="album-strip"
-          onScroll={(e) => {
-            if (!gate.scrolled("band")) return;
-            const band = e.currentTarget;
-            const i = bandIndex(band.scrollLeft, band.clientWidth, itemsRef.current.length);
-            if (i !== indexRef.current) {
-              select(i);
-              moveText(i, true);
-            }
-          }}
-          onTouchStart={() => gate.touched("band")}
-          onTouchEnd={() => gate.released()}
-          onTouchCancel={() => gate.released()}
-          onWheel={() => gate.touched("band")}
-        >
-          {items.map((it, i) => (
-            <div key={it.photo.id} className="album-slide" aria-hidden={i !== index}>
-              <div className="album-print">
-                <div className="album-corners">
-                  <PhotoImage photo={it.photo} />
-                  <span className="corner tl" aria-hidden="true" />
-                  <span className="corner tr" aria-hidden="true" />
-                  <span className="corner bl" aria-hidden="true" />
-                  <span className="corner br" aria-hidden="true" />
+        {/* 矢印は写真の両脇の台紙の上に重ねる（矢印だけの行を置かず、語りの欄に縦を残す。0034） */}
+        <div className="album-stage">
+          <div
+            ref={bandRef}
+            className="album-strip"
+            onScroll={(e) => {
+              if (!gate.scrolled("band")) return;
+              const band = e.currentTarget;
+              const i = bandIndex(band.scrollLeft, band.clientWidth, itemsRef.current.length);
+              if (i !== indexRef.current) {
+                select(i);
+                moveText(i, true);
+              }
+            }}
+            onTouchStart={() => gate.touched("band")}
+            onTouchEnd={() => gate.released()}
+            onTouchCancel={() => gate.released()}
+            onWheel={() => gate.touched("band")}
+          >
+            {items.map((it, i) => (
+              <div key={it.photo.id} className="album-slide" aria-hidden={i !== index}>
+                <div className="album-print">
+                  <div className="album-corners">
+                    <PhotoImage photo={it.photo} />
+                    <span className="corner tl" aria-hidden="true" />
+                    <span className="corner tr" aria-hidden="true" />
+                    <span className="corner bl" aria-hidden="true" />
+                    <span className="corner br" aria-hidden="true" />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <div className="album-nav">
-          <button type="button" className="album-arrow" aria-label={w.albumPrev} disabled={!can.prev} onClick={() => go(index - 1)}>
+            ))}
+          </div>
+          <button type="button" className="album-arrow prev" aria-label={w.albumPrev} disabled={!can.prev} onClick={() => go(index - 1)}>
             <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 5l-7 7 7 7" />
             </svg>
           </button>
-          <p className="album-count" aria-live="polite">
-            {w.albumPositionParts(index + 1, count).map((part, k) => (
-              <span key={k}>
-                {k > 0 && " "}
-                {part}
-              </span>
-            ))}
-          </p>
-          <button type="button" className="album-arrow" aria-label={w.albumNext} disabled={!can.next} onClick={() => go(index + 1)}>
+          <button type="button" className="album-arrow next" aria-label={w.albumNext} disabled={!can.next} onClick={() => go(index + 1)}>
             <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
+        <p className="album-count" aria-live="polite">
+          {w.albumPositionParts(index + 1, count).map((part, k) => (
+            <span key={k}>
+              {k > 0 && " "}
+              {part}
+            </span>
+          ))}
+        </p>
       </section>
       <div
         ref={textRef}

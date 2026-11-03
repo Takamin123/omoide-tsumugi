@@ -656,18 +656,24 @@ nav.top button {
 
 /*
  * 写真の帯。高さは画面の 1/3 程度まで。幅 375px・文字 150% でも、語り一つ（話者名＋本文 3 行＋「返事」）が
- * 帯とタブの間に見えるよう、写真の高さを (画面の高さ − 語り一つとタブと帯の枠の分) で抑える
+ * 帯とタブの間に見えるよう、写真の高さを (画面の高さ − 語り一つとタブと帯の枠の分) で抑える。
+ * 矢印は写真の両脇に重ね、帯の下は何枚目かの一行だけにする（矢印の行の高さを語りの欄に回す。0034）
  */
 .album-band {
-  --band-chrome: 6.75rem; /* 帯の上下の余白、矢印の行、白い縁 */
-  --band-reserve: 27.5rem; /* 帯の枠＋語り一つ＋節の頭＋タブ */
+  --band-chrome: 4.375rem; /* 帯の上下の余白、何枚目かの一行、白い縁 */
+  --band-reserve: 25.125rem; /* 帯の枠＋語り一つ＋節の頭＋タブ */
   --band-photo: max(3rem, min(calc(34dvh - var(--band-chrome)), calc(100dvh - var(--band-reserve))));
   flex: none;
   background: var(--album-mat);
-  padding: 1rem 0 0.75rem;
+  padding: 1rem 0 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.25rem;
+}
+
+/* 写真の帯と、その両脇に重ねる矢印の台 */
+.album-stage {
+  position: relative;
 }
 
 .album-strip {
@@ -690,7 +696,8 @@ nav.top button {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0 2rem;
+  /* 両脇に矢印の幅と隙間を空け、矢印が写真に重ならないようにする（矢印は端から 0.25rem。写真との間は 0.5rem 以上） */
+  padding: 0 calc(var(--tap-min) + 0.75rem);
   min-height: calc(var(--band-photo) + 1rem);
 }
 
@@ -741,29 +748,32 @@ nav.top button {
   clip-path: polygon(100% 0, 0 100%, 100% 100%);
 }
 
-.album-nav {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--tap-gap);
-  padding: 0 var(--page-pad);
-}
-
 .album-count span {
   display: inline-block;
   max-width: 100%;
 }
 
 .album-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   width: var(--tap-min);
   height: var(--tap-min);
   padding: 0;
-  background: transparent;
+  background: var(--album-mat);
   border-color: var(--album-on-mat);
   color: var(--album-on-mat);
 }
 
 /* 端では押せない。色を落とす（disabled で読み上げにも伝わる） */
+.album-arrow.prev {
+  left: 0.25rem;
+}
+
+.album-arrow.next {
+  right: 0.25rem;
+}
+
 .album-arrow:disabled {
   opacity: 1;
   border-color: var(--album-off-mat);
@@ -777,8 +787,9 @@ nav.top button {
 .album-count {
   margin: 0;
   word-break: keep-all; /* 「4枚のうち 1枚」を数と「枚」の間で折らない（空白でだけ折る） */
-  overflow-wrap: anywhere; /* 欄に収まらないときだけ、語の中でも折る（矢印に重ねない） */
+  overflow-wrap: anywhere; /* 欄に収まらないときだけ、語の中でも折る */
   min-width: 0;
+  padding: 0 var(--page-pad);
   text-align: center;
   font-size: var(--font-sub);
   color: var(--album-on-mat);
@@ -855,4 +866,26 @@ nav.top button {
 /* 「リンクを作り直す」の最後の一文字だけが次の行に落ちないよう、ボタンの中では折らない（並びごと折り返す） */
 .card-actions .aux {
   white-space: nowrap;
+}
+
+/*
+ * 今日の入り口の「声で」「文字で」の段。スクロールする欄の外（欄とタブの間）に置き、欄の中を隠さない（0034）。
+ * 文字の欄・録音もこの段で開く。地は画面と同じ色で上に細い線（タブとは別のもの。チャットの入力欄の形にしない）
+ */
+.home-dock {
+  flex: none;
+  background: var(--home-bg);
+  border-top: 1px solid var(--line);
+  padding: 0.5rem var(--page-pad);
+}
+
+.home-dock > .answer {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+/* 幅 360px・文字 150% で「文字／で」「やめ／る」と折れて段が高くならないよう、横の余白を詰めて折らない */
+.home-dock .grid2 > button {
+  white-space: nowrap;
+  padding-inline: 0.5rem;
 }

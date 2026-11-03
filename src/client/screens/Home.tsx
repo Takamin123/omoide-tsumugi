@@ -1,14 +1,16 @@
 // 家族の画面（スマホ）: 下のタブ「今日」「アルバム」。開いたときは常に「今日」（最後に見たタブを端末に覚えない）。
-// 今日: 上にメニュー、自分の今日の入り口と答え、その下に入り口の写真の語りと返事。
+// 今日: 上にメニュー、自分の今日の入り口、その下に入り口の写真の語りと返事。答える前は「声で」「文字で」を欄の外のタブのすぐ上の段に置く（0034）。
 // アルバム: 語りのある写真の帯と、写真ごとの語りの縦の欄（parts/Album.tsx）。上にメニューは置かない。
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
 // 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は長さの入った「声で聞く」のボタンで流す。
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
 import { api } from "../lib/api";
 import { keepOrder } from "../lib/album";
 import { ComposingContext, ComposingSet } from "../lib/composing";
 import { errorText } from "../lib/errors";
+import { answerPlace } from "../lib/pure";
+import { SENT_NOTICE_MS } from "../lib/useSender";
 import { navigate } from "../lib/route";
 import { Album, type AlbumItem } from "../parts/Album";
 import { DemoBar, type DemoProps } from "../parts/DemoBar";
@@ -33,6 +35,14 @@ export function Home({ view, me, demo }: Props) {
   /** アルバムで見ている写真。タブを行き来しても同じ写真に戻る */
   const [albumCurrent, setAlbumCurrent] = useState<string | null>(null);
   const [openReplyId, setOpenReplyId] = useState<string | null>(null);
+  /** 下の段の文字の欄・録音が開いているか（ほかの入力欄と分ける） */
+  const [dockComposing, setDockComposing] = useState(false);
+  /** 今日の入り口に、この画面で答えを送った（一覧の読み直しを待たずに段を閉じる） */
+  const [answeredHere, setAnsweredHere] = useState(false);
+  /** 段を閉じた後、問いかけの下に「送りました」を出しておく */
+  const [sentNotice, setSentNotice] = useState(false);
+  const sentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(sentTimer.current), []);
 
   const loadFeed = useCallback(async (): Promise<AlbumItem[] | null> => {
     try {
@@ -80,9 +90,32 @@ export function Home({ view, me, demo }: Props) {
     if (tab === "album" && feed && !albumOrder) setAlbumOrder(feed.map((it) => it.photo.id));
   }, [tab, feed, albumOrder]);
 
+  const onAnswered = useCallback(() => {
+    setAnsweredHere(true);
+    setDockComposing(false);
+    setSentNotice(true);
+    clearTimeout(sentTimer.current);
+    sentTimer.current = setTimeout(() => setSentNotice(false), SENT_NOTICE_MS);
+    void loadFeed();
+  }, [loadFeed]);
+
   let body;
+  let dock = null;
   if (tab === "today") {
     const todays = entrance && feed?.find((it) => it.photo.id === entrance.photo.id);
+    // もう答えたか（この端末の人の、今日の入り口への語りがある）。答えた後は段に置かず、問いかけの下に戻す
+    const answered =
+      answeredHere || (!!entrance && !!todays?.narrations.some((n) => n.entranceId === entrance.id && n.speakerMemberId === me.id));
+    // ほかの入力欄（語りへの返事。ボタンを選ぶ前も含む）が開いている間は段を描かない。段の中で書いている間は段を残す（書きかけを消さない）
+    const place = answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null));
+    const answerTarget = entrance ? { photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null } : null;
+    if (place === "dock" && answerTarget) {
+      dock = (
+        <div className="home-dock">
+          <ReplyBox target={answerTarget} onSent={onAnswered} onComposing={setDockComposing} />
+        </div>
+      );
+    }
     body = (
       <div className="home-scroll">
         <main className="stack home">
@@ -99,10 +132,11 @@ export function Home({ view, me, demo }: Props) {
           {entrance && (
             <section className="stack">
               <EntranceView entrance={entrance} members={view.members} variant="family" />
-              <ReplyBox
-                target={{ photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }}
-                onSent={() => void loadFeed()}
-              />
+              <div aria-live="polite">
+                {sentNotice && <p className="done">{w.sent}</p>}
+              </div>
+              {/* 答えた後は流れの中。もう一度答えたときの「送りました」は ReplyBox が出す */}
+              {place === "flow" && answerTarget && <ReplyBox target={answerTarget} onSent={() => void loadFeed()} />}
             </section>
           )}
 
@@ -149,6 +183,7 @@ export function Home({ view, me, demo }: Props) {
     <ComposingContext.Provider value={composingSet}>
       <div className="home-shell">
         {body}
+        {dock}
         <TabBar tab={tab} onChange={changeTab} composing={composing} />
       </div>
     </ComposingContext.Provider>

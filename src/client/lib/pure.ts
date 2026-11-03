@@ -122,3 +122,19 @@ export function screenFor(me: { role: "elder" | "family" } | null, memberCount: 
   if (path === "/photos") return "photos";
   return "home";
 }
+
+/** 今日の入り口の「声で」「文字で」を置く所（0034） */
+export type AnswerPlace = "dock" | "flow" | "none";
+
+/**
+ * - 入り口がない（読み込み中・写真がない）: 置かない
+ * - 答えた後: 問いかけの下の流れに戻す（もう一度答えられる。下の段には留めない）
+ * - ほかの入力欄（語りへの返事）が開いている間: タブと同じく描かない
+ * - それ以外: スクロールする欄の外の、タブのすぐ上の段（文字の欄・録音もそこで開く）
+ */
+export function answerPlace(hasEntrance: boolean, answered: boolean, otherComposing: boolean): AnswerPlace {
+  if (!hasEntrance) return "none";
+  if (answered) return "flow";
+  if (otherComposing) return "none";
+  return "dock";
+}

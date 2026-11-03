@@ -115,14 +115,26 @@ describe("アルバム", () => {
     expect(words.home.albumPosition(1, 4)).toBe("4枚のうち 1枚");
     expect(words.home.albumPositionParts(1, 4)).toEqual(["4枚のうち", "1枚"]);
     expect(html).toContain('<p class="album-count" aria-live="polite"><span>4枚のうち</span><span> 1枚</span></p>');
-    expect(html).toMatch(new RegExp(`<button type="button" class="album-arrow" aria-label="${words.home.albumPrev}" disabled="">`));
-    expect(html).toMatch(new RegExp(`<button type="button" class="album-arrow" aria-label="${words.home.albumNext}">`));
+    expect(html).toMatch(new RegExp(`<button type="button" class="album-arrow prev" aria-label="${words.home.albumPrev}" disabled="">`));
+    expect(html).toMatch(new RegExp(`<button type="button" class="album-arrow next" aria-label="${words.home.albumNext}">`));
   });
   it("最後の写真では右の矢印が押せない", () => {
     const html = renderAlbum({ currentId: "p-4" });
     expect(html).toContain("<span>4枚のうち</span><span> 4枚</span>");
     expect(html).toMatch(new RegExp(`aria-label="${words.home.albumPrev}">`));
     expect(html).toMatch(new RegExp(`aria-label="${words.home.albumNext}" disabled="">`));
+  });
+  it("矢印は写真の帯と同じ台（album-stage）の中で両脇に重ね、矢印だけの行は置かない。何枚目かは帯の下の一行", () => {
+    const html = renderAlbum();
+    expect(html).not.toContain("album-nav");
+    const stage = html.slice(html.indexOf('<div class="album-stage">'), html.indexOf('<p class="album-count"'));
+    expect(stage).toContain('class="album-strip"');
+    expect(stage).toContain('class="album-arrow prev"');
+    expect(stage).toContain('class="album-arrow next"');
+    const css = fs.readFileSync(path.join(repoRoot, "src/client/styles.css"), "utf8") as string;
+    expect(css).toMatch(/\.album-arrow \{[^}]*position: absolute;[^}]*width: var\(--tap-min\);[^}]*height: var\(--tap-min\);/);
+    // 矢印の幅と隙間の分だけ写真の両脇を空ける（矢印が写真に重ならない）
+    expect(css).toMatch(/\.album-slide \{[^}]*padding: 0 calc\(var\(--tap-min\) \+ 0\.75rem\);/);
   });
   it("一枚だけなら、どちらの矢印も押せない", () => {
     const html = renderAlbum({ items: items.slice(0, 1) });
