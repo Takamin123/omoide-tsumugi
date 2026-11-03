@@ -1,6 +1,6 @@
 // 家族の画面のアルバム: 上に写真の帯（黒い台紙、白い縁、淡い写真コーナー。左右の矢印は写真の両脇に重ねる）、その下に何枚目かの一行、
-// 下に写真ごとの語りの縦の欄。
-// 帯と語りは連動する（lib/album.ts）。縦に読んで次の写真の語りが上に来たら帯が一度だけ切り替わり、
+// 下に写真ごとの語りの縦の欄。欄の節の頭には見出し（小さい写真・撮影日・何枚目か）があり、欄の上端に貼り付く（0041）。
+// 帯と語りは連動する（lib/album.ts）。縦に読んで次の写真の見出しが欄の上端に届いたら帯が一度だけ切り替わり、
 // 帯をめくるか矢印を押すと語りがその写真の頭まで動く。往復はしない。動きを減らす設定では動かさずに切り替える。
 // 出すのは家族の語り・返事・撮影日だけ。語りのある写真がなければ何も出さない（催促や状態の文を出さない）。
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -28,9 +28,6 @@ type Props = {
 
 /** 帯が止まってから、写真を押して開けるまでの間（ミリ秒） */
 const BAND_SETTLE_MS = 250;
-
-/** 語りの節の頭が、欄の上からこの距離に入ったら「上に来た」とみなす（欄の高さの 1/4、最大 96px） */
-const topZone = (paneHeight: number) => Math.min(paneHeight * 0.25, 96);
 
 const reducedMotion = () =>
   typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -112,8 +109,9 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
       moveBand(i, true);
     }
     gate.moving("text");
-    // 上に少し余白を残す（話者名が欄の縁に付かないように）
-    text.scrollTo({ top: Math.max(0, target.offsetTop - 16), behavior: reducedMotion() ? "auto" : "smooth" });
+    // 上に貼り付いた見出しの下に、少し余白を残す（話者名が見出しに隠れず、線に付かないように）
+    const head = sec?.querySelector<HTMLElement>(".album-head")?.offsetHeight ?? 0;
+    text.scrollTo({ top: Math.max(0, target.offsetTop - head - 16), behavior: reducedMotion() ? "auto" : "smooth" });
     // 移ってきたときだけフォーカスを置けるようにする（ふだん語りを触ってもフォーカスの枠を出さない）。離れたら外す
     target.tabIndex = -1;
     target.addEventListener("blur", () => target.removeAttribute("tabindex"), { once: true });
@@ -216,7 +214,7 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
           if (!gate.scrolled("text") || composing) return;
           const text = e.currentTarget;
           const offsets = sections().map((s) => s.offsetTop);
-          const i = sectionAtTop(offsets, text.scrollTop, topZone(text.clientHeight));
+          const i = sectionAtTop(offsets, text.scrollTop);
           if (i !== indexRef.current) {
             select(i);
             moveBand(i, true);
@@ -228,7 +226,9 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
         {items.map((it, i) => {
           const taken = formatTakenDate(it.photo.takenAt);
           return (
-            // 撮影日がなければ線だけ（「撮影日なし」は出さない）。区切りは読み上げの名前「4枚のうち 2枚」で伝える
+            // 見出し: 小さい写真（帯と同じ写真。押しても何もしない）、撮影日（なければ出さない。「撮影日なし」は出さない）、何枚目か
+            // （一行に入らない幅では、画面ごとに何枚目かを出さない。styles.css の .album-ordinal）。
+            // 読み上げでは節の名前「4枚のうち 2枚」で区切りを伝え、見える「2枚目」は重ねて読ませない
             <section
               key={it.photo.id}
               data-photo={it.photo.id}
@@ -236,10 +236,13 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
               aria-label={w.albumPosition(i + 1, count)}
               ref={i === count - 1 ? lastRef : undefined}
             >
-              <p className="album-date">
-                {taken && <span>{taken}</span>}
-                <span className="album-rule" aria-hidden="true" />
-              </p>
+              <div className="album-head">
+                <img className="album-thumb" src={it.photo.imageUrl} alt="" loading="lazy" decoding="async" />
+                <p className="album-head-text">
+                  {taken && <span>{taken}</span>}
+                  <span className="album-ordinal" aria-hidden="true">{w.albumOrdinal(i + 1)}</span>
+                </p>
+              </div>
               <Narrations
                 narrations={it.narrations}
                 nameOf={nameOf}
