@@ -23,6 +23,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** 消す順（外部キーの子から）。families だけは id で引く。schema.ts の表を全部含む（test/delete-family.test.ts が確かめる） */
 export const FAMILY_TABLES = [
   "records",
+  "record_extractions",
   "musubi_photos",
   "musubi",
   "photo_guess_requests",

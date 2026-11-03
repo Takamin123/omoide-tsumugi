@@ -310,6 +310,77 @@ export interface PhotoGuessRepository {
   listByFamily(familyId: string): Promise<PhotoGuessRow[]>;
 }
 
+// ---- 記録の取り出し（extract_records。0039） ----
+// 家族が語った言葉から、人・場所・時期・出来事を、語りの本文そのままで抜き出したもの（origin = 'told'）。
+// 値は語りの本文の連続した部分（言い換え・正規化しない）。位置は quoteSource の位置。家族には見せない（今は材料だけ）
+
+export type RecordKind = "person" | "place" | "time" | "event";
+
+export interface RecordRow {
+  id: string;
+  familyId: string;
+  photoId: string | null;
+  kind: RecordKind;
+  value: string;
+  origin: "told" | "guessed";
+  toldByMemberId: string | null;
+  narrationId: string | null;
+  quoteStart: number | null;
+  quoteEnd: number | null;
+  model: string | null;
+  promptVersion: string | null;
+  createdAt: number;
+}
+
+/** 語りから取り出した記録（told）。出所は語り手と語り。model と promptVersion は持たない（records_origin の CHECK） */
+export interface NewToldRecord {
+  id: string;
+  familyId: string;
+  photoId: string;
+  kind: RecordKind;
+  value: string;
+  toldByMemberId: string;
+  narrationId: string;
+  quoteStart: number;
+  quoteEnd: number;
+  createdAt: number;
+}
+
+export interface RecordExtractionRow {
+  narrationId: string;
+  familyId: string;
+  promptVersion: string;
+  model: string | null;
+  state: "done" | "failed";
+  attempts: number;
+  inputTokens: number;
+  outputTokens: number;
+  createdAt: number;
+}
+
+/** 取り出しの一回の記録（保存のときに渡す） */
+export type RecordExtractionAttempt = Omit<RecordExtractionRow, "state" | "attempts">;
+
+export interface RecordRepository {
+  listByFamily(familyId: string): Promise<RecordRow[]>;
+}
+
+export interface RecordExtractionRepository {
+  /**
+   * まだ取り出していない語り（作業の行がない、または failed で attempts が maxAttempts 未満）。古い順に limit 件まで。
+   * 声の語りで整形がまだのものも返す（使えるかは呼ぶ側が quoteSource で決める）
+   */
+  listPending(familyId: string, maxAttempts: number, limit: number): Promise<NarrationRow[]>;
+  /**
+   * 取り出せたことを入れる（一度に）。done の行がまだないときだけ records を入れ、作業の行を done にする。
+   * records が空でも done を残す
+   */
+  saveDone(attempt: RecordExtractionAttempt, records: NewToldRecord[]): Promise<void>;
+  /** 失敗にする（attempts を一つ増やす）。done の行は変えない */
+  markFailed(attempt: RecordExtractionAttempt): Promise<void>;
+  listByFamily(familyId: string): Promise<RecordExtractionRow[]>;
+}
+
 // ---- 運営の記録の画面（運営と開発だけが見る。家族向けの API には使わない） ----
 
 /**
@@ -338,6 +409,8 @@ export interface Repositories {
   narrations: NarrationRepository;
   entrances: EntranceRepository;
   photoGuesses: PhotoGuessRepository;
+  records: RecordRepository;
+  recordExtractions: RecordExtractionRepository;
   opsRecords: OpsRecordRepository;
 }
 
@@ -380,7 +453,7 @@ export interface TranscribeProbeResult {
 // 応答は外から来るデータとして、実装が zod で検証してから返す。失敗は投げずに種類で返す。全か無か。
 
 /** Claude を使う用途。用途 → モデルは core/claude.ts の対応表で一か所に持つ */
-export type ClaudePurpose = "photo_guess" | "clean_transcript" | "entrance";
+export type ClaudePurpose = "photo_guess" | "clean_transcript" | "entrance" | "extract_records";
 
 /** プロンプト（system に入れる）。src/server/prompts/ が用途ごとに今の版を一つ持つ */
 export interface ClaudePrompt {

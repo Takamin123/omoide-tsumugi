@@ -3,6 +3,7 @@ import { ensureMorningEntrance } from "./entrance-claude";
 import { runPhotoGuesses } from "./photo-guess";
 import type { AppDeps, EntranceRow } from "./ports";
 import { ensureQuestionAudio } from "./question-speech";
+import { runRecordExtraction } from "./record-extraction";
 
 /**
  * Claude の入り口を試してよい時間（処理の始まりから）。過ぎたら残りの人は固定の入り口にする。
@@ -37,6 +38,7 @@ export interface MorningSummary {
  * - familyId を渡したらその家族だけ。渡さなければ、時計を持たない家族すべて（時計を持つ家族の朝はボタンで来る。0009）
  * - 「今日」は家族ごとに決める: 時計があればその日付、なければ now の日本時間の日付
  * - 家族ごとに、入り口づくりの前に写真の説明づくりを一回進める（runPhotoGuesses。失敗しても入り口づくりは続ける）
+ * - 続けて、未処理の語りから記録（人・場所・時期・出来事）を取り出す（runRecordExtraction。0039。投げない）
  * - 一人ひとりに、その日の入り口がなければ Claude の入り口を試し、だめなら固定の入り口を作る（ensureMorningEntrance）
  *   キーがない、または MORNING_CLAUDE_BUDGET_MS を過ぎたら、Claude を呼ばずに固定の入り口
  * - 全員の入り口を作った後に、今日の Claude の入り口に問いかけの読み上げの音声を作る（ensureQuestionAudio。0029）
@@ -70,6 +72,8 @@ export async function runMorning(
     if (!family) continue;
     // 写真の説明（推測）づくりを先に進める: 終わった Batch の回収と、まだ説明のない写真。投げない
     await runPhotoGuesses(deps, familyId);
+    // 語りからの記録の取り出し（本文のまま。投げない。予算を超えた語りは翌朝）
+    await runRecordExtraction(deps, familyId, { traceId: runId });
     const forDate = familyToday(family, now);
     const members = await deps.repos.members.list(familyId);
     for (const member of members) {

@@ -80,6 +80,11 @@ async function seedFamily(d1: D1Database, bucket: R2Bucket, id: string, isDemo: 
     d1
       .prepare("INSERT INTO records (id, family_id, photo_id, kind, value, origin, told_by_member_id, narration_id, created_at) VALUES (?, ?, ?, 'place', '架空', 'told', ?, ?, ?)")
       .bind(`${p}-r1`, id, `${p}-ph`, `${p}-m1`, `${p}-n1`, now),
+    d1
+      .prepare(
+        "INSERT INTO record_extractions (narration_id, family_id, prompt_version, model, state, attempts, input_tokens, output_tokens, created_at) VALUES (?, ?, 'extract_records/v1', 'm', 'done', 1, 1, 1, ?)",
+      )
+      .bind(`${p}-n1`, id, now),
     d1.prepare("INSERT INTO musubi (id, family_id, created_by, created_at) VALUES (?, ?, 'family', ?)").bind(`${p}-mu`, id, now),
     d1
       .prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, evidence_narration_id, created_at) VALUES (?, ?, ?, 'confirmed', ?, ?)")
@@ -91,7 +96,7 @@ async function seedFamily(d1: D1Database, bucket: R2Bucket, id: string, isDemo: 
 }
 
 const ONE_EACH = Object.fromEntries(
-  ["records", "musubi_photos", "musubi", "photo_guess_requests", "photo_guesses", "narrations", "entrances", "photos", "invite_links", "members", "families"].map(
+  ["records", "record_extractions", "musubi_photos", "musubi", "photo_guess_requests", "photo_guesses", "narrations", "entrances", "photos", "invite_links", "members", "families"].map(
     (t) => [t, 1],
   ),
 );
