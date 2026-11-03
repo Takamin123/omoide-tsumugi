@@ -39,7 +39,7 @@ export const words = {
   member: {
     addTitle: "家族を足す",
     selfTitle: "あなたのこと",
-    relation: "続柄",
+    relation: "家族の中での立場",
     relationHint: "例: 祖母、母、孫",
     calledAs: "呼ばれ方",
     calledAsHint: "例: ばあば",
