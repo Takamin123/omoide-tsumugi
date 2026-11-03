@@ -48,5 +48,15 @@ export function entranceView(e: EntranceRow, photo: PhotoRow, quoteFrom: Narrati
   if (quoteFrom && text !== null && text.length > 0) {
     quote = { narrationId: quoteFrom.id, speakerMemberId: quoteFrom.speakerMemberId, text };
   }
-  return { id: e.id, memberId: e.memberId, forDate: e.forDate, photo: photoView(photo), focus: e.focus, quote, question: e.question };
+  return {
+    id: e.id,
+    memberId: e.memberId,
+    forDate: e.forDate,
+    photo: photoView(photo),
+    focus: e.focus,
+    quote,
+    question: e.question,
+    // 音声があるときだけ。合言葉を確かめてから返す入り口（鍵そのもの、モデル、声は出さない）
+    questionAudioUrl: e.questionAudioKey ? `/api/entrances/${encodeURIComponent(e.id)}/question-audio` : null,
+  };
 }

@@ -63,7 +63,7 @@ function writeBuildOutput(dir: string, b: Built) {
       vars: { APP_ENV: b.APP_ENV },
       d1_databases: [{ binding: "DB", database_name: b.d1.name, database_id: b.d1.id, migrations_dir: "../../drizzle/migrations" }],
       r2_buckets: [{ binding: "BUCKET", bucket_name: b.r2 }],
-      triggers: { crons: b.crons ?? ["0 21 * * *"] },
+      triggers: { crons: b.crons ?? ["0 18 * * *"] },
     }),
   );
 }
@@ -256,7 +256,7 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     expect(c.vars).toEqual({ APP_ENV: "production" });
     expect(c.d1_databases.map((d: { database_name: string; database_id: string }) => [d.database_name, d.database_id])).toEqual([["omoide-tsumugi", PROD_ID]]);
     expect(c.r2_buckets.map((b: { bucket_name: string }) => b.bucket_name)).toEqual(["omoide-tsumugi"]);
-    expect(c.triggers.crons).toEqual(["0 21 * * *"]);
+    expect(c.triggers.crons).toEqual(["0 18 * * *"]);
     expect(run(dir, ["production"]).status).toBe(0);
     expect(run(dir, ["preview"]).status).toBe(1);
     // 本番のビルドには、開発用の /check の chunk も、その中身も入らない
@@ -273,7 +273,7 @@ describe("assert-build-env.mjs（一時コピーで本物の vite build をし�
     expect(c.vars).toEqual({ APP_ENV: "preview" });
     expect(c.d1_databases.map((d: { database_name: string; database_id: string }) => [d.database_name, d.database_id])).toEqual([["omoide-tsumugi-preview", PREVIEW_ID]]);
     expect(c.r2_buckets.map((b: { bucket_name: string }) => b.bucket_name)).toEqual(["omoide-tsumugi-preview"]);
-    expect(c.triggers.crons).toEqual(["0 21 * * *"]);
+    expect(c.triggers.crons).toEqual(["0 18 * * *"]);
     expect(run(dir, ["preview"]).status).toBe(0);
     expect(run(dir, ["production"]).status).toBe(1);
     // プレビューのビルドには、開発用の /check の chunk が入る

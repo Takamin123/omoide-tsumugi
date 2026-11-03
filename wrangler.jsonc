@@ -26,8 +26,8 @@
     }
   ],
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "omoide-tsumugi" }],
-  // 毎朝 6:00（日本時間）= 21:00 UTC
-  "triggers": { "crons": ["0 21 * * *"] },
+  // 毎朝 3:00（日本時間）= 18:00 UTC（0027。6:00 より前に開くと固定の入り口になるのを避ける）
+  "triggers": { "crons": ["0 18 * * *"] },
 
   "env": {
     // ---- プレビュー（develop ブランチ） ----
@@ -43,7 +43,7 @@
         }
       ],
       "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "omoide-tsumugi-preview" }],
-      "triggers": { "crons": ["0 21 * * *"] }
+      "triggers": { "crons": ["0 18 * * *"] }
     }
   }
 }

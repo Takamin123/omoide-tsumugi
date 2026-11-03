@@ -127,8 +127,21 @@ export interface EntranceRow {
   inputNarrationIds: string[] | null;
   inputTokens: number | null;
   outputTokens: number | null;
+  /**
+   * 問いかけの読み上げの音声（0019、0029）。kind='claude' の入り口だけが持つ。毎朝の処理が作る。なければ null。
+   * key は PhotoStore の鍵。model と voice は出所（作ったときの設定）。家族向けの API には URL だけを出す
+   */
+  questionAudioKey: string | null;
+  questionAudioModel: string | null;
+  questionAudioVoice: string | null;
   shownAt: number | null;
   createdAt: number;
+}
+/** 入り口に付ける読み上げの音声の記録 */
+export interface EntranceQuestionAudio {
+  key: string;
+  model: string;
+  voice: string;
 }
 /** 固定の入り口（Claude を使わない）。question も model も持たない。 */
 export type NewFixedEntrance = Pick<
@@ -206,6 +219,11 @@ export interface EntranceRepository {
   insertClaudeIfAbsent(row: NewClaudeEntrance): Promise<boolean>;
   /** 初めて見せた時刻を入れる（すでにあれば変えない）。 */
   markShown(familyId: string, entranceId: string, now: number): Promise<void>;
+  /**
+   * 問いかけの読み上げの音声を入れる。kind='claude' で、まだ音声がなく、まだ家族に見せていない（shown_at が null）ときだけ。
+   * 入れたら true（入らなければ、呼ぶ側が保存した音声を消す）
+   */
+  setQuestionAudio(familyId: string, entranceId: string, audio: EntranceQuestionAudio): Promise<boolean>;
 }
 
 // ---- 写真の初回整理（photo_guess） ----
@@ -481,6 +499,45 @@ export type SpeechProbeResult =
       body: unknown;
     };
 
+/**
+ * 問いかけの読み上げ（本番。0019、0029）。毎朝の処理だけが呼ぶ。家族が画面を開いたときには呼ばない。
+ * SpeechProbe と違い、応答を検証してから返す（音声の形式と大きさ）。失敗は投げずに種類で返す。全か無か。
+ * 時間切れ・再試行は implementation-policy 2 のとおり。ただし deadline を過ぎる呼び出しや再試行はしない
+ */
+export interface Speaker {
+  speak(input: SpeakInput): Promise<SpeakResult>;
+}
+export interface SpeechSettings {
+  model: string;
+  voice: string;
+  speed: number;
+  /** 声への指示 */
+  instructions: string;
+  /** 受け取る形式（OpenAI の response_format） */
+  format: "mp3";
+}
+export interface SpeakInput {
+  /** 読む文（検査を通った問いかけ）。ログに出さない */
+  text: string;
+  settings: SpeechSettings;
+  /** この時刻（ミリ秒）を過ぎる待ちや呼び出しはしない */
+  deadline?: number;
+  /** 処理の ID（ログで追うため） */
+  traceId?: string;
+}
+export type SpeechFailure =
+  | "timeout"
+  | "network"
+  | "rate_limited"
+  | "upstream"
+  | "rejected"
+  | "auth"
+  | "invalid_response"
+  | "past_deadline";
+export type SpeakResult =
+  | { ok: true; audio: Uint8Array; contentType: string; attempts: number }
+  | { ok: false; reason: SpeechFailure; attempts: number };
+
 // ---- 設定と依存 ----
 
 export interface AppConfig {
@@ -510,6 +567,8 @@ export interface AppDeps {
   transcribeProbe: TranscribeProbe | null;
   /** 開発用の読み上げの確かめ。キーがなければ null */
   speechProbe: SpeechProbe | null;
+  /** 問いかけの読み上げ（毎朝の処理）。キーがなければ null（音声を作らない） */
+  speaker: Speaker | null;
   runInBackground: RunInBackground;
   config: AppConfig;
   now: () => Date;
