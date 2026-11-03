@@ -11,7 +11,7 @@ export function WhoAreYou({ view, onChosen }: { view: FamilyView; onChosen: (mem
     return (
       <main>
         <h1>{view.members.length === 0 ? words.who.firstTitle : words.member.selfTitle}</h1>
-        <MemberForm setUpByMemberId={null} onAdded={(m) => onChosen(m.id)} />
+        <MemberForm setUpByMemberId={null} onDone={(m) => onChosen(m.id)} />
         {view.members.length > 0 && (
           <button type="button" className="wide" style={{ marginTop: "1rem" }} onClick={() => setAdding(false)}>
             {words.home.cancel}

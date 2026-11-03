@@ -8,6 +8,8 @@ const { createElement: h } = await load("react");
 const { renderToStaticMarkup } = await load("react-dom/server");
 const { EntranceView } = await load("../../src/client/parts/EntranceView");
 const { DemoBar } = await load("../../src/client/parts/DemoBar");
+const { MemberForm } = await load("../../src/client/parts/MemberForm");
+const { FamilySetup } = await load("../../src/client/screens/FamilySetup");
 const { words } = await load("../../src/client/words");
 const { AUDIO_FILE_ACCEPT } = await load("../../src/client/lib/voice");
 
@@ -100,6 +102,51 @@ describe("デモの帯", () => {
   });
   it("祖父母の画面は、送っている間 audioDisabled を立てる", () => {
     expect(stripComments(read("src/client/screens/Elder.tsx"))).toContain('audioDisabled={sender.state === "sending"}');
+  });
+});
+
+describe("家族のこと: 一人ひとりを直す", () => {
+  const grandma = {
+    id: "m-grandma",
+    role: "elder",
+    relation: "祖母",
+    calledAs: "ばあば",
+    speechStyle: "dialect",
+    dialectRegion: "鹿児島",
+    setUpByMemberId: "m-mother",
+  };
+  it("一覧の一人ひとりに「直す」があり、閉じているときは入力欄を出さない", () => {
+    const mother = { id: "m-mother", role: "family", relation: "母", calledAs: "おかあさん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null };
+    const view = { family: { id: "f", isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: true }, members: [grandma, mother] };
+    const html = renderToStaticMarkup(
+      h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} }),
+    ) as string;
+    expect(words.member.edit).toBe("直す");
+    expect(html.match(new RegExp(`<button[^>]*>${words.member.edit}</button>`, "g"))).toHaveLength(2);
+    // 入力欄は「足す」の一つだけ（直す欄は閉じている）
+    expect(html.match(/<form/g)).toHaveLength(1);
+    expect(html).not.toContain(`value="ばあば"`);
+  });
+  it("直す入力欄は、その人の今の内容が入り、送るボタンは「直す」、閉じるボタンは「やめる」", () => {
+    const html = renderToStaticMarkup(
+      h(MemberForm, { initial: grandma, setUpByMemberId: grandma.setUpByMemberId, submitLabel: words.member.edit, send: async () => grandma, onCancel: () => {} }),
+    ) as string;
+    expect(html).toContain('value="祖母"');
+    expect(html).toContain('value="ばあば"');
+    expect(html).toContain('value="鹿児島"');
+    expect(html).toMatch(/<input type="radio" name="role" checked=""[^>]*\/>声で答える/);
+    expect(html).toMatch(/<input type="radio" name="speech" checked=""[^>]*\/>方言/);
+    expect(html).toMatch(/<button type="submit"[^>]*>直す<\/button>/);
+    expect(html).toMatch(/<button type="button"[^>]*>やめる<\/button>/);
+  });
+  it("足すときは空の欄で、「やめる」は onCancel を渡したときだけ", () => {
+    const html = renderToStaticMarkup(h(MemberForm, { setUpByMemberId: null })) as string;
+    expect(html).not.toContain('value="ばあば"');
+    expect(html).toMatch(/<button type="submit"[^>]*>足す<\/button>/);
+    expect(html).not.toContain(words.home.cancel);
+  });
+  it("直すときは、代わりに設定した人を今の値のまま送る", () => {
+    expect(stripComments(read("src/client/screens/FamilySetup.tsx"))).toContain("setUpByMemberId={m.setUpByMemberId}");
   });
 });
 

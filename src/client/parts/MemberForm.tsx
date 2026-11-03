@@ -1,4 +1,5 @@
-// 家族の一人を足すフォーム。setUpByMemberId は呼ぶ側が決める（自分で自分なら null、ほかの人なら入れた人）
+// 家族の一人を足す・直すフォーム。
+// setUpByMemberId は呼ぶ側が決める（足すとき: 自分で自分なら null、ほかの人なら入れた人。直すとき: 今の値のまま）
 import { useState, type FormEvent } from "react";
 import { memberInputSchema, type Member, type MemberInput } from "../../shared/api";
 import { api } from "../lib/api";
@@ -8,16 +9,22 @@ import { ErrorLine } from "./ErrorLine";
 
 type Props = {
   setUpByMemberId: string | null;
+  /** 直すときの今の内容。ないときは空の欄で足す */
+  initial?: Member;
+  /** 送り先。既定は足す（api.addMember） */
+  send?: (input: MemberInput) => Promise<Member>;
   submitLabel?: string;
-  onAdded: (m: Member) => void;
+  onDone?: (m: Member) => void;
+  /** あれば「やめる」を出す */
+  onCancel?: () => void;
 };
 
-export function MemberForm({ setUpByMemberId, submitLabel, onAdded }: Props) {
-  const [relation, setRelation] = useState("");
-  const [calledAs, setCalledAs] = useState("");
-  const [role, setRole] = useState<MemberInput["role"]>("family");
-  const [speechStyle, setSpeechStyle] = useState<MemberInput["speechStyle"]>("standard");
-  const [dialectRegion, setDialectRegion] = useState("");
+export function MemberForm({ setUpByMemberId, initial, send = api.addMember, submitLabel, onDone, onCancel }: Props) {
+  const [relation, setRelation] = useState(initial?.relation ?? "");
+  const [calledAs, setCalledAs] = useState(initial?.calledAs ?? "");
+  const [role, setRole] = useState<MemberInput["role"]>(initial?.role ?? "family");
+  const [speechStyle, setSpeechStyle] = useState<MemberInput["speechStyle"]>(initial?.speechStyle ?? "standard");
+  const [dialectRegion, setDialectRegion] = useState(initial?.dialectRegion ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,13 +45,15 @@ export function MemberForm({ setUpByMemberId, submitLabel, onAdded }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const m = await api.addMember(parsed.data);
-      setRelation("");
-      setCalledAs("");
-      setRole("family");
-      setSpeechStyle("standard");
-      setDialectRegion("");
-      onAdded(m);
+      const m = await send(parsed.data);
+      if (!initial) {
+        setRelation("");
+        setCalledAs("");
+        setRole("family");
+        setSpeechStyle("standard");
+        setDialectRegion("");
+      }
+      onDone?.(m);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -98,6 +107,11 @@ export function MemberForm({ setUpByMemberId, submitLabel, onAdded }: Props) {
       <button type="submit" className="primary" disabled={busy}>
         {submitLabel ?? w.submit}
       </button>
+      {onCancel && (
+        <button type="button" className="wide" onClick={onCancel} disabled={busy}>
+          {words.home.cancel}
+        </button>
+      )}
     </form>
   );
 }

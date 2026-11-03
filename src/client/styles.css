@@ -144,6 +144,11 @@ button:disabled {
   font-weight: bold;
 }
 
+/* hidden 属性は、display を持つクラス（.stack など）より強くする */
+[hidden] {
+  display: none !important;
+}
+
 .stack {
   display: flex;
   flex-direction: column;

@@ -52,6 +52,7 @@ export const words = {
     dialectRegion: "地域",
     dialectRegionHint: "例: 鹿児島",
     submit: "足す",
+    edit: "直す",
     summary: (calledAs: string, relation: string) => `${calledAs}（${relation}）`,
     details: (screen: string, speech: string) => `${screen}・${speech}`,
     dialectOf: (region: string) => `方言（${region}）`,
