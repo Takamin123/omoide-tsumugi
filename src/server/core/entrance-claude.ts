@@ -7,7 +7,7 @@
 // - 引用は Claude に文字列そのものを返させ、位置はアプリが探す（locateQuote）
 // - 毎朝の処理（Cron とデモの時計のボタン）からだけ呼ぶ。家族が画面を開いたときには呼ばない
 // - entrance/v3（0046）: むすび（同じ出来事の推測）を、候補の並び（g1a）と Claude への入力（<same_event>）にだけ使う。
-//   問いかけの中身には使わない（つながりの断定・別の写真の記録の語を検査で止める）。ENTRANCE_VERSION で切り替え、既定は v2
+//   問いかけの中身には使わない（つながりの断定・別の写真の記録の語を検査で止める）。ENTRANCE_VERSION で切り替え、既定は v3（人間、2026-11-04）
 import { z } from "zod";
 import { ENTRANCE_PROMPTS, type EntranceVersion } from "../prompts";
 import { bytesToBase64, notConfiguredClaude } from "./claude";
@@ -32,9 +32,9 @@ import type {
 
 /**
  * 家族の流れで使う入り口の版（0046）。v3 は、むすびの g1a と <same_event>、receiver_present、つながりの検査を足した版。
- * 切り替えるのは 11/10 の後、出し比べの結果と決定の記録と一緒に（マイグレーション 0006 が先に要る）
+ * 既定は v3（人間の決定、2026-11-04。マイグレーション 0006 が先に要る）。v2 は version を名指しすれば呼べる
  */
-export const ENTRANCE_VERSION: EntranceVersion = "v2";
+export const ENTRANCE_VERSION: EntranceVersion = "v3";
 
 /** 候補の写真の枚数の上限（画像を渡す枚数。費用と時間が枚数に比例する） */
 export const MAX_ENTRANCE_CANDIDATES = 6;
@@ -602,7 +602,7 @@ async function loadImage(deps: Pick<AppDeps, "photos">, photo: PhotoRow): Promis
 }
 
 /** Claude の入り口が作れなかった理由（ログに出す種類） */
-export type EntranceClaudeFailure = ClaudeFailure | "no_candidates" | "no_images" | "past_deadline";
+export type EntranceClaudeFailure = ClaudeFailure | "no_candidates" | "no_images" | "past_deadline" | "same_event_unavailable";
 
 export type MakeClaudeEntranceResult =
   | { ok: true; row: NewClaudeEntrance }
@@ -621,6 +621,18 @@ export async function makeClaudeEntrance(
   const { repos } = deps;
   const v3 = version === "v3";
   const none = (reason: EntranceClaudeFailure): MakeClaudeEntranceResult => ({ ok: false, reason, inputTokens: 0, outputTokens: 0 });
+  // むすびと記録は v3 だけが使う（v2 では読まない）。読めなければ v3 の検査ができないので Claude を呼ばず、固定の入り口に倒す
+  // （むすびの読み出しが落ちても毎朝の処理は続け、全員に入り口を出す。0044）
+  let sameEventReadFailed = false;
+  const readForV3 = <T>(read: () => Promise<T[]>): Promise<T[]> =>
+    v3
+      ? Promise.resolve()
+          .then(read)
+          .catch(() => {
+            sameEventReadFailed = true;
+            return [];
+          })
+      : Promise.resolve([]);
   const [photos, past, narrations, members, guesses, today, musubi, records] = await Promise.all([
     repos.photos.list(family.id),
     repos.entrances.listByMember(family.id, member.id),
@@ -628,10 +640,10 @@ export async function makeClaudeEntrance(
     repos.members.list(family.id),
     repos.photoGuesses.listByFamily(family.id),
     repos.entrances.listByDate(family.id, forDate),
-    // むすびと記録は v3 だけが使う（v2 では読まない）
-    v3 ? repos.musubi.listByFamily(family.id) : Promise.resolve([]),
-    v3 ? repos.records.listByFamily(family.id) : Promise.resolve([]),
+    readForV3(() => repos.musubi.listByFamily(family.id)),
+    readForV3(() => repos.records.listByFamily(family.id)),
   ]);
+  if (sameEventReadFailed) return none("same_event_unavailable");
   // 今日すでにほかの人の入り口に出した写真（毎朝の処理は一人ずつ順なので、先に作った人の分。0042）
   const usedToday = new Set(today.filter((e) => e.memberId !== member.id).map((e) => e.photoId));
   const picked = pickEntranceCandidates(photos, narrations, past, member.id, forDate, usedToday, musubi);

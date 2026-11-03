@@ -518,6 +518,8 @@ describe("毎朝の処理の中の順番と、失敗しても入り口が続く�
     const sum = await runMorning(s.t.deps, new Date("2026-11-02T21:00:00Z"), { familyId: s.familyId });
     expect(sum.failed).toEqual([]);
     expect(sum.created).toBe(2);
+    // 入り口 v3 はむすびを読むので、読めなければ Claude を呼ばずに固定の入り口に倒す（0046）
+    expect(sum.fallbacks.map((f) => f.reason)).toEqual(["same_event_unavailable", "same_event_unavailable"]);
   });
 
   it("Claude が壊れた応答を返し続けても、入り口はできる", async () => {

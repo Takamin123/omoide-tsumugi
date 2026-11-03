@@ -17,7 +17,6 @@ import {
 } from "../src/server/core/entrance-claude";
 import { runMorning } from "../src/server/core/morning";
 import type { ClaudeCallRequest, ClaudeCallResult, ClaudeClient, PhotoRow } from "../src/server/core/ports";
-import { PROMPTS } from "../src/server/prompts";
 import {
   addMember,
   addPhoto,
@@ -429,6 +428,7 @@ async function setup(replies: (photoId: string, narrationId: string) => FakeClau
 const good = (photoId: string, narrationId: string, question = "この日のことを、聞かせてください"): FakeClaudeReply => ({
   kind: "json",
   value: {
+    receiver_present: "no",
     reason: SECRET_REASON,
     photo_id: photoId,
     focus: { x: 0.1, y: 0.2, w: 0.5, h: 0.5 },
@@ -452,7 +452,7 @@ async function sameDayFamily(photoCount: number) {
     async call<T>(req: ClaudeCallRequest<T>): Promise<ClaudeCallResult<T>> {
       const text = req.content.map((p) => (p.type === "text" ? p.text : "")).join("\n");
       const candidates = [...text.matchAll(/<photo photo_id="([^"]+)">/g)].map((m) => m[1]!);
-      const value = { reason: "架空の理由", photo_id: candidates[0]!, focus: null, quote: null, question: "この日のことを、聞かせてください" } as T;
+      const value = { receiver_present: "unknown", reason: "架空の理由", photo_id: candidates[0]!, focus: null, quote: null, question: "この日のことを、聞かせてください" } as T;
       const meta = { purpose: req.prompt.purpose, model: "claude-fake", promptVersion: req.prompt.version, inputTokens: 1, outputTokens: 1, attempts: 1 };
       const violation = req.check?.(value) ?? null;
       if (violation) return { ok: false, reason: "check_failed", violation, meta };
@@ -494,7 +494,8 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
       question: "この日のことを、聞かせてください",
       reason: SECRET_REASON,
       model: "claude-sonnet-5-5",
-      prompt_version: PROMPTS.entrance.version,
+      prompt_version: "entrance/v3",
+      receiver_present: "no",
       quote_start: 9,
       quote_end: 18,
       input_tokens: 1200,
@@ -522,7 +523,7 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     expect(Object.keys(e).sort()).toEqual(["focus", "forDate", "id", "memberId", "photo", "question", "questionAudioUrl", "quote"]);
     // 読み上げのキーがない（speaker が null）ので音声は作らない
     expect(e.questionAudioUrl).toBeNull();
-    for (const secret of [SECRET_REASON, SECRET_GUESS, "claude-sonnet", PROMPTS.entrance.version, "inputNarrationIds", "reason", "model"]) {
+    for (const secret of [SECRET_REASON, SECRET_GUESS, "claude-sonnet", "entrance/v", "inputNarrationIds", "reason", "model", "receiver_present", "receiverPresent"]) {
       expect(body).not.toContain(secret);
     }
   });
@@ -561,6 +562,19 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     ]);
     const summary = await runMorning(s.t.deps, NOW, { familyId: s.familyId });
     expect(summary.byClaude).toBe(2);
+    expect(messageCalls(s.requests)).toHaveLength(3);
+  });
+
+  it("既定（v3）では、receiver_present のない応答（v2 の形）は通らない。二度とも外れたら固定の入り口", async () => {
+    const v2Shape = (pid: string, nid: string): FakeClaudeReply => {
+      const { receiver_present: _omit, ...rest } = (good(pid, nid) as { value: Record<string, unknown> }).value;
+      return { kind: "json", value: rest };
+    };
+    const s = await setup((pid, nid) => [v2Shape(pid, nid), v2Shape(pid, nid), good(pid, nid), good(pid, nid)]);
+    const summary = await runMorning(s.t.deps, NOW, { familyId: s.familyId });
+    expect(summary.byClaude).toBe(1);
+    expect(summary.fallbacks).toEqual([expect.objectContaining({ reason: "invalid_response" })]);
+    // 一人目は二度とも v2 の形で外れ、二人目は一度で通る
     expect(messageCalls(s.requests)).toHaveLength(3);
   });
 

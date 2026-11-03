@@ -1,5 +1,5 @@
 // 入り口 v3（0046）の境界: g1a と g0・g1・7 日の除外・avoid の組み合わせ、同じ組が二つのむすびにあるとき、
-// 受け取る人の語りが Y を出した時刻とちょうど同じとき、つながりの検査の表記ゆれ、v2 の既定がむすびと記録を読まないこと、
+// 受け取る人の語りが Y を出した時刻とちょうど同じとき、つながりの検査の表記ゆれ、既定が v3 であることと、名指しの v2 がむすびと記録を読まないこと、
 // v3 で検査に落ちたときに新しい列を残さないこと。Claude は偽物。データは架空
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { notConfiguredClaude } from "../src/server/core/claude";
@@ -277,9 +277,32 @@ function withoutMusubiReads(deps: AppDeps): AppDeps {
 }
 
 describe("毎朝の処理: 版の既定と、v3 の全か無か（0046）", () => {
-  it("既定（v2）は、むすびと記録を読まずに Claude の入り口を作り、新しい列は null", async () => {
+  it("既定（v3）は、むすびと記録を読んで Claude の入り口を作り、receiver_present と input_musubi_ids を残す", async () => {
     const s = await setup("この日のことを、聞かせてください");
-    const r = await ensureMorningEntrance(withoutMusubiReads(s.t.deps), { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true });
+    const r = await ensureMorningEntrance(s.t.deps, { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true });
+    expect(r.via).toBe("claude");
+    expect(s.fake.versions).toEqual(["entrance/v3"]);
+    const row = await d1.prepare("SELECT kind, prompt_version, receiver_present, input_musubi_ids FROM entrances WHERE member_id = ?").bind(s.elder.id).first<Record<string, unknown>>();
+    expect(row).toMatchObject({ kind: "claude", prompt_version: "entrance/v3", receiver_present: "yes" });
+    expect(JSON.parse(row!.input_musubi_ids as string)).toEqual([`mu-${s.familyId}`]);
+  });
+
+  for (const which of ["musubi", "records"] as const) {
+    it(`既定（v3）で ${which} の読み出しが落ちたら、Claude を呼ばずに固定の入り口に倒す（投げない）`, async () => {
+      const s = await setup("この日のことを、聞かせてください");
+      const boom = () => Promise.reject(new Error("架空の読み出しの失敗"));
+      const deps: AppDeps = { ...s.t.deps, repos: { ...s.t.deps.repos, [which]: { ...s.t.deps.repos[which], listByFamily: boom } } };
+      const r = await ensureMorningEntrance(deps, { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true });
+      expect(r).toMatchObject({ via: "fixed", fallback: "same_event_unavailable" });
+      expect(s.fake.versions).toEqual([]);
+      const row = await d1.prepare("SELECT kind, prompt_version, receiver_present, input_musubi_ids FROM entrances WHERE member_id = ?").bind(s.elder.id).first();
+      expect(row).toEqual({ kind: "fixed", prompt_version: null, receiver_present: null, input_musubi_ids: null });
+    });
+  }
+
+  it("名指しの v2 は、むすびと記録を読まずに Claude の入り口を作り、新しい列は null", async () => {
+    const s = await setup("この日のことを、聞かせてください");
+    const r = await ensureMorningEntrance(withoutMusubiReads(s.t.deps), { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true, version: "v2" });
     expect(r.via).toBe("claude");
     expect(s.fake.versions).toEqual(["entrance/v2"]);
     const row = await d1.prepare("SELECT kind, prompt_version, receiver_present, input_musubi_ids FROM entrances WHERE member_id = ?").bind(s.elder.id).first();

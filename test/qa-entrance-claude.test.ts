@@ -17,7 +17,6 @@ import {
 } from "../src/server/core/entrance-claude";
 import { MORNING_CLAUDE_BUDGET_MS, runMorning } from "../src/server/core/morning";
 import type { ClaudeClient, PhotoRow } from "../src/server/core/ports";
-import { PROMPTS } from "../src/server/prompts";
 import {
   addMember,
   addPhoto,
@@ -170,7 +169,7 @@ type Setup = {
 
 const good = (photoId: string, narrationId: string): FakeClaudeReply => ({
   kind: "json",
-  value: { reason: SECRET_REASON, photo_id: photoId, focus: null, quote: { narration_id: narrationId, text: "全然抜けなかった" }, question: QUESTION },
+  value: { receiver_present: "yes", reason: SECRET_REASON, photo_id: photoId, focus: null, quote: { narration_id: narrationId, text: "全然抜けなかった" }, question: QUESTION },
   model: MODEL,
   inputTokens: 900,
   outputTokens: 90,
@@ -285,7 +284,7 @@ describe("QA デモの時計のボタンも、Cron と同じ処理（runMorning�
     expect(messageCalls(s.requests)).toHaveLength(2);
     const rows = (await d1.prepare("SELECT kind, for_date, prompt_version FROM entrances WHERE family_id = ?").bind(s.familyId).all()).results;
     expect(rows).toHaveLength(2);
-    for (const r of rows) expect(r).toMatchObject({ kind: "claude", for_date: "2026-11-03", prompt_version: PROMPTS.entrance.version });
+    for (const r of rows) expect(r).toMatchObject({ kind: "claude", for_date: "2026-11-03", prompt_version: "entrance/v3" });
 
     const before = s.requests.length;
     const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
@@ -344,7 +343,7 @@ describe("QA ほかの家族のものを渡さない・見せない", () => {
       const res = await s.t.app.request(url, { headers: { Cookie: cookie } });
       expect(res.status, url).toBe(200);
       const body = await res.text();
-      for (const secret of [SECRET_REASON, SECRET_GUESS, MODEL, PROMPTS.entrance.version, "inputNarrationIds", "input_narration_ids", "promptVersion", "inputTokens"]) {
+      for (const secret of [SECRET_REASON, SECRET_GUESS, MODEL, "entrance/v", "inputNarrationIds", "input_narration_ids", "promptVersion", "inputTokens", "receiver_present", "receiverPresent"]) {
         expect(body, `${url} に ${secret}`).not.toContain(secret);
       }
     }

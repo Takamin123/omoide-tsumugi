@@ -40,10 +40,11 @@ const mu = (id: string, photos: [string, MusubiPhotoStatus][]): MusubiForEntranc
 });
 
 describe("切り替え", () => {
-  it("既定は v2 のまま。v3 は名指しで呼ぶ", () => {
-    expect(ENTRANCE_VERSION).toBe("v2");
-    expect(ENTRANCE_PROMPTS.v2).toBe(PROMPTS.entrance);
+  it("既定は v3（人間の決定、2026-11-04）。v2 は名指しで呼べる", () => {
+    expect(ENTRANCE_VERSION).toBe("v3");
     expect(ENTRANCE_PROMPTS.v3.version).toBe("entrance/v3");
+    expect(ENTRANCE_PROMPTS.v2).toBe(PROMPTS.entrance);
+    expect(ENTRANCE_PROMPTS.v2.version).toBe("entrance/v2");
   });
   it("v3 のスキーマは receiver_present を reason の前に持つ", () => {
     expect(Object.keys(entranceSchemaV3.shape).slice(0, 2)).toEqual(["receiver_present", "reason"]);
@@ -363,14 +364,32 @@ describe("毎朝の処理: v3 を名指しで呼ぶ（0046）", () => {
     expect(Object.keys(e).sort()).toEqual(["focus", "forDate", "id", "memberId", "photo", "question", "questionAudioUrl", "quote"]);
   });
 
-  it("毎朝の処理（既定）は v2 のまま: むすびを渡さず、新しい列は null", async () => {
+  it("毎朝の処理（既定）は v3: むすびを渡し、receiver_present と input_musubi_ids を保存する", async () => {
     const s = await setup();
     await runMorning(s.t.deps, NOW, { familyId: s.familyId });
-    for (const text of s.fake.sent) expect(text).not.toContain("same_event");
+    expect(s.fake.sent.length).toBe(2);
+    expect(s.fake.sent.some((text) => text.includes(`<same_event with="`))).toBe(true);
     const rows = (
       await d1.prepare("SELECT prompt_version, receiver_present, input_musubi_ids FROM entrances WHERE family_id = ?").bind(s.familyId).all<Record<string, unknown>>()
     ).results;
     expect(rows.length).toBe(2);
-    for (const row of rows) expect(row).toMatchObject({ prompt_version: "entrance/v2", receiver_present: null, input_musubi_ids: null });
+    for (const row of rows) {
+      expect(row).toMatchObject({ prompt_version: "entrance/v3", receiver_present: "no" });
+      expect(Array.isArray(JSON.parse(row.input_musubi_ids as string))).toBe(true);
+    }
+    expect(rows.flatMap((row) => JSON.parse(row.input_musubi_ids as string) as string[])).toContain(s.muId);
+  });
+
+  it("v2 は名指しで呼べる: むすびを渡さず、新しい列は null", async () => {
+    const s = await setup();
+    const r = await ensureMorningEntrance(s.t.deps, { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true, version: "v2" });
+    expect(r.via).toBe("claude");
+    expect(s.fake.sent.length).toBe(1);
+    expect(s.fake.sent[0]).not.toContain("same_event");
+    const row = await d1
+      .prepare("SELECT prompt_version, receiver_present, input_musubi_ids FROM entrances WHERE family_id = ? AND member_id = ?")
+      .bind(s.familyId, s.elder.id)
+      .first<Record<string, unknown>>();
+    expect(row).toEqual({ prompt_version: "entrance/v2", receiver_present: null, input_musubi_ids: null });
   });
 });

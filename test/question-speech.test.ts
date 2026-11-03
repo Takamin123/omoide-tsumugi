@@ -193,7 +193,7 @@ async function setup(opts: { speaker?: ReturnType<typeof fakeSpeaker> | null; cl
   await t.flush();
   const good: FakeClaudeReply = {
     kind: "json",
-    value: { reason: "架空の理由", photo_id: p.id, focus: null, quote: null, question: QUESTION },
+    value: { receiver_present: "unknown", reason: "架空の理由", photo_id: p.id, focus: null, quote: null, question: QUESTION },
     model: "claude-sonnet-5-5",
   };
   inner = onlyPurpose(fakeClaude({ replies: [good, good] }).claude, "entrance");

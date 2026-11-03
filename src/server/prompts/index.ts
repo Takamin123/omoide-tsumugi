@@ -20,7 +20,7 @@ export const PROMPTS: Record<ClaudePurpose, ClaudePrompt> = {
 };
 
 /**
- * 入り口のプロンプトの版（0046）。家族の流れで使う版は PROMPTS.entrance（entrance-claude.ts の ENTRANCE_VERSION で切り替える）。
+ * 入り口のプロンプトの版（0046）。家族の流れで使う版は entrance-claude.ts の ENTRANCE_VERSION で選ぶ（既定は v3。PROMPTS.entrance は v2）。
  * 出し比べでは版を名指しで呼ぶ
  */
 export const ENTRANCE_PROMPTS = {
