@@ -103,11 +103,11 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
         <ErrorLine text={error} />
       </section>
 
-      {/* 家族の番号（家族 ID）。鍵ではない。長押しで全部選べ、折り返して読める。ボタンは付けない（0033） */}
+      {/* 家族の番号（家族 ID）。鍵ではない。折り返して読める。iOS は触れると全部選べ、Android はふつうの長押しの選択。ボタンは付けない（0033） */}
       <p className="sub family-id">
         {w.familyIdLabel}
         <br />
-        <span className="invite-url">{view.family.id}</span>
+        <span className="family-id-value">{view.family.id}</span>
       </p>
     </main>
   );
