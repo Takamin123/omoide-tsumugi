@@ -889,3 +889,88 @@ nav.top button {
   white-space: nowrap;
   padding-inline: 0.5rem;
 }
+
+/* ---- 写真の拡大（0040） ---- */
+
+/* 押せる写真。見た目は写真のまま。押した瞬間に少し沈める */
+.photo-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.1s ease;
+}
+
+.photo-button:active,
+.photo-button[data-pressed] {
+  opacity: 0.8;
+}
+
+.album-corners .photo-button {
+  display: flex;
+  width: auto;
+  max-width: 100%;
+}
+
+/* 写真だけの黒い画面。下に横いっぱいの「とじる」一つ */
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  color: var(--album-on-mat);
+}
+
+.viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+/* 写真の枠。指で広げる・ずらすのはここで受ける（ブラウザの拡大・スクロールにしない） */
+.viewer-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.viewer-photo {
+  position: absolute;
+  max-width: none;
+  transform-origin: center;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.viewer-foot {
+  position: relative;
+  flex: none;
+  padding: 0.75rem var(--page-pad) calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* 横いっぱい。家族の画面でも、祖父母の画面の主な動作と同じ大きさの文字 */
+.viewer-close {
+  font-size: var(--font-elder-action);
+}
+
+/* 横にした低い画面では、写真に高さを回す（ボタンは主な動作の最低 64px を保つ） */
+@media (orientation: landscape) and (max-height: 32rem) {
+  .viewer-foot {
+    padding: 0.25rem var(--page-pad) calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  .viewer-close {
+    min-height: max(64px, var(--tap-min));
+    font-size: var(--font-main);
+  }
+}

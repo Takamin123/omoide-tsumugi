@@ -4,7 +4,7 @@
 import type { Entrance, Member } from "../../shared/api";
 import { voiceLength } from "../lib/pure";
 import { words } from "../words";
-import { PhotoImage } from "./PhotoImage";
+import { ZoomablePhoto } from "./ZoomablePhoto";
 import { PlayVoice } from "./PlayVoice";
 
 type Props = { entrance: Entrance; members: Member[]; variant: "elder" | "family" };
@@ -15,7 +15,8 @@ export function EntranceView({ entrance, members, variant }: Props) {
   return (
     <>
       <figure className="mount">
-        <PhotoImage photo={entrance.photo} focus={entrance.focus} />
+        {/* 押すと写真の全体を大きく見られる（祖父母の画面でも。0040） */}
+        <ZoomablePhoto photo={entrance.photo} focus={entrance.focus} variant={variant} />
         {quote && (
           <figcaption>
             <blockquote className="told">{quote.text}</blockquote>

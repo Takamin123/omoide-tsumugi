@@ -53,7 +53,9 @@ describe("添える家族の言葉の声と、問いかけの読み上げ", () =
 
   it("文字の語りの引用には、聞くボタンを出さない", () => {
     const html = render({ quote: { ...voiceQuote(null), audioUrl: null } }, "family");
-    expect(html).not.toContain("<button");
+    // ボタンは写真を大きく見るもの（0040）だけ
+    expect(html.match(/<button/g)).toHaveLength(1);
+    expect(html).toContain('class="photo-button"');
   });
   it("家族の画面: 「{呼ばれ方}の声で聞く（13秒）」。長さが分からなければ秒を出さない", () => {
     expect(render({ quote: voiceQuote(13_400) }, "family")).toContain("おかあさんの声で聞く（13秒）");

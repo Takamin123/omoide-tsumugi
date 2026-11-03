@@ -106,6 +106,8 @@ export const words = {
     /** 誰の声か、と長さ。呼ばれ方が分からなければ「声」だけ、長さが分からなければ秒を出さない */
     listenNote: (name: string | null, len: VoiceLength | null) => `${name ? `${name}の` : ""}声${len ? `（${voiceLengthText(len)}）` : ""}`,
     stopVoice: "とめる",
+    /** 写真の拡大の画面を閉じる（0040） */
+    close: "とじる",
     /** 問いかけの読み上げ（0019） */
     readAloud: "よみあげ",
     readAloudNote: "AI の声で読みます",
@@ -130,6 +132,8 @@ export const words = {
     listenTo: (name: string | null, len: VoiceLength | null) =>
       `${name ? `${name}の` : ""}声で聞く${len ? `（${voiceLengthText(len)}）` : ""}`,
     stopVoice: "止める",
+    /** 写真の拡大の画面を閉じる（0040） */
+    close: "閉じる",
     byText: "文字で",
     byVoice: "声で",
     send: "送る",
@@ -156,6 +160,14 @@ export const words = {
     albumPosition: (at: number, total: number) => progressText(at, total),
     /** 同じ文を、折ってよい所（空白）で二つに分けたもの。画面ではこの間でだけ折る */
     albumPositionParts: (at: number, total: number) => progressText(at, total).split(" ") as [string, string],
+  },
+
+  // 写真の拡大の画面（0040）。どちらも読み上げだけの名前（見えない）。祖父母の画面でも同じ
+  photoView: {
+    /** 押せる写真 */
+    open: "写真を大きく見る",
+    /** 拡大の画面（dialog）。アルバムの帯の名前と同じ語 */
+    label: "写真",
   },
 
   // デモの操作

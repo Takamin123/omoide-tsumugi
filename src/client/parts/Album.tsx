@@ -9,7 +9,7 @@ import { arrows, bandIndex, clampIndex, sectionAtTop, SyncGate } from "../lib/al
 import { formatTakenDate } from "../lib/pure";
 import { words } from "../words";
 import { Narrations } from "./Narrations";
-import { PhotoImage } from "./PhotoImage";
+import { ZoomablePhoto } from "./ZoomablePhoto";
 
 export type AlbumItem = { photo: Photo; narrations: FeedNarration[] };
 
@@ -25,6 +25,9 @@ type Props = {
   /** 語りの欄の一番下に置くもの（デモの帯） */
   footer?: ReactNode;
 };
+
+/** 帯が止まってから、写真を押して開けるまでの間（ミリ秒） */
+const BAND_SETTLE_MS = 250;
 
 /** 語りの節の頭が、欄の上からこの距離に入ったら「上に来た」とみなす（欄の高さの 1/4、最大 96px） */
 const topZone = (paneHeight: number) => Math.min(paneHeight * 0.25, 96);
@@ -54,6 +57,16 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
   const [openReplyId, setOpenReplyId] = useState<string | null>(null);
   /** 最後の写真の語りが欄の上まで届くための下の余白 */
   const [tail, setTail] = useState(0);
+
+  /** 帯を最後に動かした時刻。めくった直後の指離れで写真を開かない */
+  const bandMovedAt = useRef(0);
+  /** 帯が止まっていて、今の写真にそろっているときだけ、写真を押して開ける */
+  const bandSettled = () => {
+    const band = bandRef.current;
+    if (!band) return false;
+    const aligned = Math.abs(band.scrollLeft - indexRef.current * band.clientWidth) < 2;
+    return aligned && performance.now() - bandMovedAt.current > BAND_SETTLE_MS;
+  };
 
   const w = words.home;
   const sections = () => Array.from(textRef.current?.querySelectorAll<HTMLElement>("[data-photo]") ?? []);
@@ -147,6 +160,7 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
             ref={bandRef}
             className="album-strip"
             onScroll={(e) => {
+              bandMovedAt.current = performance.now();
               if (!gate.scrolled("band")) return;
               const band = e.currentTarget;
               const i = bandIndex(band.scrollLeft, band.clientWidth, itemsRef.current.length);
@@ -164,7 +178,7 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
               <div key={it.photo.id} className="album-slide" aria-hidden={i !== index}>
                 <div className="album-print">
                   <div className="album-corners">
-                    <PhotoImage photo={it.photo} />
+                    <ZoomablePhoto photo={it.photo} variant="family" canOpen={bandSettled} tabIndex={i === index ? undefined : -1} />
                     <span className="corner tl" aria-hidden="true" />
                     <span className="corner tr" aria-hidden="true" />
                     <span className="corner bl" aria-hidden="true" />
