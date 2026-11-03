@@ -129,8 +129,15 @@ async function dirty(familyId: string) {
       .bind(`${p}-n1`, familyId),
     d1.prepare("INSERT INTO musubi (id, family_id, created_by, created_at) VALUES (?, ?, 'family', 1)").bind(`${p}-mu`, familyId),
     d1
-      .prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, evidence_narration_id, created_at) VALUES (?, ?, ?, 'confirmed', ?, 1)")
-      .bind(`${p}-mu`, `${p}-ph`, familyId, `${p}-n1`),
+      .prepare(
+        "INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, evidence_narration_id, decided_by_member_id, decided_at, created_at) VALUES (?, ?, ?, 'confirmed', ?, ?, 1, 1)",
+      )
+      .bind(`${p}-mu`, `${p}-ph`, familyId, `${p}-n1`, m),
+    d1
+      .prepare(
+        "INSERT INTO musubi_guess_runs (family_id, input_key, prompt_version, model, state, attempts, input_tokens, output_tokens, created_at) VALUES (?, ?, 'musubi_guess/v1', 'm', 'done', 1, 1, 1, 1)",
+      )
+      .bind(familyId, `${p}-key`),
     // 時計は進めた後
     d1.prepare("UPDATE families SET clock_date = '2026-11-05', clock_slot = 'night' WHERE id = ?").bind(familyId),
   ]);
@@ -376,7 +383,7 @@ describe("戻した後の状態", () => {
     expect(d.photos).toHaveLength(12);
     expect(d.narrations).toHaveLength(12);
     // 推測の表は空（photo_guess_requests は最後の毎朝の処理が作業の行を置くので、古い行が残っていないことだけを見る）
-    for (const n of ["records", "record_extractions", "musubi", "musubi_photos", "photo_guesses"]) expect(d[n], n).toEqual([]);
+    for (const n of ["records", "record_extractions", "musubi", "musubi_photos", "musubi_guess_runs", "photo_guesses"]) expect(d[n], n).toEqual([]);
     const photoIds = new Set((d.photos as any[]).map((r) => r.id));
     for (const r of d.photo_guess_requests as any[]) expect(photoIds.has(r.photo_id)).toBe(true);
     expect(d.families![0]).toMatchObject({ clock_date: AS_OF, clock_slot: "morning", is_demo: 1 });

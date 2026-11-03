@@ -33,15 +33,23 @@ describe("出所と推測を分ける制約", () => {
     await expect(rec("origin", "'guessed'")).rejects.toThrow(/CHECK/);
   });
 
-  it("musubi_photos: confirmed / rejected は根拠の語りが必須", async () => {
-    await expect(run("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, created_at) VALUES ('mu', 'p', 'f', 'confirmed', 0)")).rejects.toThrow(/CHECK/);
-    await expect(
-      run("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, evidence_narration_id, created_at) VALUES ('mu', 'p', 'f', 'rejected', 'n', 0)"),
-    ).resolves.toBeTruthy();
+  it("musubi_photos: 確定・却下は家族の手だけ（決めた人と時刻が必須。根拠の語りだけでは足りない）。推測は決めた人を持たない（0044）", async () => {
+    const mp = (cols: string, vals: string) => run(`INSERT INTO musubi_photos (musubi_id, photo_id, family_id, created_at, ${cols}) VALUES ('mu', 'p', 'f', 0, ${vals})`);
+    await expect(mp("status", "'confirmed'")).rejects.toThrow(/CHECK/);
+    await expect(mp("status, evidence_narration_id", "'rejected', 'n'")).rejects.toThrow(/CHECK/);
+    await expect(mp("status, decided_by_member_id", "'confirmed', 'm'")).rejects.toThrow(/CHECK/);
+    await expect(mp("status, decided_by_member_id, decided_at", "'guessed', 'm', 1")).rejects.toThrow(/CHECK/);
+    await expect(mp("status, decided_by_member_id, decided_at", "'rejected', 'm', 1")).resolves.toBeTruthy();
   });
 
-  it("musubi: 推測で作ったものは model と prompt_version が必須", async () => {
+  it("musubi: 推測で作ったものは model と prompt_version と根拠の記録が必須", async () => {
     await expect(run("INSERT INTO musubi (id, family_id, created_by, created_at) VALUES ('mu2', 'f', 'guessed', 0)")).rejects.toThrow(/CHECK/);
+    await expect(
+      run("INSERT INTO musubi (id, family_id, created_by, model, prompt_version, created_at) VALUES ('mu3', 'f', 'guessed', 'x', 'musubi_guess/v1', 0)"),
+    ).rejects.toThrow(/CHECK/);
+    await expect(
+      run(`INSERT INTO musubi (id, family_id, created_by, model, prompt_version, guessed_evidence_record_ids, created_at) VALUES ('mu4', 'f', 'guessed', 'x', 'musubi_guess/v1', '["r1"]', 0)`),
+    ).resolves.toBeTruthy();
   });
 
   it("entrances: 固定の入り口は問いかけを持たない。Claude の入り口は問いかけと model が必須", async () => {

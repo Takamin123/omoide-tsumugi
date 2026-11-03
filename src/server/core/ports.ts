@@ -381,6 +381,70 @@ export interface RecordExtractionRepository {
   listByFamily(familyId: string): Promise<RecordExtractionRow[]>;
 }
 
+// ---- むすびの推測（musubi_guess。0044） ----
+// むすびは「同じ出来事」のまとまり（0010）。Claude の推測は guessed として持ち、根拠の記録（records の told）の ID を必ず付ける。
+// 確定・却下は家族の手だけ（決めた人と時刻）。家族向けの API の形には入れない（今は材料だけ）
+
+export type MusubiPhotoStatus = "guessed" | "confirmed" | "rejected";
+
+export interface MusubiPhotoRow {
+  photoId: string;
+  status: MusubiPhotoStatus;
+  decidedByMemberId: string | null;
+  decidedAt: number | null;
+}
+
+export interface MusubiRow {
+  id: string;
+  familyId: string;
+  createdBy: "guessed" | "family";
+  /** Claude の自由文。運営と開発だけが見る */
+  guessedReason: string | null;
+  guessedEvidenceRecordIds: string[] | null;
+  model: string | null;
+  promptVersion: string | null;
+  createdAt: number;
+  photos: MusubiPhotoRow[];
+}
+
+/** 推測のむすび（写真はすべて status = 'guessed' で入れる） */
+export interface NewGuessedMusubi {
+  id: string;
+  familyId: string;
+  photoIds: string[];
+  evidenceRecordIds: string[];
+  reason: string;
+  createdAt: number;
+}
+
+export interface MusubiGuessRunRow {
+  familyId: string;
+  /** 渡した told の記録 ID の集合のハッシュ。版は入れない（版が上がっただけでは呼び直さない） */
+  inputKey: string;
+  promptVersion: string;
+  model: string | null;
+  state: "done" | "failed";
+  attempts: number;
+  inputTokens: number;
+  outputTokens: number;
+  createdAt: number;
+}
+export type MusubiGuessAttempt = Omit<MusubiGuessRunRow, "state" | "attempts">;
+
+export interface MusubiRepository {
+  /** その家族のむすびと、それぞれの写真（作った順） */
+  listByFamily(familyId: string): Promise<MusubiRow[]>;
+  getRun(familyId: string, inputKey: string): Promise<MusubiGuessRunRow | null>;
+  /**
+   * 推測を入れる（一度に）。同じ入力の done の行がまだないときだけ musubi・musubi_photos を入れ、作業の行を done にする。
+   * 写真はその家族のものだけが入る。0 件でも done を残す
+   */
+  saveGuessed(attempt: MusubiGuessAttempt, musubi: NewGuessedMusubi[]): Promise<void>;
+  /** 失敗にする（attempts を一つ増やす）。done の行は変えない */
+  markFailed(attempt: MusubiGuessAttempt): Promise<void>;
+  listRuns(familyId: string): Promise<MusubiGuessRunRow[]>;
+}
+
 // ---- 運営の記録の画面（運営と開発だけが見る。家族向けの API には使わない） ----
 
 /**
@@ -409,6 +473,7 @@ export const DEMO_RESET_TABLES = [
   "record_extractions",
   "musubi_photos",
   "musubi",
+  "musubi_guess_runs",
   "photo_guess_requests",
   "photo_guesses",
   "narrations",
@@ -449,6 +514,7 @@ export interface Repositories {
   photoGuesses: PhotoGuessRepository;
   records: RecordRepository;
   recordExtractions: RecordExtractionRepository;
+  musubi: MusubiRepository;
   opsRecords: OpsRecordRepository;
   demoReset: DemoResetRepository;
 }
@@ -492,7 +558,7 @@ export interface TranscribeProbeResult {
 // 応答は外から来るデータとして、実装が zod で検証してから返す。失敗は投げずに種類で返す。全か無か。
 
 /** Claude を使う用途。用途 → モデルは core/claude.ts の対応表で一か所に持つ */
-export type ClaudePurpose = "photo_guess" | "clean_transcript" | "entrance" | "extract_records";
+export type ClaudePurpose = "photo_guess" | "clean_transcript" | "entrance" | "extract_records" | "musubi_guess";
 
 /** プロンプト（system に入れる）。src/server/prompts/ が用途ごとに今の版を一つ持つ */
 export interface ClaudePrompt {

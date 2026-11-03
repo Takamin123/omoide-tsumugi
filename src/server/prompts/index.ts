@@ -7,6 +7,7 @@ import type { ClaudePrompt, ClaudePurpose } from "../core/ports";
 import cleanTranscriptText from "./clean_transcript/v2.md?raw";
 import entranceText from "./entrance/v2.md?raw";
 import extractRecordsText from "./extract_records/v1.md?raw";
+import musubiGuessText from "./musubi_guess/v1.md?raw";
 import photoGuessText from "./photo_guess/v1.md?raw";
 
 export const PROMPTS: Record<ClaudePurpose, ClaudePrompt> = {
@@ -14,4 +15,5 @@ export const PROMPTS: Record<ClaudePurpose, ClaudePrompt> = {
   clean_transcript: { purpose: "clean_transcript", version: "clean_transcript/v2", text: cleanTranscriptText },
   entrance: { purpose: "entrance", version: "entrance/v2", text: entranceText },
   extract_records: { purpose: "extract_records", version: "extract_records/v1", text: extractRecordsText },
+  musubi_guess: { purpose: "musubi_guess", version: "musubi_guess/v1", text: musubiGuessText },
 };

@@ -26,6 +26,7 @@ export const FAMILY_TABLES = [
   "record_extractions",
   "musubi_photos",
   "musubi",
+  "musubi_guess_runs",
   "photo_guess_requests",
   "photo_guesses",
   "narrations",
