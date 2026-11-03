@@ -1,6 +1,8 @@
 // データベースの行から、API の形（src/shared/api.ts）へ。緯度経度などクライアントに返さないものはここで落とす。
-import type { Entrance, Member, Narration, Photo } from "../../shared/api";
+import type { Entrance, Member, Narration, Photo, QuotedFrom } from "../../shared/api";
+import { exceedsChars } from "../core/claude-checks";
 import { displayText, quoteText } from "../core/clean-transcript";
+import { ENTRANCE_QUOTE_MAX_CHARS } from "../core/entrance-claude";
 import type { EntranceRow, MemberRow, NarrationRow, PhotoRow } from "../core/ports";
 
 export const memberView = (m: MemberRow): Member => ({
@@ -42,6 +44,29 @@ export const narrationView = (n: NarrationRow): Narration => ({
   forDate: n.forDate,
   createdAt: n.createdAt,
 });
+
+/**
+ * 入り口への答えの語りの「元の言葉」（0035）。入り口に添えた家族の言葉が entranceView と同じ経路（quoteText）で引けたときだけ。
+ * 次のときは null: 入り口への答えでない、入り口が引けない、入り口の写真と語りの写真が違う、引用の元がない、引用が引けない。
+ * 入り口の種類・理由・モデルなどは載せない。引用が 80 字を超えるときは text を null にする（画面は呼ばれ方だけ）
+ */
+export function quotedFromView(
+  n: Pick<NarrationRow, "entranceId" | "photoId">,
+  entrance: EntranceRow | null | undefined,
+  quoteFrom: NarrationRow | null | undefined,
+): QuotedFrom | null {
+  if (!n.entranceId || !entrance || entrance.id !== n.entranceId) return null;
+  // POST /api/narrations は入り口と写真の組を確かめていないので、ここで守る
+  if (entrance.photoId !== n.photoId) return null;
+  if (!entrance.quoteNarrationId || !quoteFrom || quoteFrom.id !== entrance.quoteNarrationId) return null;
+  const text = quoteText(quoteFrom, entrance.quoteStart, entrance.quoteEnd);
+  if (text === null || text.length === 0) return null;
+  return {
+    narrationId: quoteFrom.id,
+    speakerMemberId: quoteFrom.speakerMemberId,
+    text: exceedsChars(text, ENTRANCE_QUOTE_MAX_CHARS) ? null : text,
+  };
+}
 
 /**
  * 添える家族の言葉は、語りの本文から範囲で引く（null なら全文）。範囲は、声の語りなら cleanedText、文字の語りなら transcript の位置（0017、0018）。

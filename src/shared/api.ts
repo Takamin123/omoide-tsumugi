@@ -157,8 +157,16 @@ export type Narration = {
   createdAt: number;
 };
 
+/**
+ * 入り口への答えの語りの「元の言葉」（その入り口に添えた家族の言葉）。/api/feed だけが付ける（0035）。
+ * text は引用そのもの（「……」の置き換え済み）。長すぎる（80 字を超える）ときは null で、画面は呼ばれ方だけを出す。
+ * 入り口の種類や理由などの記録は載せない
+ */
+export type QuotedFrom = { narrationId: string; speakerMemberId: string; text: string | null };
+export type FeedNarration = Narration & { quotedFrom: QuotedFrom | null };
+
 // GET /api/narrations?photoId= → { narrations: Narration[] }
-// GET /api/feed → { items: { photo: Photo; narrations: Narration[] }[] }（新しい語りのある写真から順）
+// GET /api/feed → { items: { photo: Photo; narrations: FeedNarration[] }[] }（新しい語りのある写真から順）
 
 // ---- 入り口 ----
 

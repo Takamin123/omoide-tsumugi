@@ -1,6 +1,6 @@
 // 語り。声は保存先へ流し、受け取ったことを先に返してから背景で文字起こしする。
 import { Hono } from "hono";
-import { narrationMetaSchema } from "../../shared/api";
+import { narrationMetaSchema, type FeedNarration } from "../../shared/api";
 import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
 import type { NarrationRow, NewNarration } from "../core/ports";
@@ -8,7 +8,7 @@ import { transcribeNarration } from "../core/transcribe";
 import type { AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm } from "./http";
 import { privateBody } from "./photos";
-import { narrationView, photoView } from "./views";
+import { narrationView, photoView, quotedFromView } from "./views";
 
 /** 録音の上限（文字起こしの上限に合わせる） */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -121,7 +121,20 @@ export const narrations = new Hono<AppEnv>()
   .get("/feed", async (c) => {
     const deps = c.get("deps");
     const familyId = c.get("family").id;
-    const [all, photoRows] = await Promise.all([deps.repos.narrations.listAll(familyId), deps.repos.photos.list(familyId)]);
+    const [all, photoRows, members] = await Promise.all([
+      deps.repos.narrations.listAll(familyId),
+      deps.repos.photos.list(familyId),
+      deps.repos.members.list(familyId),
+    ]);
+    // 入り口への答えに「元の言葉」を付けるため、家族の入り口を引く（一人ずつ。人数は少ない）
+    const entranceById = new Map(
+      (await Promise.all(members.map((m) => deps.repos.entrances.listByMember(familyId, m.id)))).flat().map((e) => [e.id, e]),
+    );
+    const narrationById = new Map(all.map((n) => [n.id, n]));
+    const feedView = (n: NarrationRow): FeedNarration => {
+      const e = n.entranceId ? entranceById.get(n.entranceId) : undefined;
+      return { ...narrationView(n), quotedFrom: quotedFromView(n, e, e?.quoteNarrationId ? narrationById.get(e.quoteNarrationId) : undefined) };
+    };
     const byPhoto = new Map<string, NarrationRow[]>();
     for (const n of all) {
       const list = byPhoto.get(n.photoId) ?? [];
@@ -133,6 +146,6 @@ export const narrations = new Hono<AppEnv>()
     const items = [...byPhoto.entries()]
       .filter(([photoId]) => photoById.has(photoId))
       .sort(([, a], [, b]) => latest(b) - latest(a))
-      .map(([photoId, ns]) => ({ photo: photoView(photoById.get(photoId)!), narrations: ns.map(narrationView) }));
+      .map(([photoId, ns]) => ({ photo: photoView(photoById.get(photoId)!), narrations: ns.map(feedView) }));
     return c.json({ items });
   });

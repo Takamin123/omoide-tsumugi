@@ -138,7 +138,7 @@ describe("アルバム", () => {
     const html = renderAlbum();
     expect(html).toContain('<p class="album-date"><span>1994年10月9日</span><span class="album-rule" aria-hidden="true"></span></p>');
     expect(html).toContain("語り n-1");
-    expect(html).toMatch(/<div class="narration"><p class="speaker">ばあば<\/p><p class="told">語り n-1<\/p>.*<div class="narration reply"><p class="speaker">お母さん<\/p><p class="told">返事の文<\/p>/);
+    expect(html).toMatch(/<div class="narration" data-narration="n-1"><p class="speaker">ばあば<\/p><p class="told">語り n-1<\/p>.*<div class="narration reply" data-narration="n-2"><p class="speaker">お母さん<\/p><p class="told">返事の文<\/p>/);
     // 撮影日がない写真は、線だけ
     expect(html).toContain('<section data-photo="p-2" class="album-section" aria-label="4枚のうち 2枚"><p class="album-date"><span class="album-rule" aria-hidden="true"></span></p>');
     expect(html).not.toContain("撮影日なし");
@@ -304,5 +304,54 @@ describe("帯と語りの連動の決まり", () => {
     gate.touched("text");
     expect(gate.scrolled("text")).toBe(true);
     expect(gate.scrolled("band")).toBe(false);
+  });
+});
+
+describe("言葉の糸（アルバムの答えの語りの「元の言葉」。0035）", () => {
+  const answer = (over: Record<string, unknown>) =>
+    narration("n-ans", "p-1", { speakerMemberId: "m-mother", entranceId: "e-1", quotedFrom: { narrationId: "n-1", speakerMemberId: "m-grandma", text: "浮き輪を膨らましてくれてね" }, ...over });
+  const withAnswer = (a: Record<string, unknown>) => [{ ...items[0]!, narrations: [items[0]!.narrations[0]!, a] }, ...items.slice(1)];
+
+  it("文: 「{呼ばれ方}の『{引用そのまま}』から」。長すぎて text が null なら「{呼ばれ方}の言葉から」", () => {
+    expect(words.home.thread("ばあば", "浮き輪を膨らましてくれてね")).toBe("ばあばの『浮き輪を膨らましてくれてね』から");
+    expect(words.home.thread("ばあば", null)).toBe("ばあばの言葉から");
+  });
+  it("アルバムでは、答えの語りの本文の下・ボタンの行の上に、行全体が一つのボタンで出す", () => {
+    const html = renderAlbum({ items: withAnswer(answer({})) });
+    expect(html).toMatch(
+      /<div class="narration" data-narration="n-ans"><p class="speaker">お母さん<\/p><p class="told">語り n-ans<\/p><button type="button" class="thread"><svg aria-hidden="true"[^>]*>.*?<\/svg><span>ばあばの『浮き輪を膨らましてくれてね』から<\/span><\/button><div class="row">/,
+    );
+    // 糸は一つだけ（元の語りや、答えでない語りには出さない）
+    expect(html.match(/class="thread"/g)?.length).toBe(1);
+  });
+  it("本文がない（文字起こしが済んでいない）声の答えでも、話者名 → 糸 → ボタンの順", () => {
+    const html = renderAlbum({ items: withAnswer(answer({ kind: "voice", audioUrl: "/api/narrations/n-ans/audio", transcriptStatus: "pending", text: null })) });
+    expect(html).toMatch(/<p class="speaker">お母さん<\/p><button type="button" class="thread">.*?<\/button><div class="row"><button[^>]*class="aux listen"/);
+  });
+  it("長すぎる引用は切らずに、呼ばれ方だけ", () => {
+    const html = renderAlbum({ items: withAnswer(answer({ quotedFrom: { narrationId: "n-1", speakerMemberId: "m-grandma", text: null } })) });
+    expect(html).toContain("<span>ばあばの言葉から</span>");
+    expect(html).not.toContain("…");
+  });
+  it("今日のタブ（onJump を渡さない）には出さない", () => {
+    const html = renderToStaticMarkup(
+      h(Narrations, { narrations: [answer({})], me: mother, nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }),
+    ) as string;
+    expect(html).not.toContain("thread");
+    expect(html).not.toContain("から");
+    expect(fs.readFileSync(path.join(repoRoot, "src/client/screens/Home.tsx"), "utf8")).not.toContain("onJump");
+  });
+  it("押すと元の語りへ ID で移り、そこにフォーカスを置く。こちらから動かす欄は連動の門に知らせる", () => {
+    const src = fs.readFileSync(path.join(repoRoot, "src/client/parts/Album.tsx"), "utf8") as string;
+    const jump = src.slice(src.indexOf("const jumpTo"), src.indexOf("// 開いたとき"));
+    expect(jump).toContain('[data-narration="${CSS.escape(narrationId)}"]');
+    expect(jump).toContain('gate.moving("text")');
+    expect(jump).toContain("target.focus({ preventScroll: true })");
+    expect(src).toContain("onJump={jumpTo}");
+  });
+  it("押せる大きさと文字: 高さは押せる場所の最低、文字は補助の文字、横いっぱい。押せることは下線でも示す", () => {
+    const css = fs.readFileSync(path.join(repoRoot, "src/client/styles.css"), "utf8") as string;
+    expect(css).toMatch(/\.thread \{[^}]*width: 100%;[^}]*min-height: var\(--tap-min\);[^}]*font-size: var\(--font-sub\);/);
+    expect(css).toMatch(/\.thread span \{[^}]*text-decoration: underline;/);
   });
 });

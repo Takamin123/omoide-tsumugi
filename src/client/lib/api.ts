@@ -6,6 +6,7 @@ import {
   type Entrance,
   type ErrorKind,
   type FamilyView,
+  type FeedNarration,
   type Member,
   type MemberInput,
   type Narration,
@@ -94,7 +95,7 @@ export const api = {
     if (audio) form.append("audio", audio, audioFileName(audio.type));
     return call<{ narration: Narration }>("/api/narrations", { method: "POST", body: form });
   },
-  getFeed: () => call<{ items: { photo: Photo; narrations: Narration[] }[] }>("/api/feed"),
+  getFeed: () => call<{ items: { photo: Photo; narrations: FeedNarration[] }[] }>("/api/feed"),
   todayEntrance: (memberId: string) =>
     call<{ entrance: Entrance | null }>(`/api/entrances/today?memberId=${encodeURIComponent(memberId)}`),
 

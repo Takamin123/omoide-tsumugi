@@ -3,14 +3,14 @@
 // 帯をめくるか矢印を押すと語りがその写真の頭まで動く。往復はしない。動きを減らす設定では動かさずに切り替える。
 // 出すのは家族の語り・返事・撮影日だけ。語りのある写真がなければ何も出さない（催促や状態の文を出さない）。
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Member, Narration, Photo } from "../../shared/api";
+import type { FeedNarration, Member, Photo } from "../../shared/api";
 import { arrows, bandIndex, clampIndex, sectionAtTop, SyncGate } from "../lib/album";
 import { formatTakenDate } from "../lib/pure";
 import { words } from "../words";
 import { Narrations } from "./Narrations";
 import { PhotoImage } from "./PhotoImage";
 
-export type AlbumItem = { photo: Photo; narrations: Narration[] };
+export type AlbumItem = { photo: Photo; narrations: FeedNarration[] };
 
 type Props = {
   items: AlbumItem[];
@@ -82,6 +82,29 @@ export function Album({ items, me, nameOf, currentId, onCurrent, onSent, composi
     select(to);
     moveBand(to, true);
     moveText(to, true);
+  };
+
+  /**
+   * 言葉の糸: 元の語りの位置へ縦に移り、そこにフォーカスを置く（0035）。ID で探す。
+   * 元の語りは今は必ず同じ写真にある（0023）が、別の写真にあれば帯もその写真へ動かす
+   */
+  const jumpTo = (narrationId: string) => {
+    const text = textRef.current;
+    const target = text?.querySelector<HTMLElement>(`[data-narration="${CSS.escape(narrationId)}"]`);
+    if (!text || !target) return;
+    const sec = target.closest<HTMLElement>("[data-photo]");
+    const i = sec ? sections().indexOf(sec) : -1;
+    if (i >= 0 && i !== indexRef.current) {
+      select(i);
+      moveBand(i, true);
+    }
+    gate.moving("text");
+    // 上に少し余白を残す（話者名が欄の縁に付かないように）
+    text.scrollTo({ top: Math.max(0, target.offsetTop - 16), behavior: reducedMotion() ? "auto" : "smooth" });
+    // 移ってきたときだけフォーカスを置けるようにする（ふだん語りを触ってもフォーカスの枠を出さない）。離れたら外す
+    target.tabIndex = -1;
+    target.addEventListener("blur", () => target.removeAttribute("tabindex"), { once: true });
+    target.focus({ preventScroll: true });
   };
 
   // 開いたとき（タブを戻ったときも）と並びが変わったとき（開いた直後に読み直した一覧が届いた）、
@@ -209,6 +232,7 @@ export function Album({ items, me, nameOf, currentId, onCurrent, onSent, composi
                 openReplyId={openReplyId}
                 onOpenReply={setOpenReplyId}
                 onSent={onSent}
+                onJump={jumpTo}
               />
             </section>
           );

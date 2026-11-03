@@ -140,6 +140,11 @@ export const words = {
     menuLabel: "メニュー",
     tabsLabel: "切り替え",
     albumBandLabel: "写真",
+    /**
+     * アルバムの答えの語りの下の「言葉の糸」。答えた入り口に添えた家族の言葉（引用そのまま）。押すと元の語りへ移る（0035）。
+     * 引用が長すぎる（サーバーが text を null で返す）ときは呼ばれ方だけ。「から」の後に動詞を足さない
+     */
+    thread: (name: string, quote: string | null) => (quote === null ? `${name}の言葉から` : `${name}の『${quote}』から`),
     /** 下のタブ */
     tabToday: "今日",
     tabAlbum: "アルバム",

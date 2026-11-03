@@ -309,3 +309,101 @@ describe("GET /api/feed", () => {
     expect(feed.items[0]!.narrations).toHaveLength(1);
   });
 });
+
+describe("GET /api/feed の言葉の糸（入り口への答えの「元の言葉」。0035）", () => {
+  type FeedJson = { items: { photo: { id: string }; narrations: { id: string; quotedFrom: unknown }[] }[] };
+  const feedOf = async (cookie: string) => (await (await t.app.request("/api/feed", { headers: { Cookie: cookie } })).json()) as FeedJson;
+  const quotedOf = (feed: FeedJson, narrationId: string) =>
+    feed.items.flatMap((i) => i.narrations).find((n) => n.id === narrationId)?.quotedFrom;
+
+  /** 家族、写真、元の語り（文字）を作る */
+  async function setup(originalText = "架空の浜の思い出。浮き輪を膨らましてもろうた") {
+    const f = await createFamily(t);
+    const m = await addMember(t, f.cookie);
+    const p = await addPhoto(t, f.cookie, m.id, 1);
+    const orig = (await (await postForm(t, "/api/narrations", narrationForm(textMeta(m.id, p.id, { text: originalText })), f.cookie)).json()) as {
+      narration: { id: string };
+    };
+    return { f, m, p, orig: orig.narration.id };
+  }
+  let day = 0;
+  const nextDate = () => `2027-01-${String(++day).padStart(2, "0")}`;
+  async function claudeEntrance(s: { f: { familyId: string }; m: { id: string } }, photoId: string, quote: { id: string | null; start: number | null; end: number | null }) {
+    const id = crypto.randomUUID();
+    await t.deps.repos.entrances.insertClaudeIfAbsent({
+      id,
+      familyId: s.f.familyId,
+      memberId: s.m.id,
+      forDate: nextDate(),
+      photoId,
+      focus: null,
+      quoteNarrationId: quote.id,
+      quoteStart: quote.start,
+      quoteEnd: quote.end,
+      reason: "架空の理由の文",
+      createdAt: 1,
+      question: "架空の問いかけ",
+      model: "claude-sonnet-5-5",
+      promptVersion: "entrance/v2",
+      inputNarrationIds: ["n-secret-input"],
+      inputTokens: 1,
+      outputTokens: 1,
+    });
+    return id;
+  }
+  async function answer(s: { f: { cookie: string }; m: { id: string } }, photoId: string, entranceId: string | null) {
+    const r = (await (await postForm(t, "/api/narrations", narrationForm(textMeta(s.m.id, photoId, { entranceId, text: "架空の答え" })), s.f.cookie)).json()) as {
+      narration: { id: string };
+    };
+    return r.narration.id;
+  }
+
+  it("入り口に添えた言葉が引ければ、元の語りの ID・語り手・引用そのものを付ける。入り口の種類や記録は載せない", async () => {
+    const s = await setup();
+    const e = await claudeEntrance(s, s.p.id, { id: s.orig, start: 0, end: 9 });
+    const a = await answer(s, s.p.id, e);
+    const res = await t.app.request("/api/feed", { headers: { Cookie: s.f.cookie } });
+    const raw = await res.text();
+    const feed = JSON.parse(raw) as FeedJson;
+    expect(quotedOf(feed, a)).toEqual({ narrationId: s.orig, speakerMemberId: s.m.id, text: "架空の浜の思い出。" });
+    // 答えでない語りには付けない
+    expect(quotedOf(feed, s.orig)).toBeNull();
+    for (const leak of ["架空の理由の文", "claude-sonnet", "entrance/v2", "n-secret-input", '"kind":"claude"', '"reason"', '"model"', "inputNarrationIds", "promptVersion", "架空の問いかけ"]) {
+      expect(raw).not.toContain(leak);
+    }
+  });
+
+  it("固定の入り口でも、添えた言葉（全文）が引ければ同じ形で付ける", async () => {
+    const s = await setup("短い架空の語り");
+    const id = crypto.randomUUID();
+    await t.deps.repos.entrances.insertFixedIfAbsent({ id, familyId: s.f.familyId, memberId: s.m.id, forDate: nextDate(), photoId: s.p.id, quoteNarrationId: s.orig, createdAt: 1 });
+    const a = await answer(s, s.p.id, id);
+    expect(quotedOf(await feedOf(s.f.cookie), a)).toEqual({ narrationId: s.orig, speakerMemberId: s.m.id, text: "短い架空の語り" });
+  });
+
+  it("引用が 80 字を超えるときは text を null（画面は呼ばれ方だけ）", async () => {
+    const long = "あ".repeat(81);
+    const s = await setup(long);
+    const e = await claudeEntrance(s, s.p.id, { id: s.orig, start: null, end: null });
+    const a = await answer(s, s.p.id, e);
+    expect(quotedOf(await feedOf(s.f.cookie), a)).toEqual({ narrationId: s.orig, speakerMemberId: s.m.id, text: null });
+    // ちょうど 80 字は出す
+    const s2 = await setup("い".repeat(80));
+    const e2 = await claudeEntrance(s2, s2.p.id, { id: s2.orig, start: null, end: null });
+    const a2 = await answer(s2, s2.p.id, e2);
+    expect(quotedOf(await feedOf(s2.f.cookie), a2)).toMatchObject({ text: "い".repeat(80) });
+  });
+
+  it("添えた言葉がない・範囲が外れている・入り口の写真と語りの写真が違うときは、糸を付けない", async () => {
+    const s = await setup();
+    const none = await answer(s, s.p.id, await claudeEntrance(s, s.p.id, { id: null, start: null, end: null }));
+    const outOfRange = await answer(s, s.p.id, await claudeEntrance(s, s.p.id, { id: s.orig, start: 5, end: 999 }));
+    const other = await addPhoto(t, s.f.cookie, s.m.id, 2);
+    // 入り口は写真 p、答えは別の写真（POST は組を確かめていない）
+    const mismatch = await answer(s, other.id, await claudeEntrance(s, s.p.id, { id: s.orig, start: 0, end: 4 }));
+    const feed = await feedOf(s.f.cookie);
+    expect(quotedOf(feed, none)).toBeNull();
+    expect(quotedOf(feed, outOfRange)).toBeNull();
+    expect(quotedOf(feed, mismatch)).toBeNull();
+  });
+});
