@@ -151,6 +151,8 @@ export function buildSeedRows(familyId: string, asOfDate: string, people: Map<Se
       inputNarrationIds: null,
       inputTokens: null,
       outputTokens: null,
+      inputMusubiIds: null,
+      receiverPresent: null,
       questionAudioKey: null,
       questionAudioModel: null,
       questionAudioVoice: null,

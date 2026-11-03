@@ -1,0 +1,521 @@
+{
+  "fixture": "family-c",
+  "prompt": "entrance/v2",
+  "useMusubi": false,
+  "avoid": true,
+  "images": 0,
+  "repeat": 3,
+  "metrics": {
+    "total": 9,
+    "ok": 9,
+    "fixed": 0,
+    "retried": 0,
+    "violations": {},
+    "linkCheckHits": [],
+    "linkWordsInFinal": 0,
+    "quoteReuseMax": 4,
+    "quoteNull": 0,
+    "quoteByOthers": "9/9",
+    "focusViolations": 0,
+    "hokaniType": "2/9",
+    "deshitaka": "1/9",
+    "presenceMatched": "0/3",
+    "presence": [
+      {
+        "memberId": "m-sora",
+        "run": 1,
+        "photoId": "q2-yomise",
+        "expected": "no",
+        "got": null,
+        "question": "夜店からの帰り道は、どんな様子だったのか、聞かせてください"
+      },
+      {
+        "memberId": "m-sora",
+        "run": 2,
+        "photoId": "q6-kite",
+        "expected": "no",
+        "got": null,
+        "question": "この日の凧あげは、ほかにどんな様子でしたか"
+      },
+      {
+        "memberId": "m-sora",
+        "run": 3,
+        "photoId": "q2-yomise",
+        "expected": "no",
+        "got": null,
+        "question": "その金魚と過ごした日々のことを、もっと聞かせてください"
+      }
+    ],
+    "receiverPresentCounts": {
+      "-": 9
+    },
+    "continuation": "0/3",
+    "sameEventLines": 0,
+    "inputTokens": 48753,
+    "outputTokens": 7858
+  },
+  "outcomes": [
+    {
+      "memberId": "m-obaa",
+      "run": 1,
+      "usedBefore": [],
+      "candidates": [
+        "q3-ajisai",
+        "q5-station",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5467,
+      "outputTokens": 940,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q5-station: 受け取るのが elder なので孫そらの未出の写真で語りのあるものを選んだ。ajisai は色の話が引用と重なりやすく次点。画像なしなので focus は null。材料は c5-station-sora。",
+            "photo_id": "q5-station",
+            "focus": null,
+            "quote": {
+              "narration_id": "c5-station-sora",
+              "text": "おばあちゃんちにひとりで行ったのは、これが初めて。"
+            },
+            "question": "この日、家ではどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q5-station: 受け取るのが elder なので孫そらの未出の写真で語りのあるものを選んだ。ajisai は色の話が引用と重なりやすく次点。画像なしなので focus は null。材料は c5-station-sora。",
+        "photo_id": "q5-station",
+        "focus": null,
+        "quote": {
+          "narration_id": "c5-station-sora",
+          "text": "おばあちゃんちにひとりで行ったのは、これが初めて。"
+        },
+        "question": "この日、家ではどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "おばあちゃんちにひとりで行ったのは、これが初めて。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-papa",
+      "run": 1,
+      "usedBefore": [
+        "q5-station"
+      ],
+      "candidates": [
+        "q1-bon",
+        "q3-ajisai",
+        "q7-ohagi",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5513,
+      "outputTokens": 668,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q1-bon を選択。祖母の語りが付き、お父さん宛に elder の言葉が届くため。q2-yomise と q6-kite はお父さん自身の語りなので退けた。画像がないので focus は null。材料は c2-bon-obaa。",
+            "photo_id": "q1-bon",
+            "focus": null,
+            "quote": {
+              "narration_id": "c2-bon-obaa",
+              "text": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+            },
+            "question": "この日の夜は、どんな音やにおいが広がっていましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q1-bon を選択。祖母の語りが付き、お父さん宛に elder の言葉が届くため。q2-yomise と q6-kite はお父さん自身の語りなので退けた。画像がないので focus は null。材料は c2-bon-obaa。",
+        "photo_id": "q1-bon",
+        "focus": null,
+        "quote": {
+          "narration_id": "c2-bon-obaa",
+          "text": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+        },
+        "question": "この日の夜は、どんな音やにおいが広がっていましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-sora",
+      "run": 1,
+      "usedBefore": [
+        "q5-station",
+        "q1-bon"
+      ],
+      "candidates": [
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi",
+        "q3-ajisai"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5271,
+      "outputTokens": 802,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q2-yomise。そらは孫で、祖母の語りがある写真はなく、お父さんの語りが付き未出しのため選んだ。q6-kiteも候補だったが語りが短い。画像なしなのでfocusはnull。材料はc1-yomise-papa。",
+            "photo_id": "q2-yomise",
+            "focus": null,
+            "quote": {
+              "narration_id": "c1-yomise-papa",
+              "text": "網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+            },
+            "question": "夜店からの帰り道は、どんな様子だったのか、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q2-yomise。そらは孫で、祖母の語りがある写真はなく、お父さんの語りが付き未出しのため選んだ。q6-kiteも候補だったが語りが短い。画像なしなのでfocusはnull。材料はc1-yomise-papa。",
+        "photo_id": "q2-yomise",
+        "focus": null,
+        "quote": {
+          "narration_id": "c1-yomise-papa",
+          "text": "網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+        },
+        "question": "夜店からの帰り道は、どんな様子だったのか、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-obaa",
+      "run": 2,
+      "usedBefore": [],
+      "candidates": [
+        "q3-ajisai",
+        "q5-station",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5467,
+      "outputTokens": 733,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q5-station を選択。おばあちゃんが受け取る人なので、孫そらの語りがあり未提示の写真を優先。q3-ajisai も有力だが今回は見送り。画像なしのため focus は null。材料は c5-station-sora。",
+            "photo_id": "q5-station",
+            "focus": null,
+            "quote": {
+              "narration_id": "c5-station-sora",
+              "text": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。"
+            },
+            "question": "この日、着いてからの時間は、どんなふうに過ぎていきましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q5-station を選択。おばあちゃんが受け取る人なので、孫そらの語りがあり未提示の写真を優先。q3-ajisai も有力だが今回は見送り。画像なしのため focus は null。材料は c5-station-sora。",
+        "photo_id": "q5-station",
+        "focus": null,
+        "quote": {
+          "narration_id": "c5-station-sora",
+          "text": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。"
+        },
+        "question": "この日、着いてからの時間は、どんなふうに過ぎていきましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-papa",
+      "run": 2,
+      "usedBefore": [
+        "q5-station"
+      ],
+      "candidates": [
+        "q1-bon",
+        "q3-ajisai",
+        "q7-ohagi",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5513,
+      "outputTokens": 784,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q1-bon を選択。お父さん(family)宛てなので祖母の語りが付いた写真を優先した。q2-yomise は本人の語りのみで退けた。画像なしのため focus は null。材料は c2-bon-obaa。",
+            "photo_id": "q1-bon",
+            "focus": null,
+            "quote": {
+              "narration_id": "c2-bon-obaa",
+              "text": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+            },
+            "question": "盆踊りの夜は、ほかにどんな音が聞こえていましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q1-bon を選択。お父さん(family)宛てなので祖母の語りが付いた写真を優先した。q2-yomise は本人の語りのみで退けた。画像なしのため focus は null。材料は c2-bon-obaa。",
+        "photo_id": "q1-bon",
+        "focus": null,
+        "quote": {
+          "narration_id": "c2-bon-obaa",
+          "text": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+        },
+        "question": "盆踊りの夜は、ほかにどんな音が聞こえていましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "わたしは浴衣を新しく縫って、夜おそくまで踊ったの。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-sora",
+      "run": 2,
+      "usedBefore": [
+        "q5-station",
+        "q1-bon"
+      ],
+      "candidates": [
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi",
+        "q3-ajisai"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5271,
+      "outputTokens": 948,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q6-kite を選択。祖母の語りがなく、お父さんの語り付きで未出しのため。q2-yomise も同条件だが凧の方が父子の話が広がりそう。画像なしのため focus は null。材料は c4-kite-papa。",
+            "photo_id": "q6-kite",
+            "focus": null,
+            "quote": {
+              "narration_id": "c4-kite-papa",
+              "text": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。"
+            },
+            "question": "この日の凧あげは、ほかにどんな様子でしたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q6-kite を選択。祖母の語りがなく、お父さんの語り付きで未出しのため。q2-yomise も同条件だが凧の方が父子の話が広がりそう。画像なしのため focus は null。材料は c4-kite-papa。",
+        "photo_id": "q6-kite",
+        "focus": null,
+        "quote": {
+          "narration_id": "c4-kite-papa",
+          "text": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。"
+        },
+        "question": "この日の凧あげは、ほかにどんな様子でしたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-obaa",
+      "run": 3,
+      "usedBefore": [],
+      "candidates": [
+        "q3-ajisai",
+        "q5-station",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5467,
+      "outputTokens": 939,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q5-station。受け取る人が elder なので、孫そらの語りがあり未出の写真を優先。ajisai も候補だったが、初めてひとりで来た日は本人も居合わせた可能性が高く、こちらを選んだ。画像なしで focus は null。材料は c5-station-sora。",
+            "photo_id": "q5-station",
+            "focus": null,
+            "quote": {
+              "narration_id": "c5-station-sora",
+              "text": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。"
+            },
+            "question": "この日、着いてからの時間をどんなふうに過ごしたのか、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q5-station。受け取る人が elder なので、孫そらの語りがあり未出の写真を優先。ajisai も候補だったが、初めてひとりで来た日は本人も居合わせた可能性が高く、こちらを選んだ。画像なしで focus は null。材料は c5-station-sora。",
+        "photo_id": "q5-station",
+        "focus": null,
+        "quote": {
+          "narration_id": "c5-station-sora",
+          "text": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。"
+        },
+        "question": "この日、着いてからの時間をどんなふうに過ごしたのか、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-papa",
+      "run": 3,
+      "usedBefore": [
+        "q5-station"
+      ],
+      "candidates": [
+        "q1-bon",
+        "q3-ajisai",
+        "q7-ohagi",
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5513,
+      "outputTokens": 1060,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q1-bonを選択。おばあちゃんの語りが付いた写真で、お父さんには未提出。q7-ohagiとq3-ajisaiは語りが薄いか、お父さん向きでないため退けた。画像なしのためfocusはnull。材料はc2-bon-obaa。",
+            "photo_id": "q1-bon",
+            "focus": null,
+            "quote": {
+              "narration_id": "c2-bon-obaa",
+              "text": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+            },
+            "question": "この日の夜、輪のまわりではどんな音が聞こえていましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q1-bonを選択。おばあちゃんの語りが付いた写真で、お父さんには未提出。q7-ohagiとq3-ajisaiは語りが薄いか、お父さん向きでないため退けた。画像なしのためfocusはnull。材料はc2-bon-obaa。",
+        "photo_id": "q1-bon",
+        "focus": null,
+        "quote": {
+          "narration_id": "c2-bon-obaa",
+          "text": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。わたしは浴衣を新しく縫って、夜おそくまで踊ったの。"
+        },
+        "question": "この日の夜、輪のまわりではどんな音が聞こえていましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。わたしは浴衣を新しく縫って、夜おそくまで踊ったの。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-sora",
+      "run": 3,
+      "usedBefore": [
+        "q5-station",
+        "q1-bon"
+      ],
+      "candidates": [
+        "q2-yomise",
+        "q6-kite",
+        "q4-snow",
+        "q7-ohagi",
+        "q3-ajisai"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 5271,
+      "outputTokens": 984,
+      "rawAttempts": [
+        {
+          "value": {
+            "reason": "q2-yomise を選択。そらはfamilyで祖父母の語りがなく、次点のお父さんの未出の語り付き写真のため。q6-kite も同条件だが金魚の話の方が広げやすい。画像なしのため focus は null。材料は c1-yomise-papa。",
+            "photo_id": "q2-yomise",
+            "focus": null,
+            "quote": {
+              "narration_id": "c1-yomise-papa",
+              "text": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+            },
+            "question": "その金魚と過ごした日々のことを、もっと聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "reason": "q2-yomise を選択。そらはfamilyで祖父母の語りがなく、次点のお父さんの未出の語り付き写真のため。q6-kite も同条件だが金魚の話の方が広げやすい。画像なしのため focus は null。材料は c1-yomise-papa。",
+        "photo_id": "q2-yomise",
+        "focus": null,
+        "quote": {
+          "narration_id": "c1-yomise-papa",
+          "text": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。"
+        },
+        "question": "その金魚と過ごした日々のことを、もっと聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    }
+  ]
+}

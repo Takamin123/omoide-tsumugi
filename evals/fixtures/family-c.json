@@ -1,0 +1,124 @@
+{
+  "id": "family-c",
+  "summary": "架空の三世代（祖母・父・孫）、標準語。続きの向きを見る家族: 祖母は前日に入り口で q1（盆踊り）を見て語った。q2（同じ夏祭りの夜店、父の古い言葉）は q1 と同じむすび。q3（無関係の庭のあじさい、孫の新しい言葉）もある。v2 の並びなら q3 が先頭、v3 なら q2 が先頭",
+  "asOfDate": "2026-11-03",
+  "members": [
+    { "id": "m-obaa", "role": "elder", "relation": "祖母", "calledAs": "おばあちゃん", "speechStyle": "standard", "dialectRegion": null, "setUpByMemberId": "m-papa" },
+    { "id": "m-papa", "role": "family", "relation": "父", "calledAs": "お父さん", "speechStyle": "standard", "dialectRegion": null, "setUpByMemberId": null },
+    { "id": "m-sora", "role": "family", "relation": "孫", "calledAs": "そら", "speechStyle": "standard", "dialectRegion": null, "setUpByMemberId": "m-papa" }
+  ],
+  "photos": [
+    { "id": "q1-bon", "ownerMemberId": "m-papa", "takenAt": "1998-08-14T19:30:00", "description": "夜の広場で、浴衣の人たちがやぐらを囲んで輪になって踊っている。提灯が下がっている", "note": "X: 祖母が前日に語った写真。q2 と同じ夏祭りの夜" },
+    { "id": "q2-yomise", "ownerMemberId": "m-papa", "takenAt": "1998-08-14T20:10:00", "description": "夜店の屋台の前で、子どもが小さな網を持ってしゃがんでいる。水槽に赤い魚が見える", "note": "Y: q1 と同じ出来事。父の古い語りがある" },
+    { "id": "q3-ajisai", "ownerMemberId": "m-sora", "takenAt": "2025-06-20T10:05:00", "description": "庭に青と紫のあじさいが咲いている。手前にじょうろが置いてある", "note": "Z: 無関係。孫の新しい語りがある" },
+    { "id": "q4-snow", "ownerMemberId": "m-papa", "takenAt": "2005-01-10T11:00:00", "description": "雪の積もった庭に、バケツをかぶった雪だるまが立っている", "note": "語りがない" },
+    { "id": "q5-station", "ownerMemberId": "m-sora", "takenAt": "2024-03-30T09:12:00", "description": "駅のホームに停まった二両の電車。ホームに人が数人立っている", "note": "孫の語りがある" },
+    { "id": "q6-kite", "ownerMemberId": "m-papa", "takenAt": "2003-01-02T14:20:00", "description": "河原で、子どもが凧の糸を持って走っている。空に四角い凧", "note": "父の語りがある" },
+    { "id": "q7-ohagi", "ownerMemberId": "m-obaa", "takenAt": null, "description": "台所のテーブルに、おはぎが並んだ大皿が置いてある", "note": "祖母の写真。語りがない" }
+  ],
+  "narrations": [
+    {
+      "id": "c4-kite-papa",
+      "speakerMemberId": "m-papa",
+      "photoId": "q6-kite",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-15",
+      "at": "20:00",
+      "transcript": "凧あげは父の得意技だった。糸の出し方にこつがあると言って、なかなか持たせてくれなかった。",
+      "traits": [],
+      "mishearings": [],
+      "note": "父の語り"
+    },
+    {
+      "id": "c1-yomise-papa",
+      "speakerMemberId": "m-papa",
+      "photoId": "q2-yomise",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-20",
+      "at": "21:00",
+      "transcript": "夜店で金魚すくいをした。網がすぐ破れて一匹もとれなかったけど、店のおじさんが一匹おまけしてくれた。その金魚は五年も生きた。",
+      "traits": [],
+      "mishearings": [],
+      "note": "Y の語り（古い）。盆踊りには触れていない"
+    },
+    {
+      "id": "c5-station-sora",
+      "speakerMemberId": "m-sora",
+      "photoId": "q5-station",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-10-28",
+      "at": "18:00",
+      "transcript": "春休みにひとりで乗った電車。おばあちゃんちにひとりで行ったのは、これが初めて。",
+      "traits": [],
+      "mishearings": [],
+      "note": "孫の語り"
+    },
+    {
+      "id": "c3-ajisai-sora",
+      "speakerMemberId": "m-sora",
+      "photoId": "q3-ajisai",
+      "replyToId": null,
+      "kind": "text",
+      "forDate": "2026-11-01",
+      "at": "17:30",
+      "transcript": "おばあちゃんちの庭のあじさい。毎年、色がちがうのがふしぎ。",
+      "traits": ["short"],
+      "mishearings": [],
+      "note": "Z の語り（新しい）。v2 の並びではこれが先頭"
+    },
+    {
+      "id": "c2-bon-obaa",
+      "speakerMemberId": "m-obaa",
+      "photoId": "q1-bon",
+      "replyToId": null,
+      "kind": "voice",
+      "forDate": "2026-11-02",
+      "at": "19:00",
+      "transcript": "盆踊りの輪に、あの年は町内の人がみんな出てきてね。わたしは浴衣を新しく縫って、夜おそくまで踊ったの。",
+      "traits": [],
+      "mishearings": [],
+      "note": "X の語り。祖母が前日の入り口に答えたもの"
+    }
+  ],
+  "pastEntrances": [
+    { "memberId": "m-obaa", "photoId": "q1-bon", "forDate": "2026-11-02", "at": "03:00" }
+  ],
+  "records": [
+    { "photoId": "q2-yomise", "narrationId": "c1-yomise-papa", "kind": "place", "value": "夜店" },
+    { "photoId": "q2-yomise", "narrationId": "c1-yomise-papa", "kind": "event", "value": "金魚すくい" },
+    { "photoId": "q2-yomise", "narrationId": "c1-yomise-papa", "kind": "person", "value": "店のおじさん" },
+    { "photoId": "q1-bon", "narrationId": "c2-bon-obaa", "kind": "event", "value": "盆踊り" },
+    { "photoId": "q1-bon", "narrationId": "c2-bon-obaa", "kind": "event", "value": "浴衣を新しく縫って" },
+    { "photoId": "q1-bon", "narrationId": "c2-bon-obaa", "kind": "person", "value": "町内の人" },
+    { "photoId": "q3-ajisai", "narrationId": "c3-ajisai-sora", "kind": "place", "value": "おばあちゃんちの庭" },
+    { "photoId": "q3-ajisai", "narrationId": "c3-ajisai-sora", "kind": "event", "value": "あじさい" },
+    { "photoId": "q6-kite", "narrationId": "c4-kite-papa", "kind": "event", "value": "凧あげ" },
+    { "photoId": "q5-station", "narrationId": "c5-station-sora", "kind": "time", "value": "春休み" },
+    { "photoId": "q5-station", "narrationId": "c5-station-sora", "kind": "event", "value": "ひとりで乗った電車" }
+  ],
+  "musubi": [
+    {
+      "id": "mu-natsumatsuri",
+      "photos": [
+        { "photoId": "q1-bon", "status": "guessed" },
+        { "photoId": "q2-yomise", "status": "guessed" }
+      ],
+      "note": "同じ夏祭りの夜（正しい推測）。問いかけで盆踊り・同じ夜・続きを言ったら違反"
+    }
+  ],
+  "expectedPresence": [
+    { "photoId": "q1-bon", "memberId": "m-obaa", "present": "yes", "note": "c2 で本人が踊ったと語る" },
+    { "photoId": "q2-yomise", "memberId": "m-papa", "present": "yes", "note": "c1 で本人が金魚すくいをしたと語る" },
+    { "photoId": "q6-kite", "memberId": "m-papa", "present": "yes", "note": "c4 で本人が語る" },
+    { "photoId": "q3-ajisai", "memberId": "m-sora", "present": "yes", "note": "c3 で本人が語る" },
+    { "photoId": "q5-station", "memberId": "m-sora", "present": "yes", "note": "c5 で本人が語る" },
+    { "photoId": "q1-bon", "memberId": "m-sora", "present": "no", "note": "1998 年の夏祭り。孫は生まれる前" },
+    { "photoId": "q2-yomise", "memberId": "m-sora", "present": "no", "note": "1998 年の夏祭り。孫は生まれる前" },
+    { "photoId": "q6-kite", "memberId": "m-sora", "present": "no", "note": "2003 年の正月。孫は生まれる前" },
+    { "photoId": "q4-snow", "memberId": "m-sora", "present": "no", "note": "2005 年。孫は生まれる前" }
+  ],
+  "continuation": { "memberId": "m-obaa", "photoId": "q2-yomise", "note": "前日に q1 を語ったおばあちゃんに、同じ出来事の q2（お父さんの言葉）が届くか" }
+}

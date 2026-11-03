@@ -121,6 +121,8 @@ const toEntrance = (r: EntranceRecord): EntranceRow => ({
   inputNarrationIds: r.inputNarrationIds,
   inputTokens: r.inputTokens,
   outputTokens: r.outputTokens,
+  inputMusubiIds: r.inputMusubiIds,
+  receiverPresent: r.receiverPresent,
   questionAudioKey: r.questionAudioKey,
   questionAudioModel: r.questionAudioModel,
   questionAudioVoice: r.questionAudioVoice,

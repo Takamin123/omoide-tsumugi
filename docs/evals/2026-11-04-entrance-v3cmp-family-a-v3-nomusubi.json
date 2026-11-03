@@ -1,0 +1,944 @@
+{
+  "fixture": "family-a",
+  "prompt": "entrance/v3",
+  "useMusubi": false,
+  "avoid": true,
+  "images": 0,
+  "repeat": 3,
+  "metrics": {
+    "total": 15,
+    "ok": 15,
+    "fixed": 0,
+    "retried": 0,
+    "violations": {},
+    "linkCheckHits": [],
+    "linkWordsInFinal": 0,
+    "quoteReuseMax": 6,
+    "quoteNull": 0,
+    "quoteByOthers": "15/15",
+    "focusViolations": 0,
+    "hokaniType": "7/15",
+    "deshitaka": "1/15",
+    "presenceMatched": "11/11",
+    "presence": [
+      {
+        "memberId": "m-baaba",
+        "run": 1,
+        "photoId": "p02-sports-day",
+        "expected": "yes",
+        "got": "yes",
+        "question": "テントの前で過ごしたその日は、ほかにどんなことがありましたか"
+      },
+      {
+        "memberId": "m-jiiji",
+        "run": 1,
+        "photoId": "p07-field",
+        "expected": "yes",
+        "got": "yes",
+        "question": "その畑では、ほかにどんなことをして過ごしましたか"
+      },
+      {
+        "memberId": "m-uncle",
+        "run": 1,
+        "photoId": "p06-wedding",
+        "expected": "no",
+        "got": "no",
+        "question": "ばあばのこの話で、料理のことをもっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-yui",
+        "run": 1,
+        "photoId": "p01-beach",
+        "expected": "no",
+        "got": "no",
+        "question": "ばあばのこの話で、かき氷のことをもっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-mother",
+        "run": 2,
+        "photoId": "p06-wedding",
+        "expected": "no",
+        "got": "no",
+        "question": "ばあばのこの話で、料理のことをもっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-baaba",
+        "run": 2,
+        "photoId": "p02-sports-day",
+        "expected": "yes",
+        "got": "yes",
+        "question": "このときのテントの前は、ほかにどんな様子でしたか"
+      },
+      {
+        "memberId": "m-jiiji",
+        "run": 2,
+        "photoId": "p07-field",
+        "expected": "yes",
+        "got": "yes",
+        "question": "畑では、ほかにどんなことをして過ごしましたか"
+      },
+      {
+        "memberId": "m-yui",
+        "run": 2,
+        "photoId": "p01-beach",
+        "expected": "no",
+        "got": "no",
+        "question": "ばあばのこの話で、かき氷のことをもっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-jiiji",
+        "run": 3,
+        "photoId": "p07-field",
+        "expected": "yes",
+        "got": "yes",
+        "question": "その畑では、ほかにどんなことをして過ごしましたか"
+      },
+      {
+        "memberId": "m-uncle",
+        "run": 3,
+        "photoId": "p06-wedding",
+        "expected": "no",
+        "got": "no",
+        "question": "ばあばが話す持ち寄りの料理について、もっと聞いてみたいのはどんなところですか"
+      },
+      {
+        "memberId": "m-yui",
+        "run": 3,
+        "photoId": "p01-beach",
+        "expected": "no",
+        "got": "no",
+        "question": "ばあばのこの話で、かき氷のほかにもっと聞いてみたいのはどんなところですか"
+      }
+    ],
+    "receiverPresentCounts": {
+      "unknown": 3,
+      "yes": 6,
+      "no": 6
+    },
+    "continuation": null,
+    "sameEventLines": 0,
+    "inputTokens": 107200,
+    "outputTokens": 16745
+  },
+  "outcomes": [
+    {
+      "memberId": "m-mother",
+      "run": 1,
+      "usedBefore": [],
+      "candidates": [
+        "p01-beach",
+        "p07-field",
+        "p09-okonomiyaki",
+        "p06-wedding",
+        "p08-dog",
+        "p04-new-year"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7400,
+      "outputTokens": 1201,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "unknown",
+            "reason": "p04-new-year。ばあばの語りがあり母がまだ語っていないため優先。母の在場は語りから不明。p01は母が既に返事済みで語りも食い違うため退けた。画像なしでfocusはnull。材料はn03。",
+            "photo_id": "p04-new-year",
+            "focus": null,
+            "quote": {
+              "narration_id": "n03-new-year-baaba",
+              "text": "お正月じゃね、これは。うちに親戚がえっと集まって、こたつに入りきらんで。"
+            },
+            "question": "こたつのまわりでは、このころどんなふうに過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "unknown",
+        "reason": "p04-new-year。ばあばの語りがあり母がまだ語っていないため優先。母の在場は語りから不明。p01は母が既に返事済みで語りも食い違うため退けた。画像なしでfocusはnull。材料はn03。",
+        "photo_id": "p04-new-year",
+        "focus": null,
+        "quote": {
+          "narration_id": "n03-new-year-baaba",
+          "text": "お正月じゃね、これは。うちに親戚がえっと集まって、こたつに入りきらんで。"
+        },
+        "question": "こたつのまわりでは、このころどんなふうに過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "お正月じゃね、これは。うちに親戚がえっと集まって、こたつに入りきらんで。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-baaba",
+      "run": 1,
+      "usedBefore": [
+        "p04-new-year"
+      ],
+      "candidates": [
+        "p01-beach",
+        "p07-field",
+        "p02-sports-day",
+        "p09-okonomiyaki",
+        "p08-dog",
+        "p03-car"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7192,
+      "outputTokens": 1289,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "p02-sports-day。お母さんの語りが付き、未出で elder に届く。語りにばあばが出るため yes。p01はばあば自身の語りが既にあり食い違いもあるので退けた。画像なしでfocusはnull。材料はn09。",
+            "photo_id": "p02-sports-day",
+            "focus": null,
+            "quote": {
+              "narration_id": "n09-sports-day-mother",
+              "text": "リレーのアンカーで、最後のカーブで転んだんだけど、起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。"
+            },
+            "question": "テントの前で過ごしたその日は、ほかにどんなことがありましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "p02-sports-day。お母さんの語りが付き、未出で elder に届く。語りにばあばが出るため yes。p01はばあば自身の語りが既にあり食い違いもあるので退けた。画像なしでfocusはnull。材料はn09。",
+        "photo_id": "p02-sports-day",
+        "focus": null,
+        "quote": {
+          "narration_id": "n09-sports-day-mother",
+          "text": "リレーのアンカーで、最後のカーブで転んだんだけど、起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。"
+        },
+        "question": "テントの前で過ごしたその日は、ほかにどんなことがありましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "リレーのアンカーで、最後のカーブで転んだんだけど、起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-jiiji",
+      "run": 1,
+      "usedBefore": [
+        "p04-new-year",
+        "p02-sports-day"
+      ],
+      "candidates": [
+        "p07-field",
+        "p09-okonomiyaki",
+        "p06-wedding",
+        "p01-beach",
+        "p05-shichigosan",
+        "p03-car"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7068,
+      "outputTokens": 787,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "p07-field を選択。孫ゆいの語りが付き未提示のため。じいじ本人が語りに登場するので同席と推測。p01-beach は母と叔父の語りが食い違うため退けた。画像なしで focus は null。材料は n10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "その畑では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "p07-field を選択。孫ゆいの語りが付き未提示のため。じいじ本人が語りに登場するので同席と推測。p01-beach は母と叔父の語りが食い違うため退けた。画像なしで focus は null。材料は n10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "その畑では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-uncle",
+      "run": 1,
+      "usedBefore": [
+        "p04-new-year",
+        "p02-sports-day",
+        "p07-field"
+      ],
+      "candidates": [
+        "p09-okonomiyaki",
+        "p06-wedding",
+        "p08-dog",
+        "p03-car",
+        "p01-beach",
+        "p05-shichigosan"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7101,
+      "outputTokens": 1277,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "p06-wedding。ばあばの語りがあり、まだ出しておらず、おじさんに届く向きのため選んだ。式の日の話で本人はいなかったと読める。退けたp01-beachは本人の語りが既にあり、母との食い違いもある。focusは画像なしでnull。材料はn05-wedding-baaba。",
+            "photo_id": "p06-wedding",
+            "focus": null,
+            "quote": {
+              "narration_id": "n05-wedding-baaba",
+              "text": "料理は近所の人が持ち寄ってくれて"
+            },
+            "question": "ばあばのこの話で、料理のことをもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "p06-wedding。ばあばの語りがあり、まだ出しておらず、おじさんに届く向きのため選んだ。式の日の話で本人はいなかったと読める。退けたp01-beachは本人の語りが既にあり、母との食い違いもある。focusは画像なしでnull。材料はn05-wedding-baaba。",
+        "photo_id": "p06-wedding",
+        "focus": null,
+        "quote": {
+          "narration_id": "n05-wedding-baaba",
+          "text": "料理は近所の人が持ち寄ってくれて"
+        },
+        "question": "ばあばのこの話で、料理のことをもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "料理は近所の人が持ち寄ってくれて",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-yui",
+      "run": 1,
+      "usedBefore": [
+        "p04-new-year",
+        "p02-sports-day",
+        "p07-field",
+        "p06-wedding"
+      ],
+      "candidates": [
+        "p08-dog",
+        "p01-beach",
+        "p03-car",
+        "p05-shichigosan",
+        "p09-okonomiyaki"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6812,
+      "outputTokens": 1046,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "p01-beach: ばあば・お母さん・おじさんの語りが揃う。昭和の話でゆいは不在と推測。p08-dog は語りが曖昧なため退けた。画像なしで focus は null。材料は n01。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "ばあばのこの話で、かき氷のことをもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "p01-beach: ばあば・お母さん・おじさんの語りが揃う。昭和の話でゆいは不在と推測。p08-dog は語りが曖昧なため退けた。画像なしで focus は null。材料は n01。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "ばあばのこの話で、かき氷のことをもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-mother",
+      "run": 2,
+      "usedBefore": [],
+      "candidates": [
+        "p01-beach",
+        "p07-field",
+        "p09-okonomiyaki",
+        "p06-wedding",
+        "p08-dog",
+        "p04-new-year"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7400,
+      "outputTokens": 1258,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "p06-wedding。お母さん宛てで祖母ばあばの語りがあり未出し。語りの「うちの父」から、ばあば自身の式の話でお母さんはその場にいないと読んだ。退けた候補はp01(本人の語りがある)。画像なしのためfocusはnull。材料はn05-wedding-baaba。",
+            "photo_id": "p06-wedding",
+            "focus": null,
+            "quote": {
+              "narration_id": "n05-wedding-baaba",
+              "text": "料理は近所の人が持ち寄ってくれて"
+            },
+            "question": "ばあばのこの話で、料理のことをもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "p06-wedding。お母さん宛てで祖母ばあばの語りがあり未出し。語りの「うちの父」から、ばあば自身の式の話でお母さんはその場にいないと読んだ。退けた候補はp01(本人の語りがある)。画像なしのためfocusはnull。材料はn05-wedding-baaba。",
+        "photo_id": "p06-wedding",
+        "focus": null,
+        "quote": {
+          "narration_id": "n05-wedding-baaba",
+          "text": "料理は近所の人が持ち寄ってくれて"
+        },
+        "question": "ばあばのこの話で、料理のことをもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "料理は近所の人が持ち寄ってくれて",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-baaba",
+      "run": 2,
+      "usedBefore": [
+        "p06-wedding"
+      ],
+      "candidates": [
+        "p01-beach",
+        "p07-field",
+        "p02-sports-day",
+        "p09-okonomiyaki",
+        "p08-dog",
+        "p03-car"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7192,
+      "outputTokens": 962,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "p02-sports-day：お母さんの語りで、ばあばが場にいたと分かるため上位。p01は語りが食い違うため退けた。画像なしでfocusはnull。材料はn09-sports-day-mother。",
+            "photo_id": "p02-sports-day",
+            "focus": null,
+            "quote": {
+              "narration_id": "n09-sports-day-mother",
+              "text": "起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。"
+            },
+            "question": "このときのテントの前は、ほかにどんな様子でしたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "p02-sports-day：お母さんの語りで、ばあばが場にいたと分かるため上位。p01は語りが食い違うため退けた。画像なしでfocusはnull。材料はn09-sports-day-mother。",
+        "photo_id": "p02-sports-day",
+        "focus": null,
+        "quote": {
+          "narration_id": "n09-sports-day-mother",
+          "text": "起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。"
+        },
+        "question": "このときのテントの前は、ほかにどんな様子でしたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "起き上がって走ったら、ばあばがテントの前で立ち上がって手を振ってた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-jiiji",
+      "run": 2,
+      "usedBefore": [
+        "p06-wedding",
+        "p02-sports-day"
+      ],
+      "candidates": [
+        "p07-field",
+        "p09-okonomiyaki",
+        "p04-new-year",
+        "p01-beach",
+        "p05-shichigosan",
+        "p03-car"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7169,
+      "outputTokens": 875,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "p07-field を選択。孫ゆいの語りがあり未出。語りにじいじが登場し現場にいたと判断。p01-beach は語りが食い違い、p09 はばあばの話で退けた。画像なしで focus は null。材料は n10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "畑では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "p07-field を選択。孫ゆいの語りがあり未出。語りにじいじが登場し現場にいたと判断。p01-beach は語りが食い違い、p09 はばあばの話で退けた。画像なしで focus は null。材料は n10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "畑では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-uncle",
+      "run": 2,
+      "usedBefore": [
+        "p06-wedding",
+        "p02-sports-day",
+        "p07-field"
+      ],
+      "candidates": [
+        "p09-okonomiyaki",
+        "p08-dog",
+        "p04-new-year",
+        "p03-car",
+        "p01-beach",
+        "p05-shichigosan"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7202,
+      "outputTokens": 991,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "unknown",
+            "reason": "p04-new-year を選択。叔父の未出の写真で、祖母の語りが付くため。同席は語りから断定できず unknown。p01は叔父と母の語りが食い違い、断定を避け退けた。画像なしのため focus は null。材料は n03-new-year-baaba。",
+            "photo_id": "p04-new-year",
+            "focus": null,
+            "quote": {
+              "narration_id": "n03-new-year-baaba",
+              "text": "うちに親戚がえっと集まって、こたつに入りきらんで。"
+            },
+            "question": "こたつでは、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "unknown",
+        "reason": "p04-new-year を選択。叔父の未出の写真で、祖母の語りが付くため。同席は語りから断定できず unknown。p01は叔父と母の語りが食い違い、断定を避け退けた。画像なしのため focus は null。材料は n03-new-year-baaba。",
+        "photo_id": "p04-new-year",
+        "focus": null,
+        "quote": {
+          "narration_id": "n03-new-year-baaba",
+          "text": "うちに親戚がえっと集まって、こたつに入りきらんで。"
+        },
+        "question": "こたつでは、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "うちに親戚がえっと集まって、こたつに入りきらんで。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-yui",
+      "run": 2,
+      "usedBefore": [
+        "p06-wedding",
+        "p02-sports-day",
+        "p07-field",
+        "p04-new-year"
+      ],
+      "candidates": [
+        "p08-dog",
+        "p01-beach",
+        "p03-car",
+        "p05-shichigosan",
+        "p09-okonomiyaki"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6812,
+      "outputTokens": 1331,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "p01-beach。ばあばの語りと母・叔父の返事があり未提示。ゆいは昭和の話で不在と推測。p08-dogは語りが曖昧で退けた。画像なしでfocusはnull。材料はn01。叔父と母の食い違いは避けた。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "ばあばのこの話で、かき氷のことをもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "p01-beach。ばあばの語りと母・叔父の返事があり未提示。ゆいは昭和の話で不在と推測。p08-dogは語りが曖昧で退けた。画像なしでfocusはnull。材料はn01。叔父と母の食い違いは避けた。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "ばあばのこの話で、かき氷のことをもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-mother",
+      "run": 3,
+      "usedBefore": [],
+      "candidates": [
+        "p01-beach",
+        "p07-field",
+        "p09-okonomiyaki",
+        "p06-wedding",
+        "p08-dog",
+        "p04-new-year"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7400,
+      "outputTokens": 1077,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "unknown",
+            "reason": "p04-new-year。まさるおじさんの写真で、ばあばの語りがあり未提示のため優先。お母さん本人の語りは無く在席は不明。p01は語りが食い違い、本人が既に返事済みなので退けた。画像なしのためfocusはnull。材料はn03-new-year-baaba。",
+            "photo_id": "p04-new-year",
+            "focus": null,
+            "quote": {
+              "narration_id": "n03-new-year-baaba",
+              "text": "うちに親戚がえっと集まって、こたつに入りきらんで。"
+            },
+            "question": "この日のこたつのまわりで、どんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "unknown",
+        "reason": "p04-new-year。まさるおじさんの写真で、ばあばの語りがあり未提示のため優先。お母さん本人の語りは無く在席は不明。p01は語りが食い違い、本人が既に返事済みなので退けた。画像なしのためfocusはnull。材料はn03-new-year-baaba。",
+        "photo_id": "p04-new-year",
+        "focus": null,
+        "quote": {
+          "narration_id": "n03-new-year-baaba",
+          "text": "うちに親戚がえっと集まって、こたつに入りきらんで。"
+        },
+        "question": "この日のこたつのまわりで、どんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "うちに親戚がえっと集まって、こたつに入りきらんで。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-baaba",
+      "run": 3,
+      "usedBefore": [
+        "p04-new-year"
+      ],
+      "candidates": [
+        "p01-beach",
+        "p07-field",
+        "p02-sports-day",
+        "p09-okonomiyaki",
+        "p08-dog",
+        "p03-car"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7192,
+      "outputTokens": 1383,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "p09-okonomiyaki：孫ゆいの言葉がばあばに直接届き、未出で他の家族の語りあり。p01は本人の語りと家族の食い違いがあり退けた。根拠：語りにばあばが出る。画像なしでfocusはnull。材料：n08-okonomiyaki-yui",
+            "photo_id": "p09-okonomiyaki",
+            "focus": null,
+            "quote": {
+              "narration_id": "n08-okonomiyaki-yui",
+              "text": "ばあばのお好み焼き、また食べたい"
+            },
+            "question": "お好み焼きを焼いた日のことを、聞かせてください"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "p09-okonomiyaki：孫ゆいの言葉がばあばに直接届き、未出で他の家族の語りあり。p01は本人の語りと家族の食い違いがあり退けた。根拠：語りにばあばが出る。画像なしでfocusはnull。材料：n08-okonomiyaki-yui",
+        "photo_id": "p09-okonomiyaki",
+        "focus": null,
+        "quote": {
+          "narration_id": "n08-okonomiyaki-yui",
+          "text": "ばあばのお好み焼き、また食べたい"
+        },
+        "question": "お好み焼きを焼いた日のことを、聞かせてください"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "ばあばのお好み焼き、また食べたい",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-jiiji",
+      "run": 3,
+      "usedBefore": [
+        "p04-new-year",
+        "p09-okonomiyaki"
+      ],
+      "candidates": [
+        "p07-field",
+        "p02-sports-day",
+        "p06-wedding",
+        "p01-beach",
+        "p05-shichigosan",
+        "p03-car"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7164,
+      "outputTokens": 881,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "yes",
+            "reason": "p07-field。孫ゆいの語りが付き未提示。じいじが語りに登場し同席と判断。退けたp01-beachは語りが食い違う。画像なしでfocusはnull。材料はn10-field-yui。",
+            "photo_id": "p07-field",
+            "focus": null,
+            "quote": {
+              "narration_id": "n10-field-yui",
+              "text": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。"
+            },
+            "question": "その畑では、ほかにどんなことをして過ごしましたか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "yes",
+        "reason": "p07-field。孫ゆいの語りが付き未提示。じいじが語りに登場し同席と判断。退けたp01-beachは語りが食い違う。画像なしでfocusはnull。材料はn10-field-yui。",
+        "photo_id": "p07-field",
+        "focus": null,
+        "quote": {
+          "narration_id": "n10-field-yui",
+          "text": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。"
+        },
+        "question": "その畑では、ほかにどんなことをして過ごしましたか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "じいじの畑で大根抜いたやつ。全然抜けなくて、じいじが後ろから引っぱってくれた。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-uncle",
+      "run": 3,
+      "usedBefore": [
+        "p04-new-year",
+        "p09-okonomiyaki",
+        "p07-field"
+      ],
+      "candidates": [
+        "p02-sports-day",
+        "p06-wedding",
+        "p08-dog",
+        "p03-car",
+        "p01-beach",
+        "p05-shichigosan"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 7197,
+      "outputTokens": 1381,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "p06-wedding。ばあばの語りがあり、お母さんの写真で未提示のため上位。式の日の話で、まさるおじさんは生まれる前と推測。退けた候補はp01-beach(本人が語り済み、食い違いあり)。画像なしでfocusはnull。材料はn05-wedding-baaba。",
+            "photo_id": "p06-wedding",
+            "focus": null,
+            "quote": {
+              "narration_id": "n05-wedding-baaba",
+              "text": "料理は近所の人が持ち寄ってくれて"
+            },
+            "question": "ばあばが話す持ち寄りの料理について、もっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "p06-wedding。ばあばの語りがあり、お母さんの写真で未提示のため上位。式の日の話で、まさるおじさんは生まれる前と推測。退けた候補はp01-beach(本人が語り済み、食い違いあり)。画像なしでfocusはnull。材料はn05-wedding-baaba。",
+        "photo_id": "p06-wedding",
+        "focus": null,
+        "quote": {
+          "narration_id": "n05-wedding-baaba",
+          "text": "料理は近所の人が持ち寄ってくれて"
+        },
+        "question": "ばあばが話す持ち寄りの料理について、もっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "料理は近所の人が持ち寄ってくれて",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    },
+    {
+      "memberId": "m-yui",
+      "run": 3,
+      "usedBefore": [
+        "p04-new-year",
+        "p09-okonomiyaki",
+        "p07-field",
+        "p06-wedding"
+      ],
+      "candidates": [
+        "p02-sports-day",
+        "p08-dog",
+        "p01-beach",
+        "p03-car",
+        "p05-shichigosan"
+      ],
+      "model": "claude-sonnet-5-5",
+      "ok": true,
+      "reason": null,
+      "violation": null,
+      "attempts": 1,
+      "inputTokens": 6899,
+      "outputTokens": 1006,
+      "rawAttempts": [
+        {
+          "value": {
+            "receiver_present": "no",
+            "reason": "p01-beach を選択。ばあばの語りに母とおじの返事が付き、出した回数も0。語りの「あんたら」は母で、孫のゆいは不在と推測。p08-dog は名前が曖昧で退けた。画像なしのため focus は null。材料は n01。",
+            "photo_id": "p01-beach",
+            "focus": null,
+            "quote": {
+              "narration_id": "n01-beach-baaba",
+              "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+            },
+            "question": "ばあばのこの話で、かき氷のほかにもっと聞いてみたいのはどんなところですか"
+          },
+          "violation": null
+        }
+      ],
+      "value": {
+        "receiver_present": "no",
+        "reason": "p01-beach を選択。ばあばの語りに母とおじの返事が付き、出した回数も0。語りの「あんたら」は母で、孫のゆいは不在と推測。p08-dog は名前が曖昧で退けた。画像なしのため focus は null。材料は n01。",
+        "photo_id": "p01-beach",
+        "focus": null,
+        "quote": {
+          "narration_id": "n01-beach-baaba",
+          "text": "帰りに食べたかき氷が、ぶちおいしかったねえ。"
+        },
+        "question": "ばあばのこの話で、かき氷のほかにもっと聞いてみたいのはどんなところですか"
+      },
+      "fixedPhotoId": null,
+      "shownQuote": "帰りに食べたかき氷が、ぶちおいしかったねえ。",
+      "sameEventLines": 0,
+      "inputMusubiIds": [],
+      "linkCheck": null
+    }
+  ]
+}

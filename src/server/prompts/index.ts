@@ -6,6 +6,7 @@
 import type { ClaudePrompt, ClaudePurpose } from "../core/ports";
 import cleanTranscriptText from "./clean_transcript/v2.md?raw";
 import entranceText from "./entrance/v2.md?raw";
+import entranceV3Text from "./entrance/v3.md?raw";
 import extractRecordsText from "./extract_records/v1.md?raw";
 import musubiGuessText from "./musubi_guess/v1.md?raw";
 import photoGuessText from "./photo_guess/v1.md?raw";
@@ -17,3 +18,13 @@ export const PROMPTS: Record<ClaudePurpose, ClaudePrompt> = {
   extract_records: { purpose: "extract_records", version: "extract_records/v1", text: extractRecordsText },
   musubi_guess: { purpose: "musubi_guess", version: "musubi_guess/v1", text: musubiGuessText },
 };
+
+/**
+ * 入り口のプロンプトの版（0046）。家族の流れで使う版は PROMPTS.entrance（entrance-claude.ts の ENTRANCE_VERSION で切り替える）。
+ * 出し比べでは版を名指しで呼ぶ
+ */
+export const ENTRANCE_PROMPTS = {
+  v2: PROMPTS.entrance,
+  v3: { purpose: "entrance", version: "entrance/v3", text: entranceV3Text },
+} as const satisfies Record<string, ClaudePrompt>;
+export type EntranceVersion = keyof typeof ENTRANCE_PROMPTS;

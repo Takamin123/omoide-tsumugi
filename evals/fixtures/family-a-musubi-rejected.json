@@ -1,0 +1,15 @@
+{
+  "base": "family-a",
+  "id": "family-a-musubi-rejected",
+  "summary": "family-a-musubi-guessed と同じ組で、p06-wedding を家族が却下した変種。生きている写真が 1 枚になるので、むすび全体を無視する（入力にも並びにも出ない）",
+  "musubi": [
+    {
+      "id": "mu-wrong-newyear-wedding",
+      "photos": [
+        { "photoId": "p04-new-year", "status": "guessed" },
+        { "photoId": "p06-wedding", "status": "rejected" }
+      ],
+      "note": "却下された組。same_event に出ないこと"
+    }
+  ]
+}

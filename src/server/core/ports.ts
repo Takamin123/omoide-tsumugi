@@ -127,6 +127,10 @@ export interface EntranceRow {
   inputNarrationIds: string[] | null;
   inputTokens: number | null;
   outputTokens: number | null;
+  /** Claude に same_event として渡したむすびの ID（entrance/v3。0046）。v2 と固定の入り口では null */
+  inputMusubiIds: string[] | null;
+  /** 受け取る人がその場にいたかの Claude の推測（entrance/v3。0046）。v2 と固定の入り口では null */
+  receiverPresent: ReceiverPresent | null;
   /**
    * 問いかけの読み上げの音声（0019、0029）。kind='claude' の入り口だけが持つ。毎朝の処理が作る。なければ null。
    * key は PhotoStore の鍵。model と voice は出所（作ったときの設定）。家族向けの API には URL だけを出す
@@ -137,6 +141,8 @@ export interface EntranceRow {
   shownAt: number | null;
   createdAt: number;
 }
+/** 受け取る人がその場にいたか（Claude の推測。運営と開発だけが見る） */
+export type ReceiverPresent = "yes" | "no" | "unknown";
 /** 入り口に付ける読み上げの音声の記録 */
 export interface EntranceQuestionAudio {
   key: string;
@@ -159,6 +165,9 @@ export type NewClaudeEntrance = Pick<
   inputNarrationIds: string[];
   inputTokens: number;
   outputTokens: number;
+  /** entrance/v3 だけが入れる（0046） */
+  inputMusubiIds?: string[] | null;
+  receiverPresent?: ReceiverPresent | null;
 };
 
 // ---- リポジトリ ----

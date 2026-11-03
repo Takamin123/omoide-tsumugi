@@ -319,5 +319,43 @@
       "forDate": "2026-11-01",
       "at": "03:00"
     }
+  ],
+  "records": [
+    {"photoId": "P4", "narrationId": "n1", "kind": "place", "value": "夫婦岩"},
+    {"photoId": "P4", "narrationId": "n1", "kind": "person", "value": "ばあちゃん"},
+    {"photoId": "P4", "narrationId": "n2", "kind": "place", "value": "伊勢"},
+    {"photoId": "P4", "narrationId": "n2", "kind": "time", "value": "令和になったばかりの連休"},
+    {"photoId": "P6", "narrationId": "n3", "kind": "place", "value": "伊勢の宿"},
+    {"photoId": "P6", "narrationId": "n3", "kind": "event", "value": "すき焼き"},
+    {"photoId": "P5", "narrationId": "n4", "kind": "event", "value": "舟盛り"},
+    {"photoId": "P5", "narrationId": "n4", "kind": "event", "value": "家族旅行"},
+    {"photoId": "P4", "narrationId": "n5", "kind": "event", "value": "帽子をとってた"},
+    {"photoId": "P4", "narrationId": "n6", "kind": "event", "value": "神様の前"},
+    {"photoId": "P6", "narrationId": "n7", "kind": "event", "value": "山形の芋煮"},
+    {"photoId": "Y2", "narrationId": "n8", "kind": "place", "value": "最上川"},
+    {"photoId": "Y2", "narrationId": "n8", "kind": "event", "value": "舟で渡った"},
+    {"photoId": "Y2", "narrationId": "n8", "kind": "place", "value": "夫婦岩"},
+    {"photoId": "Y1", "narrationId": "n9", "kind": "event", "value": "田植え"},
+    {"photoId": "Y1", "narrationId": "n10", "kind": "time", "value": "夏休み"},
+    {"photoId": "P8", "narrationId": "n11", "kind": "time", "value": "二日目の朝"},
+    {"photoId": "P8", "narrationId": "n11", "kind": "place", "value": "大きな木"},
+    {"photoId": "P8", "narrationId": "n12", "kind": "event", "value": "また一緒に旅行できますように"}
+  ],
+  "expectedPresence": [
+    {"photoId": "P4", "memberId": "m-okaasan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P4", "memberId": "m-jiichan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P4", "memberId": "m-yui", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P5", "memberId": "m-okaasan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P5", "memberId": "m-jiichan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P5", "memberId": "m-yui", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P6", "memberId": "m-okaasan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P6", "memberId": "m-jiichan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P6", "memberId": "m-yui", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P8", "memberId": "m-okaasan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P8", "memberId": "m-jiichan", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "P8", "memberId": "m-yui", "present": "yes", "note": "伊勢の家族旅行（n2・n3・n5・n11 の語り手が旅にいた）"},
+    {"photoId": "Y1", "memberId": "m-masato", "present": "yes", "note": "まさとおじさんが車から撮った写真（持ち主）"},
+    {"photoId": "Y2", "memberId": "m-masato", "present": "yes", "note": "まさとおじさんが車から撮った写真（持ち主）"},
+    {"photoId": "Y3", "memberId": "m-masato", "present": "yes", "note": "まさとおじさんが車から撮った写真（持ち主）"}
   ]
 }

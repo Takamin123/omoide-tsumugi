@@ -6,24 +6,35 @@
 // - 受け取った後に機械的に検査する（checkEntrance）。違反は 1 回だけ再試行（ClaudeClient の check）。だめなら固定の入り口
 // - 引用は Claude に文字列そのものを返させ、位置はアプリが探す（locateQuote）
 // - 毎朝の処理（Cron とデモの時計のボタン）からだけ呼ぶ。家族が画面を開いたときには呼ばない
+// - entrance/v3（0046）: むすび（同じ出来事の推測）を、候補の並び（g1a）と Claude への入力（<same_event>）にだけ使う。
+//   問いかけの中身には使わない（つながりの断定・別の写真の記録の語を検査で止める）。ENTRANCE_VERSION で切り替え、既定は v2
 import { z } from "zod";
-import { PROMPTS } from "../prompts";
+import { ENTRANCE_PROMPTS, type EntranceVersion } from "../prompts";
 import { bytesToBase64, notConfiguredClaude } from "./claude";
-import { QUESTION_MAX_CHARS, exceedsChars, findTestingPhrase } from "./claude-checks";
+import { QUESTION_MAX_CHARS, charCount, exceedsChars, findTestingPhrase } from "./claude-checks";
 import { displayText, locateQuote, quoteSource } from "./clean-transcript";
 import { addDays } from "./clock";
 import { compareTaken, ensureFixedEntrance, type EnsureResult } from "./entrances";
 import type {
   AppDeps,
+  ClaudeCallResult,
   ClaudeContentPart,
   ClaudeFailure,
   EntranceRow,
   FamilyRow,
   MemberRow,
+  MusubiRow,
   NarrationRow,
   NewClaudeEntrance,
   PhotoRow,
+  RecordRow,
 } from "./ports";
+
+/**
+ * 家族の流れで使う入り口の版（0046）。v3 は、むすびの g1a と <same_event>、receiver_present、つながりの検査を足した版。
+ * 切り替えるのは 11/10 の後、出し比べの結果と決定の記録と一緒に（マイグレーション 0006 が先に要る）
+ */
+export const ENTRANCE_VERSION: EntranceVersion = "v2";
 
 /** 候補の写真の枚数の上限（画像を渡す枚数。費用と時間が枚数に比例する） */
 export const MAX_ENTRANCE_CANDIDATES = 6;
@@ -71,6 +82,36 @@ export const ENTRANCE_QUESTION_FORBIDDEN: readonly string[] = [
 ];
 /** 問いかけの冒頭に置かない相づち（0017） */
 export const ENTRANCE_QUESTION_FORBIDDEN_OPENERS: readonly string[] = ["わあ", "わぁ", "素敵", "すてき", "いいですね", "なるほど"];
+/**
+ * 問いかけで、写真どうしのつながり・順序を言う語（entrance/v3。0046）。選んだ写真の語り（渡した文字）にない語が
+ * 問いかけにあれば止める。迷ったら止める側（止まっても固定の入り口に倒れるだけ）
+ */
+export const ENTRANCE_LINK_WORDS: readonly string[] = [
+  "同じ日",
+  "同じ旅",
+  "同じとき",
+  "同じ時",
+  "同じ場所",
+  "同じところ",
+  "同じ出来事",
+  "同じ行事",
+  "同じ宿",
+  "続き",
+  "つづき",
+  "初日",
+  "二日目",
+  "三日目",
+  // 算用数字の書き方（全角は NFKC で半角にそろう）
+  "2日目",
+  "3日目",
+  "翌日",
+  "次の日",
+  "前の日",
+  "前日",
+];
+/** 別の写真の記録の語として数える、記録の値の最小の字数（一字の値は誤検出が多い） */
+export const ENTRANCE_OTHER_RECORD_MIN_CHARS = 2;
+
 /** 問いかけの終わり方（このどれかで終わる） */
 export const ENTRANCE_QUESTION_ENDINGS: readonly string[] = ["か", "か？", "ください"];
 
@@ -83,7 +124,7 @@ const focusSchema = z.object({
   h: z.number().describe("高さ（比率。0.25 以上）"),
 });
 
-/** reason を先に書かせる（選んだ理由を考えてから、写真・範囲・引用・問いかけを決める） */
+/** reason を先に書かせる（選んだ理由を考えてから、写真・範囲・引用・問いかけを決める）。entrance/v2 の形 */
 export const entranceSchema = z.object({
   reason: z.string().describe("運営と開発だけが読む。どの候補をなぜ選んだか、focus の理由、材料にした語りの ID。200 字以内"),
   photo_id: z.string().describe("候補の中から選んだ写真の photo_id"),
@@ -99,9 +140,56 @@ export const entranceSchema = z.object({
 });
 export type EntranceOutput = z.infer<typeof entranceSchema>;
 
+/** entrance/v3 の形。receiver_present を reason の前に（その場にいたかを決めてから、問いかけを書く。0024・0046） */
+export const entranceSchemaV3 = z.object({
+  receiver_present: z
+    .enum(["yes", "no", "unknown"])
+    .describe("受け取る人が、選んだ写真のその場にいたか。推測でよい。問いかけには書かない"),
+  ...entranceSchema.shape,
+});
+export type EntranceOutputV3 = z.infer<typeof entranceSchemaV3>;
+
 // ---- 候補の絞り込み ----
 
 type PastEntrance = Pick<EntranceRow, "photoId" | "forDate" | "createdAt">;
+/** むすび（同じ出来事の推測）。写真ごとの状態を持つ */
+export type MusubiForEntrance = Pick<MusubiRow, "id" | "photos">;
+
+/** 候補の写真と同じむすびにある、別の写真（0046） */
+export interface SameEventLink {
+  musubiId: string;
+  withPhotoId: string;
+  /** 両方の写真が confirmed なら confirmed。それ以外は guessed（推測を含むつながり） */
+  status: "guessed" | "confirmed";
+}
+
+/**
+ * 生きているむすび: rejected の写真と、この家族の写真でないものを外して、2 枚以上残るもの（musubi-guess.ts の existing と同じ扱い）。
+ * 写真 ID → 同じむすびのほかの写真
+ */
+export function sameEventLinks(musubi: readonly MusubiForEntrance[], familyPhotoIds: ReadonlySet<string>): Map<string, SameEventLink[]> {
+  const out = new Map<string, SameEventLink[]>();
+  for (const m of musubi) {
+    const live = m.photos.filter((p) => p.status !== "rejected" && familyPhotoIds.has(p.photoId));
+    if (live.length < 2) continue;
+    for (const a of live) {
+      for (const b of live) {
+        if (a.photoId === b.photoId) continue;
+        const list = out.get(a.photoId) ?? [];
+        // 同じ写真の組が二つのむすびに出たら、確かめた側を残す
+        const prev = list.find((l) => l.withPhotoId === b.photoId);
+        const status = a.status === "confirmed" && b.status === "confirmed" ? "confirmed" : "guessed";
+        if (prev) {
+          if (status === "confirmed" && prev.status !== "confirmed") Object.assign(prev, { musubiId: m.id, status });
+          continue;
+        }
+        list.push({ musubiId: m.id, withPhotoId: b.photoId, status });
+        out.set(a.photoId, list);
+      }
+    }
+  }
+  return out;
+}
 type NarrationForPick = Pick<NarrationRow, "photoId" | "speakerMemberId" | "createdAt"> &
   Partial<Pick<NarrationRow, "id" | "replyToId">>;
 
@@ -116,6 +204,9 @@ export interface EntranceCandidate {
  * 候補の写真を、0017 の順に MAX_ENTRANCE_CANDIDATES 枚まで選ぶ。
  * 0. ほかの家族が、この人の語りに返事をした写真で、その返事の後にこの人の入り口に出していないもの（返事の新しい順。0042）。
  *    一段だけ（返事の返事は追わない）
+ * 1a. むすびが渡されたとき（entrance/v3。0046）: 同じ生きているむすびの写真 X について、この人自身が語った（返事を含む）時刻が、
+ *    この写真をこの人に最後に出した時刻より新しく、この写真にほかの家族の語りがあるもの。確かめたつながりを先に、同じなら X への語りの新しい順。
+ *    前の 7 日に出した写真は入れない（0・1 のような免除はしない）
  * 1. ほかの家族が語った写真で、その語りの後にこの人の入り口に出していないもの（語りの新しい順）
  * 2. ほかの家族の写真で、まだ出していないもの（撮影日の古い順）
  * 3. 自分の写真で、まだ出していないもの（撮影日の古い順）
@@ -131,6 +222,7 @@ export function pickEntranceCandidates(
   memberId: string,
   forDate: string,
   avoidPhotoIds: ReadonlySet<string> = new Set(),
+  musubi: readonly MusubiForEntrance[] = [],
 ): EntranceCandidate[] {
   const shown = new Map<string, { count: number; lastDate: string; lastAt: number }>();
   for (const e of past) {
@@ -148,8 +240,14 @@ export function pickEntranceCandidates(
   const speakerOf = new Map<string, string>();
   for (const n of narrations) if (n.id) speakerOf.set(n.id, n.speakerMemberId);
   const latestReply = new Map<string, number>();
+  // この人自身の語り（返事を含む）の、写真ごとの最新の時刻
+  const latestOwn = new Map<string, number>();
   for (const n of narrations) {
-    if (n.speakerMemberId === memberId) continue;
+    if (n.speakerMemberId === memberId) {
+      const o = latestOwn.get(n.photoId);
+      if (o === undefined || n.createdAt > o) latestOwn.set(n.photoId, n.createdAt);
+      continue;
+    }
     const prev = latestOther.get(n.photoId);
     if (prev === undefined || n.createdAt > prev) latestOther.set(n.photoId, n.createdAt);
     if (n.replyToId && speakerOf.get(n.replyToId) === memberId) {
@@ -160,7 +258,10 @@ export function pickEntranceCandidates(
   const recentFrom = addDays(forDate, -ENTRANCE_RECENT_DAYS);
   const byTaken = [...photos].sort(compareTaken);
 
+  const links = sameEventLinks(musubi, new Set(photos.map((p) => p.id)));
+
   const g0: PhotoRow[] = [];
+  const g1a: { photo: PhotoRow; confirmed: boolean; talkedAt: number }[] = [];
   const g1: PhotoRow[] = [];
   const g2: PhotoRow[] = [];
   const g3: PhotoRow[] = [];
@@ -169,17 +270,35 @@ export function pickEntranceCandidates(
     const s = shown.get(p.id);
     const told = latestOther.get(p.id);
     const replied = latestReply.get(p.id);
-    if (replied !== undefined && (!s || replied > s.lastAt)) g0.push(p);
-    else if (told !== undefined && (!s || told > s.lastAt)) g1.push(p);
+    if (replied !== undefined && (!s || replied > s.lastAt)) {
+      g0.push(p);
+      continue;
+    }
+    // 1a: 同じむすびの別の写真について、この人が最後に出した後に語っている
+    if (told !== undefined && (!s || s.lastDate < recentFrom)) {
+      let best: { confirmed: boolean; talkedAt: number } | null = null;
+      for (const l of links.get(p.id) ?? []) {
+        const talkedAt = latestOwn.get(l.withPhotoId);
+        if (talkedAt === undefined || (s && talkedAt <= s.lastAt)) continue;
+        const c = { confirmed: l.status === "confirmed", talkedAt };
+        if (!best || (c.confirmed && !best.confirmed) || (c.confirmed === best.confirmed && c.talkedAt > best.talkedAt)) best = c;
+      }
+      if (best) {
+        g1a.push({ photo: p, ...best });
+        continue;
+      }
+    }
+    if (told !== undefined && (!s || told > s.lastAt)) g1.push(p);
     else if (!s) (p.ownerMemberId !== memberId ? g2 : g3).push(p);
     else if (s.lastDate < recentFrom) g4.push(p);
   }
   g0.sort((a, b) => latestReply.get(b.id)! - latestReply.get(a.id)!);
+  g1a.sort((a, b) => Number(b.confirmed) - Number(a.confirmed) || b.talkedAt - a.talkedAt);
   g1.sort((a, b) => latestOther.get(b.id)! - latestOther.get(a.id)!);
   // 最後に出した日の古い順（同じなら撮影日の古い順。sort は安定）
   g4.sort((a, b) => shown.get(a.id)!.lastDate.localeCompare(shown.get(b.id)!.lastDate));
 
-  const ordered = [...g0, ...g1, ...g2, ...g3, ...g4];
+  const ordered = [...g0, ...g1a.map((x) => x.photo), ...g1, ...g2, ...g3, ...g4];
   const kept = ordered.filter((p) => !avoidPhotoIds.has(p.id));
   return (kept.length > 0 ? kept : ordered).slice(0, MAX_ENTRANCE_CANDIDATES).map((photo) => {
     const s = shown.get(photo.id);
@@ -209,6 +328,11 @@ export interface EntranceMaterial {
   }[];
   /** 候補の写真の語り（並べ替えと字数の上限はここで行う） */
   narrations: NarrationForEntrance[];
+  /**
+   * entrance/v3（0046）: むすびと、その家族の写真の ID。あれば候補ごとに <same_event> を渡す。
+   * 家族の写真でないもの・rejected の写真は外す（sameEventLinks）。なければ v2 と同じ入力
+   */
+  sameEvent?: { musubi: readonly MusubiForEntrance[]; familyPhotoIds: ReadonlySet<string> };
 }
 
 /** 受け取った後の検査に使う、渡したものの記録 */
@@ -218,6 +342,10 @@ export interface EntranceCheckContext {
   imagedIds: ReadonlySet<string>;
   /** 渡した語り。quotable は引用してよいか */
   narrations: ReadonlyMap<string, { narration: NarrationForEntrance; quotable: boolean }>;
+  /** 写真ごとの、渡した語りの文字（引用不可のものも含む）。つながりの検査に使う（0046） */
+  passedTexts: ReadonlyMap<string, readonly string[]>;
+  /** <same_event> の with として渡した写真（候補でないものを含む） */
+  linkedPhotoIds: ReadonlySet<string>;
 }
 
 export interface EntranceInput {
@@ -225,6 +353,8 @@ export interface EntranceInput {
   context: EntranceCheckContext;
   /** 渡した語りの ID（入り口と一緒に保存する） */
   inputNarrationIds: string[];
+  /** <same_event> として渡したむすびの ID（entrance/v3。入り口と一緒に保存する） */
+  inputMusubiIds: string[];
 }
 
 /** 渡す本文と、引用してよいか。文字がなければ null（渡さない） */
@@ -281,6 +411,17 @@ export function buildEntranceInput(m: EntranceMaterial): EntranceInput {
     ].join("\n"),
   });
 
+  // 同じ出来事の推測（v3）。受け取る人自身が with の写真について最後に語った日も添える
+  const links = m.sameEvent ? sameEventLinks(m.sameEvent.musubi, m.sameEvent.familyPhotoIds) : new Map<string, SameEventLink[]>();
+  const receiverTalked = new Map<string, NarrationForEntrance>();
+  for (const n of m.narrations) {
+    if (n.speakerMemberId !== m.receiverId) continue;
+    const prev = receiverTalked.get(n.photoId);
+    if (!prev || n.createdAt > prev.createdAt) receiverTalked.set(n.photoId, n);
+  }
+  const musubiIds = new Set<string>();
+  const linkedPhotoIds = new Set<string>();
+
   const imagedIds = new Set<string>();
   for (const c of m.candidates) {
     const lines = [
@@ -307,6 +448,12 @@ export function buildEntranceInput(m: EntranceMaterial): EntranceInput {
       ];
       lines.push(`<narration ${attrs.join(" ")}>`, x.text, "</narration>");
     }
+    for (const l of links.get(c.photo.id) ?? []) {
+      const talked = receiverTalked.get(l.withPhotoId);
+      lines.push(`<same_event with="${l.withPhotoId}" status="${l.status}"${talked ? ` receiver_talked="${talked.forDate}"` : ""}/>`);
+      musubiIds.add(l.musubiId);
+      linkedPhotoIds.add(l.withPhotoId);
+    }
     lines.push("</photo>");
     content.push({ type: "text", text: lines.join("\n") });
     if (c.image) {
@@ -316,14 +463,24 @@ export function buildEntranceInput(m: EntranceMaterial): EntranceInput {
   }
   content.push({ type: "text", text: "</candidates>" });
 
+  const passedTexts = new Map<string, string[]>();
+  for (const x of included.values()) {
+    const list = passedTexts.get(x.narration.photoId) ?? [];
+    list.push(x.text);
+    passedTexts.set(x.narration.photoId, list);
+  }
+
   return {
     content,
     context: {
       candidateIds,
       imagedIds,
       narrations: new Map([...included].map(([id, x]) => [id, { narration: x.narration, quotable: x.quotable }])),
+      passedTexts,
+      linkedPhotoIds,
     },
     inputNarrationIds: [...included.keys()],
+    inputMusubiIds: [...musubiIds],
   };
 }
 
@@ -386,6 +543,50 @@ export function checkEntrance(v: EntranceOutput, ctx: EntranceCheckContext): str
   return null;
 }
 
+/** 照合のための表記そろえ（NFKC、空白を除く） */
+const fold = (t: string) =>
+  t
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    // カタカナをひらがなに、英字を大文字に（「アジサイ」と「あじさい」、「disney」と「Disney」を同じに数える）
+    .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
+    .toUpperCase();
+
+/**
+ * entrance/v3 の、むすびに関わる問いかけの検査（0046）。違反の種類だけを返す
+ * - question_asserts_link: つながり・順序の語（ENTRANCE_LINK_WORDS）が、選んだ写真の渡した語りのどれにもないのに問いかけにある
+ * - question_other_photo_words: 渡した写真（候補と same_event の相手）のうち、選んだ写真以外の写真の told の記録の値（2 字以上）が
+ *   問いかけにあり、選んだ写真の渡した語りにはない
+ */
+export function checkEntranceLinks(
+  question: string,
+  photoId: string,
+  ctx: Pick<EntranceCheckContext, "passedTexts" | "candidateIds" | "linkedPhotoIds">,
+  records: readonly Pick<RecordRow, "photoId" | "value" | "origin">[],
+): string | null {
+  const q = fold(normalizeQuestion(question));
+  const own = (ctx.passedTexts.get(photoId) ?? []).map(fold);
+  const inOwn = (w: string) => own.some((t) => t.includes(w));
+  if (ENTRANCE_LINK_WORDS.some((w) => q.includes(fold(w)) && !inOwn(fold(w)))) return "question_asserts_link";
+  for (const r of records) {
+    if (r.origin !== "told" || !r.photoId || r.photoId === photoId) continue;
+    if (!ctx.candidateIds.has(r.photoId) && !ctx.linkedPhotoIds.has(r.photoId)) continue;
+    const v = fold(r.value);
+    if (charCount(v) < ENTRANCE_OTHER_RECORD_MIN_CHARS) continue;
+    if (q.includes(v) && !inOwn(v)) return "question_other_photo_words";
+  }
+  return null;
+}
+
+/** entrance/v3 の検査（全か無か）: v2 の検査に、つながりの検査を足す */
+export function checkEntranceV3(
+  v: EntranceOutputV3,
+  ctx: EntranceCheckContext,
+  records: readonly Pick<RecordRow, "photoId" | "value" | "origin">[],
+): string | null {
+  return checkEntrance(v, ctx) ?? checkEntranceLinks(v.question, v.photo_id, ctx, records);
+}
+
 // ---- 作る ----
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -415,20 +616,25 @@ export async function makeClaudeEntrance(
   forDate: string,
   now: number,
   traceId?: string,
+  version: EntranceVersion = ENTRANCE_VERSION,
 ): Promise<MakeClaudeEntranceResult> {
   const { repos } = deps;
+  const v3 = version === "v3";
   const none = (reason: EntranceClaudeFailure): MakeClaudeEntranceResult => ({ ok: false, reason, inputTokens: 0, outputTokens: 0 });
-  const [photos, past, narrations, members, guesses, today] = await Promise.all([
+  const [photos, past, narrations, members, guesses, today, musubi, records] = await Promise.all([
     repos.photos.list(family.id),
     repos.entrances.listByMember(family.id, member.id),
     repos.narrations.listAll(family.id),
     repos.members.list(family.id),
     repos.photoGuesses.listByFamily(family.id),
     repos.entrances.listByDate(family.id, forDate),
+    // むすびと記録は v3 だけが使う（v2 では読まない）
+    v3 ? repos.musubi.listByFamily(family.id) : Promise.resolve([]),
+    v3 ? repos.records.listByFamily(family.id) : Promise.resolve([]),
   ]);
   // 今日すでにほかの人の入り口に出した写真（毎朝の処理は一人ずつ順なので、先に作った人の分。0042）
   const usedToday = new Set(today.filter((e) => e.memberId !== member.id).map((e) => e.photoId));
-  const picked = pickEntranceCandidates(photos, narrations, past, member.id, forDate, usedToday);
+  const picked = pickEntranceCandidates(photos, narrations, past, member.id, forDate, usedToday, musubi);
   if (picked.length === 0) return none("no_candidates");
 
   // 新しい説明を使う（listByFamily は古い順）
@@ -444,15 +650,18 @@ export async function makeClaudeEntrance(
   }
   if (candidates.length === 0) return none("no_images");
 
-  const input = buildEntranceInput({ receiverId: member.id, members, candidates, narrations });
-  const prompt = PROMPTS.entrance;
-  const r = await deps.claude.call({
-    prompt,
-    content: input.content,
-    schema: entranceSchema,
-    check: (v) => checkEntrance(v, input.context),
-    ...(traceId ? { traceId } : {}),
+  const input = buildEntranceInput({
+    receiverId: member.id,
+    members,
+    candidates,
+    narrations,
+    ...(v3 ? { sameEvent: { musubi, familyPhotoIds: new Set(photos.map((p) => p.id)) } } : {}),
   });
+  const prompt = ENTRANCE_PROMPTS[version];
+  const trace = traceId ? { traceId } : {};
+  const r: ClaudeCallResult<EntranceOutput | EntranceOutputV3> = v3
+    ? await deps.claude.call({ prompt, content: input.content, schema: entranceSchemaV3, check: (v) => checkEntranceV3(v, input.context, records), ...trace })
+    : await deps.claude.call({ prompt, content: input.content, schema: entranceSchema, check: (v) => checkEntrance(v, input.context), ...trace });
   if (!r.ok) {
     return { ok: false, reason: r.reason, ...(r.violation ? { violation: r.violation } : {}), inputTokens: r.meta.inputTokens, outputTokens: r.meta.outputTokens };
   }
@@ -484,6 +693,7 @@ export async function makeClaudeEntrance(
       inputNarrationIds: input.inputNarrationIds,
       inputTokens: r.meta.inputTokens,
       outputTokens: r.meta.outputTokens,
+      ...(v3 ? { inputMusubiIds: input.inputMusubiIds, receiverPresent: (v as EntranceOutputV3).receiver_present } : {}),
       createdAt: now,
     },
   };
@@ -509,8 +719,9 @@ export async function ensureMorningEntrance(
   member: Pick<MemberRow, "id">,
   forDate: string,
   now: number,
-  opts: { useClaude: boolean; traceId?: string },
+  opts: { useClaude: boolean; traceId?: string; version?: EntranceVersion },
 ): Promise<MorningEntranceResult> {
+  const version = opts.version ?? ENTRANCE_VERSION;
   const existing = await deps.repos.entrances.get(family.id, member.id, forDate);
   if (existing) return { result: { entrance: existing, created: false }, via: "existing" };
 
@@ -519,7 +730,7 @@ export async function ensureMorningEntrance(
   if (deps.claude === notConfiguredClaude) fallback = "not_configured";
   else if (!opts.useClaude) fallback = "past_deadline";
   else {
-    const made = await makeClaudeEntrance(deps, family, member, forDate, now, opts.traceId);
+    const made = await makeClaudeEntrance(deps, family, member, forDate, now, opts.traceId, version);
     console.log(
       JSON.stringify({
         event: "entrance_claude",
@@ -528,7 +739,7 @@ export async function ensureMorningEntrance(
         memberId: member.id,
         forDate,
         ok: made.ok,
-        promptVersion: PROMPTS.entrance.version,
+        promptVersion: ENTRANCE_PROMPTS[version].version,
         ...(made.ok
           ? { entranceId: made.row.id, photoId: made.row.photoId, model: made.row.model, inputTokens: made.row.inputTokens, outputTokens: made.row.outputTokens }
           : { reason: made.reason, ...(made.violation ? { violation: made.violation } : {}), inputTokens: made.inputTokens, outputTokens: made.outputTokens }),
