@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import type { FeedNarration, Photo } from "../../shared/api";
 import { arrows, bandIndex, clampIndex, sectionAtTop, SyncGate } from "../lib/album";
 import { formatTakenDate } from "../lib/pure";
+import { useScreen } from "../lib/screen";
 import { words } from "../words";
 import { Narrations } from "./Narrations";
 import { ZoomablePhoto } from "./ZoomablePhoto";
@@ -66,6 +67,7 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
   };
 
   const w = words.home;
+  const { variant } = useScreen();
   const sections = () => Array.from(textRef.current?.querySelectorAll<HTMLElement>("[data-photo]") ?? []);
 
   const moveBand = (i: number, animate: boolean) => {
@@ -176,7 +178,7 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
               <div key={it.photo.id} className="album-slide" aria-hidden={i !== index}>
                 <div className="album-print">
                   <div className="album-corners">
-                    <ZoomablePhoto photo={it.photo} variant="family" canOpen={bandSettled} tabIndex={i === index ? undefined : -1} />
+                    <ZoomablePhoto photo={it.photo} variant={variant} canOpen={bandSettled} tabIndex={i === index ? undefined : -1} />
                     <span className="corner tl" aria-hidden="true" />
                     <span className="corner tr" aria-hidden="true" />
                     <span className="corner bl" aria-hidden="true" />

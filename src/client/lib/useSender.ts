@@ -9,6 +9,9 @@ type Payload = ({ kind: "voice"; blob: Blob; durationMs: number | null } | { kin
 /** 「おくりました」を出しておく時間 */
 export const SENT_NOTICE_MS = 4_000;
 
+/** 送る状態と操作（今日の答えは Home が持ち、ReplyBox とデモの帯で共有する） */
+export type Sender = ReturnType<typeof useSender>;
+
 export function useSender(target: VoiceTarget, onSent?: () => void) {
   const [state, setState] = useState<SendState>("idle");
   const [error, setError] = useState<unknown>(null);

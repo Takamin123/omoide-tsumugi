@@ -12,12 +12,14 @@ type RecorderOptions = {
   onStarted?: () => void;
 };
 
-/** 録音の状態と操作。祖父母の画面は、これを使って自分で並べる */
+/** 録音の状態と操作。並べ方は呼ぶ側（ReplyBox）が決める */
 export function useRecorder({ onBlob, onMicError, onStarted }: RecorderOptions) {
   const rec = useRef<Recording | null>(null);
   /** マイクの許可を待っている間の二度押しを無視する */
   const starting = useRef(false);
   const unmounted = useRef(false);
+  /** マイクの許可を待っている間にやめた（許可が出ても録り始めない） */
+  const cancelled = useRef(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
 
@@ -36,10 +38,11 @@ export function useRecorder({ onBlob, onMicError, onStarted }: RecorderOptions) 
     if (starting.current || rec.current) return;
     if (!canRecord()) return onMicError();
     starting.current = true;
+    cancelled.current = false;
     try {
       const r = await startRecording();
-      if (unmounted.current) {
-        // 待っている間に画面を離れた。マイクをすぐ閉じる
+      if (unmounted.current || cancelled.current) {
+        // 待っている間に画面を離れた・やめた。マイクをすぐ閉じる
         r.cancel();
         return;
       }
@@ -83,38 +86,25 @@ export function useRecorder({ onBlob, onMicError, onStarted }: RecorderOptions) 
     return () => clearInterval(t);
   }, [startedAt]);
 
+  /** 録っている途中でやめる（送らずに捨てる）。入力欄を閉じたとき */
+  function cancel() {
+    if (starting.current) cancelled.current = true;
+    const r = rec.current;
+    rec.current = null;
+    setStartedAt(null);
+    if (!r) return;
+    setRecordingNow(false);
+    r.cancel();
+  }
+
   const recording = startedAt !== null;
   return {
     recording,
     /** 経過時間の表示（"0:12"）。録っていなければ null */
     elapsed: recording ? formatElapsed(now - startedAt) : null,
     toggle: () => void (recording ? stop() : start()),
+    cancel,
   };
-}
-
-type Props = RecorderOptions & {
-  disabled?: boolean;
-  startLabel: string;
-  stopLabel: string;
-};
-
-/** 家族の画面の録音のボタン（横いっぱい）と経過時間 */
-export function VoiceRecorder({ disabled, startLabel, stopLabel, ...options }: Props) {
-  const r = useRecorder(options);
-  return (
-    <div className="stack">
-      {r.elapsed !== null && <RecordingTime elapsed={r.elapsed} />}
-      <button
-        type="button"
-        className={r.recording ? "primary stop" : "primary"}
-        onClick={r.toggle}
-        disabled={disabled && !r.recording}
-        aria-pressed={r.recording}
-      >
-        {r.recording ? stopLabel : startLabel}
-      </button>
-    </div>
-  );
 }
 
 /** 録っている間の印（赤い点。色だけに頼らず、経過時間の数字を並べる） */

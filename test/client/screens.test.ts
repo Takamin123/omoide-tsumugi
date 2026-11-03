@@ -102,8 +102,9 @@ describe("デモの帯", () => {
     const html = renderToStaticMarkup(h(DemoBar, { clock, onAdvanced: () => {}, onAudioFile: () => {}, audioDisabled: true }));
     expect(html).toMatch(/<input[^>]*type="file"[^>]*disabled=""|<input[^>]*disabled=""[^>]*type="file"/);
   });
-  it("祖父母の画面は、送っている間 audioDisabled を立てる", () => {
-    expect(stripComments(read("src/client/screens/Elder.tsx"))).toContain('audioDisabled={sender.state === "sending"}');
+  it("祖父母の画面は、送っている間 audioDisabled を立てる（今日の答えの送る状態を Home が持つ。0043）", () => {
+    expect(stripComments(read("src/client/screens/Elder.tsx"))).toContain('variant="elder"');
+    expect(stripComments(read("src/client/screens/Home.tsx"))).toContain('audioDisabled={answer.state === "sending"}');
   });
 });
 
@@ -136,7 +137,7 @@ describe("家族のこと: 一人ひとりを直す", () => {
     expect(html).toContain('value="祖母"');
     expect(html).toContain('value="ばあば"');
     expect(html).toContain('value="鹿児島"');
-    expect(html).toMatch(/<input type="radio" name="role" checked=""[^>]*\/>声で答える/);
+    expect(html).toMatch(/<input type="radio" name="role" checked=""[^>]*\/>文字の大きな画面/);
     expect(html).toMatch(/<input type="radio" name="speech" checked=""[^>]*\/>方言/);
     expect(html).toMatch(/<button type="submit"[^>]*>直す<\/button>/);
     expect(html).toMatch(/<button type="button"[^>]*>やめる<\/button>/);
@@ -255,10 +256,14 @@ describe("デモの帯は canAdvanceClock が真のときだけ", () => {
     expect(uses.length).toBeGreaterThan(0);
     for (const u of uses) expect(u).toMatch(/demo &&\s*(\(\s*<div[^>]*>\s*)?<DemoBar \{\.\.\.demo\}/);
   });
-  it("祖父母の画面: 録音済みファイルは、マイクと同じ sender.sendVoice に入る", () => {
-    const elder = stripComments(read("src/client/screens/Elder.tsx"));
-    expect(elder).toContain("onAudioFile={sender.sendVoice}");
-    expect(elder).toContain("onBlob: sender.sendVoice");
+  it("祖父母の画面: 録音済みファイルは、今日の答えのマイクと同じ sender に入る（0008、0043）", () => {
+    const home = stripComments(read("src/client/screens/Home.tsx"));
+    // 録音済みファイルの入口は祖父母の画面だけ。送る先は今日の答えの sender（段・流れの ReplyBox に渡すものと同じ）
+    expect(home).toContain("const demoAudio = elder && answerTarget ? answer.sendVoice : undefined;");
+    expect(home).toContain("onAudioFile={demoAudio}");
+    expect(home.match(/<ReplyBox target=\{answerTarget\} sender=\{answer\}/g)).toHaveLength(2);
+    // マイクの録音も、渡された sender の sendVoice に入る
+    expect(stripComments(read("src/client/parts/ReplyBox.tsx"))).toContain("onBlob: sender.sendVoice");
   });
   it("語りの送信は voice.ts の外から api.sendNarration を呼ばない（流れは一つ）", () => {
     const callers = listFiles(clientDir).filter(

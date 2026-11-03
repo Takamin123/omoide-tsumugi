@@ -1,16 +1,18 @@
-// 家族の画面（スマホ）: 下のタブ「今日」「アルバム」。開いたときは常に「今日」（最後に見たタブを端末に覚えない）。
-// 今日: 上にメニュー、自分の今日の入り口、その下に入り口の写真の語りと返事。答える前は「声で」「文字で」を欄の外のタブのすぐ上の段に置く（0034）。
+// 家族の画面（スマホ）と祖父母の画面（スマホとタブレット）: 下のタブ「今日」「アルバム」。開いたときは常に「今日」（最後に見たタブを端末に覚えない）。
+// 祖父母の画面も同じ形で、違うのは言葉と大きさだけ（variant。lib/screen.ts、styles.css の .home-shell.elder。0043）。
+// 今日: 上にメニュー（祖父母の画面では呼ばれ方だけ）、自分の今日の入り口、その下に入り口の写真の語りと返事。答える前は「声で」「文字で」を欄の外のタブのすぐ上の段に置く（0034）。
 // アルバム: 語りのある写真の帯と、写真ごとの語りの縦の欄（parts/Album.tsx）。上にメニューは置かない。
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
 // 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は長さの入った「声で聞く」のボタンで流す。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { keepOrder } from "../lib/album";
 import { ComposingContext, ComposingSet } from "../lib/composing";
 import { errorText } from "../lib/errors";
 import { answerPlace } from "../lib/pure";
-import { SENT_NOTICE_MS } from "../lib/useSender";
+import { ScreenContext, SentNoticeContext, type ScreenVariant } from "../lib/screen";
+import { SENT_NOTICE_MS, useSender } from "../lib/useSender";
 import { navigate } from "../lib/route";
 import { Album, type AlbumItem } from "../parts/Album";
 import { DemoBar, type DemoProps } from "../parts/DemoBar";
@@ -21,13 +23,21 @@ import { ReplyBox } from "../parts/ReplyBox";
 import { TabBar, type HomeTab } from "../parts/TabBar";
 import { words } from "../words";
 
-type Props = { view: FamilyView; me: Member; demo: DemoProps | null };
+type Props = { view: FamilyView; me: Member; demo: DemoProps | null; variant?: ScreenVariant };
 
-export function Home({ view, me, demo }: Props) {
+/** 入り口がまだないときの、送る先の空の形（送ることはない） */
+const NO_TARGET = { photoId: "", entranceId: null, replyToId: null };
+
+export function Home({ view, me, demo, variant = "family" }: Props) {
+  const elder = variant === "elder";
   const [tab, setTab] = useState<HomeTab>("today");
   const [entrance, setEntrance] = useState<Entrance | null | undefined>(undefined);
   const [feed, setFeed] = useState<AlbumItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** 読み込めなかったときの例外。家族の画面は文に、祖父母の画面は祖父母の文と「もういちど」にする */
+  const [entranceError, setEntranceError] = useState<unknown>(null);
+  const [feedError, setFeedError] = useState<unknown>(null);
+  /** 祖父母の画面の「もういちど」で読み直す */
+  const [attempt, setAttempt] = useState(0);
   const [composing, setComposing] = useState(false);
   const composingSet = useMemo(() => new ComposingSet(setComposing), []);
   /** アルバムを開いたときの並び（写真の ID）。開いている間に読み直しても並び替えない */
@@ -41,6 +51,9 @@ export function Home({ view, me, demo }: Props) {
   const [answeredHere, setAnsweredHere] = useState(false);
   /** 段を閉じた後、問いかけの下に「送りました」を出しておく */
   const [sentNotice, setSentNotice] = useState(false);
+  /** 祖父母の画面で残している「おくりました」の場所（今日の答えは "answer"、返事は語りの ID）。残るのは一つだけ（0043） */
+  const [noticeAt, setNoticeAt] = useState<string | null>(null);
+  const notice = useMemo(() => ({ at: noticeAt, show: setNoticeAt, clear: () => setNoticeAt(null) }), [noticeAt]);
   const sentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(sentTimer.current), []);
 
@@ -48,31 +61,35 @@ export function Home({ view, me, demo }: Props) {
     try {
       const { items } = await api.getFeed();
       setFeed(items);
+      setFeedError(null);
       return items;
     } catch (e) {
-      setError(errorText(e));
+      setFeedError(e);
       return null;
     }
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    setEntranceError(null);
+    setFeedError(null);
+    setEntrance(undefined);
     api.todayEntrance().then(
-      (r) => setEntrance(r.entrance),
+      (r) => alive && setEntrance(r.entrance),
       (e) => {
+        if (!alive) return;
         setEntrance(null);
-        setError(errorText(e));
+        setEntranceError(e);
       },
     );
     void loadFeed();
-  }, [me.id, loadFeed]);
+    return () => {
+      alive = false;
+    };
+  }, [me.id, loadFeed, attempt]);
 
   const nameOf = (id: string) => view.members.find((m) => m.id === id)?.calledAs ?? "";
-  const w = words.home;
-  const demoBar = demo && (
-    <div className="foot">
-      <DemoBar {...demo} />
-    </div>
-  );
+  const w = words.screen[variant];
 
   const changeTab = (t: HomeTab) => {
     setOpenReplyId(null);
@@ -93,11 +110,44 @@ export function Home({ view, me, demo }: Props) {
   const onAnswered = useCallback(() => {
     setAnsweredHere(true);
     setDockComposing(false);
-    setSentNotice(true);
     clearTimeout(sentTimer.current);
-    sentTimer.current = setTimeout(() => setSentNotice(false), SENT_NOTICE_MS);
+    // 祖父母の画面は、次に答え始めるか返事を始めるまで残す（数秒で消すと、目を離していると見逃す。0028、0043）
+    if (elder) setNoticeAt("answer");
+    else {
+      setSentNotice(true);
+      sentTimer.current = setTimeout(() => setSentNotice(false), SENT_NOTICE_MS);
+    }
     void loadFeed();
-  }, [loadFeed]);
+  }, [loadFeed, elder]);
+  /** 流れの中でもう一度答え始めたら、前の「送りました」を消す */
+  const onFlowComposing = useCallback((on: boolean) => on && setSentNotice(false), []);
+
+  // 今日の入り口への答えの送る状態。段と流れの答え、デモの帯の録音済みファイルが同じものを使う（マイクと同じ送る流れ。0008）
+  const answerTarget = useMemo(
+    () => (entrance ? { photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null } : null),
+    [entrance],
+  );
+  const answer = useSender(answerTarget ?? NO_TARGET, onAnswered);
+  // 録音済みファイルの入口は祖父母の画面の帯だけ（0008）。入り口がなければ送る先がないので出さない
+  const demoAudio = elder && answerTarget ? answer.sendVoice : undefined;
+  const demoBar = demo && (
+    <div className="foot">
+      <DemoBar {...demo} onAudioFile={demoAudio} audioDisabled={answer.state === "sending"} />
+    </div>
+  );
+  const retry = () => setAttempt((n) => n + 1);
+  const errorView = (e: unknown) => (e ? <LoadError error={e} elder={elder} onRetry={retry} /> : null);
+  // 祖父母の画面: 入り口が開けていて一覧だけ読めなかったときは、今日のタブには出さない（開いている写真のそばに「ひらけませんでした」は食い違う）。アルバムで出す
+  const todayError = errorView(elder ? entranceError : (entranceError ?? feedError));
+  const albumError = errorView(elder ? feedError : (entranceError ?? feedError));
+  const showAnswerNotice = elder ? noticeAt === "answer" : sentNotice;
+  // 祖父母の画面: 段が閉じた後の「おくりました」と次のボタンが欄の下の方（画面の外）にあれば、見える所まで動かす（残す知らせを見逃さない。0043）
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!elder || noticeAt !== "answer") return;
+    const reduce = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    noticeRef.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+  }, [elder, noticeAt]);
 
   let body;
   let dock = null;
@@ -108,39 +158,49 @@ export function Home({ view, me, demo }: Props) {
       answeredHere || (!!entrance && !!todays?.narrations.some((n) => n.entranceId === entrance.id && n.speakerMemberId === me.id));
     // ほかの入力欄（語りへの返事。ボタンを選ぶ前も含む）が開いている間は段を描かない。段の中で書いている間は段を残す（書きかけを消さない）
     const place = answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null));
-    const answerTarget = entrance ? { photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null } : null;
+    // 祖父母の画面では、今の話者の呼ばれ方を答えのボタンのすぐそばにも出す（0008）
+    const who = elder ? me.calledAs : undefined;
     if (place === "dock" && answerTarget) {
       dock = (
         <div className="home-dock">
-          <ReplyBox target={answerTarget} onSent={onAnswered} onComposing={setDockComposing} />
+          <ReplyBox target={answerTarget} sender={answer} who={who} onComposing={setDockComposing} />
         </div>
       );
     }
     body = (
       <div className="home-scroll">
         <main className="stack home">
-          <nav className="top" aria-label={w.menuLabel}>
-            <button type="button" onClick={() => navigate("/photos")}>
-              {w.menuPhotos}
-            </button>
-            <button type="button" onClick={() => navigate("/family")}>
-              {w.menuFamily}
-            </button>
-          </nav>
+          {elder ? (
+            // 祖父母の画面にメニューは置かない（家族のことは触れない。0036）。今の話者の呼ばれ方だけ
+            <header className="elder-head">
+              <p className="elder-name">{me.calledAs}</p>
+            </header>
+          ) : (
+            <nav className="top" aria-label={words.home.menuLabel}>
+              <button type="button" onClick={() => navigate("/photos")}>
+                {words.home.menuPhotos}
+              </button>
+              <button type="button" onClick={() => navigate("/family")}>
+                {words.home.menuFamily}
+              </button>
+            </nav>
+          )}
 
           {entrance === undefined && <p>{words.loading}</p>}
+          {/* 入り口がないときは何も出さない（催促の文を出さない。祖父母には写真を足す手段がなく、行き止まりの文になる。0010） */}
           {entrance && (
             <section className="stack">
-              <EntranceView entrance={entrance} members={view.members} variant="family" />
-              <div aria-live="polite">
-                {sentNotice && <p className="done">{w.sent}</p>}
+              <EntranceView entrance={entrance} members={view.members} variant={variant} />
+              <div aria-live="polite" ref={noticeRef}>
+                {showAnswerNotice && <p className="done">{w.sent}</p>}
               </div>
-              {/* 答えた後は流れの中。もう一度答えたときの「送りました」は ReplyBox が出す */}
-              {place === "flow" && answerTarget && <ReplyBox target={answerTarget} onSent={() => void loadFeed()} />}
+              {place === "flow" && answerTarget && (
+                <ReplyBox target={answerTarget} sender={answer} who={who} onComposing={onFlowComposing} />
+              )}
             </section>
           )}
 
-          <ErrorLine text={error} />
+          {todayError}
 
           {todays && (
             <section className="today-narrations">
@@ -161,11 +221,7 @@ export function Home({ view, me, demo }: Props) {
     const items = feed ? (albumOrder ? keepOrder(albumOrder, feed, (it) => it.photo.id) : feed) : [];
     body = (
       <div className="home-album">
-        {error && (
-          <div className="album-error">
-            <ErrorLine text={error} />
-          </div>
-        )}
+        {albumError && <div className="album-error">{albumError}</div>}
         <Album
           items={items}
           nameOf={nameOf}
@@ -180,12 +236,33 @@ export function Home({ view, me, demo }: Props) {
   }
 
   return (
-    <ComposingContext.Provider value={composingSet}>
-      <div className="home-shell">
-        {body}
-        {dock}
-        <TabBar tab={tab} onChange={changeTab} composing={composing} />
-      </div>
-    </ComposingContext.Provider>
+    <ScreenContext.Provider value={variant}>
+      <SentNoticeContext.Provider value={elder ? notice : null}>
+      <ComposingContext.Provider value={composingSet}>
+        <div className={elder ? "home-shell elder" : "home-shell"}>
+          {body}
+          {dock}
+          <TabBar tab={tab} onChange={changeTab} composing={composing} />
+        </div>
+      </ComposingContext.Provider>
+      </SentNoticeContext.Provider>
+    </ScreenContext.Provider>
+  );
+}
+
+/**
+ * 読み込めなかったとき。家族の画面は種類ごとの文。祖父母の画面は、祖父母にできること（押す・家族に知らせる）を言う（0028）
+ */
+function LoadError({ error, elder, onRetry }: { error: unknown; elder: boolean; onRetry: () => void }) {
+  if (!elder) return <ErrorLine text={errorText(error)} />;
+  const e = words.elder.errors;
+  if (error instanceof ApiError && error.kind === "unauthorized") return <p role="alert">{e.unauthorized}</p>;
+  return (
+    <div className="stack" role="alert">
+      <p>{e.loadFailed}</p>
+      <button type="button" className="primary" onClick={onRetry}>
+        {words.elder.again}
+      </button>
+    </div>
   );
 }
