@@ -224,7 +224,7 @@ export function fakeClaude(
 // ---- 手元の D1（wrangler の getPlatformProxy。メモリの中だけに持ち、.wrangler/ に残さない） ----
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export async function startD1(): Promise<{ d1: D1Database; dispose: () => Promise<void> }> {
+export async function startD1(): Promise<{ d1: D1Database; bucket: R2Bucket; dispose: () => Promise<void> }> {
   const wrangler: any = await import("wrangler" as string);
   const proxy = await wrangler.getPlatformProxy({ configPath: path.join(repoRoot, "wrangler.jsonc"), persist: false });
   const d1 = proxy.env.DB as D1Database;
@@ -237,7 +237,7 @@ export async function startD1(): Promise<{ d1: D1Database; dispose: () => Promis
       .filter(Boolean);
     await d1.batch(statements.map((s) => d1.prepare(s)));
   }
-  return { d1, dispose: () => proxy.dispose() };
+  return { d1, bucket: proxy.env.BUCKET as R2Bucket, dispose: () => proxy.dispose() };
 }
 
 export const CREATE_TOKEN = "fake-create-tok";
