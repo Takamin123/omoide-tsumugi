@@ -15,6 +15,8 @@ const {
   tallyOne,
   toHex,
   tokenFromJoinPath,
+  validDurationMs,
+  voiceLength,
 } = await load("../../src/client/lib/pure");
 
 describe("位置の丸め（小数第 2 位）", () => {
@@ -75,6 +77,17 @@ describe("表示の整形", () => {
   it("経過時間", () => {
     expect(formatElapsed(7_400)).toBe("0:07");
     expect(formatElapsed(65_000)).toBe("1:05");
+  });
+  it("録音の長さ: 測れていない値は null、1 秒未満は 1 秒、60 秒からは分", () => {
+    for (const v of [null, undefined, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, 60 * 60_000 + 1]) {
+      expect(validDurationMs(v)).toBeNull();
+      expect(voiceLength(v)).toBeNull();
+    }
+    expect(validDurationMs(1234.5)).toBe(1235);
+    expect(voiceLength(300)).toEqual({ minutes: 0, seconds: 1 });
+    expect(voiceLength(13_400)).toEqual({ minutes: 0, seconds: 13 });
+    expect(voiceLength(59_600)).toEqual({ minutes: 1, seconds: 0 });
+    expect(voiceLength(80_000)).toEqual({ minutes: 1, seconds: 20 });
   });
   it("16 進", () => {
     expect(toHex(new Uint8Array([0, 15, 255]))).toBe("000fff");

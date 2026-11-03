@@ -20,21 +20,66 @@ const entrance = (over: Record<string, unknown>) => ({ id: "e-1", photo, quote: 
 
 describe("入り口の表示", () => {
   it("問いかけが null なら固定の一文を出す", () => {
-    const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({}), members }));
+    const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({}), members, variant: "elder" }));
     expect(words.fixedQuestion).toBe("この写真のころのこと、聞かせてください");
     expect(html).toContain(words.fixedQuestion);
   });
   it("問いかけがあればそれだけを出し、固定の一文は出さない", () => {
-    const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({ question: "この浜には誰と行きましたか" }), members }));
+    const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({ question: "この浜には誰と行きましたか" }), members, variant: "family" }));
     expect(html).toContain("この浜には誰と行きましたか");
     expect(html).not.toContain(words.fixedQuestion);
   });
   it("添える家族の言葉は、話者の呼ばれ方つき", () => {
     const html = renderToStaticMarkup(
-      h(EntranceView, { entrance: entrance({ quote: { narrationId: "n-1", speakerMemberId: "m-grandma", text: "あん頃は、よう海に行ったもんじゃ" } }), members }),
+      h(EntranceView, { entrance: entrance({ quote: { narrationId: "n-1", speakerMemberId: "m-grandma", text: "あん頃は、よう海に行ったもんじゃ" } }), members, variant: "family" }),
     );
     expect(html).toContain("あん頃は、よう海に行ったもんじゃ");
     expect(html).toContain("ばあば");
+  });
+});
+
+describe("添える家族の言葉の声と、問いかけの読み上げ", () => {
+  const voiceQuote = (durationMs: number | null) => ({
+    narrationId: "n-1",
+    speakerMemberId: "m-mother",
+    text: "この浜には毎年行っていました",
+    audioUrl: "/api/narrations/n-1/audio",
+    durationMs,
+  });
+  const render = (over: Record<string, unknown>, variant: "elder" | "family") =>
+    renderToStaticMarkup(h(EntranceView, { entrance: entrance(over), members, variant })) as string;
+
+  it("文字の語りの引用には、聞くボタンを出さない", () => {
+    const html = render({ quote: { ...voiceQuote(null), audioUrl: null } }, "family");
+    expect(html).not.toContain("<button");
+  });
+  it("家族の画面: 「{呼ばれ方}の声で聞く（13秒）」。長さが分からなければ秒を出さない", () => {
+    expect(render({ quote: voiceQuote(13_400) }, "family")).toContain("おかあさんの声で聞く（13秒）");
+    const unknown = render({ quote: voiceQuote(null) }, "family");
+    expect(unknown).toContain("おかあさんの声で聞く");
+    expect(unknown).not.toContain("秒");
+    expect(render({ quote: voiceQuote(80_000) }, "family")).toContain("（1分20秒）");
+  });
+  it("祖父母の画面: ボタンは「こえを きく」、誰の声かと長さはそばの補助の文", () => {
+    const html = render({ quote: voiceQuote(13_400) }, "elder");
+    expect(html).toMatch(/<button[^>]*>.*こえを きく<\/button>/);
+    expect(html).toContain("おかあさんの声（13秒）");
+  });
+  it("読み上げは questionAudioUrl があるときだけ、祖父母の画面だけ。そばに「AI の声で読みます」", () => {
+    for (const over of [{}, { questionAudioUrl: null }]) {
+      const html = render({ question: "q", ...over }, "elder");
+      expect(html).not.toContain(words.elder.readAloud);
+      expect(html).not.toContain(words.elder.readAloudNote);
+    }
+    const html = render({ question: "q", questionAudioUrl: "/api/x" }, "elder");
+    expect(html).toContain(words.elder.readAloud);
+    expect(words.elder.readAloudNote).toBe("AI の声で読みます");
+    expect(html).toContain(words.elder.readAloudNote);
+    expect(render({ question: "q", questionAudioUrl: "/api/x" }, "family")).not.toContain(words.elder.readAloud);
+  });
+  it("自動では流さない（audio 要素も autoplay も描かない）", () => {
+    const html = render({ question: "q", questionAudioUrl: "/api/x", quote: voiceQuote(1000) }, "elder");
+    expect(html).not.toMatch(/<audio|autoplay/i);
   });
 });
 
@@ -139,7 +184,7 @@ describe("デモの帯は canAdvanceClock が真のときだけ", () => {
   it("祖父母の画面: 録音済みファイルは、マイクと同じ sender.sendVoice に入る", () => {
     const elder = stripComments(read("src/client/screens/Elder.tsx"));
     expect(elder).toContain("onAudioFile={sender.sendVoice}");
-    expect(elder).toContain("onBlob={sender.sendVoice}");
+    expect(elder).toContain("onBlob: sender.sendVoice");
   });
   it("語りの送信は voice.ts の外から api.sendNarration を呼ばない（流れは一つ）", () => {
     const callers = listFiles(clientDir).filter(

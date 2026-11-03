@@ -1,34 +1,32 @@
-// 録音の操作。押すと始まり、もう一度押すと止まる。止めたら Blob を onBlob に渡す。
+// 録音の操作。押すと始まり、もう一度押すと止まる。止めたら Blob と長さを onBlob に渡す。
 // 送るのは呼ぶ側（録音済みファイルと同じ関数を通すため）。ごく短い録音は何も言わずに捨てる。
 import { useEffect, useRef, useState } from "react";
 import { formatElapsed } from "../lib/pure";
 import { canRecord, MAX_RECORDING_MS, MIN_RECORDING_MS, startRecording, type Recording } from "../lib/recorder";
+import { setRecordingNow } from "./PlayVoice";
 
-type Props = {
-  onBlob: (blob: Blob) => void;
+type RecorderOptions = {
+  onBlob: (blob: Blob, durationMs: number) => void;
   onMicError: () => void;
   /** 録音が始まったとき（マイクが使えると分かったとき） */
   onStarted?: () => void;
-  disabled?: boolean;
-  startLabel: string;
-  stopLabel: string;
-  variant: "mic" | "primary";
 };
 
-export function VoiceRecorder({ onBlob, onMicError, onStarted, disabled, startLabel, stopLabel, variant }: Props) {
+/** 録音の状態と操作。祖父母の画面は、これを使って自分で並べる */
+export function useRecorder({ onBlob, onMicError, onStarted }: RecorderOptions) {
   const rec = useRef<Recording | null>(null);
   /** マイクの許可を待っている間の二度押しを無視する */
   const starting = useRef(false);
   const unmounted = useRef(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
-  const recording = startedAt !== null;
 
   // 画面を離れたら録音を止めて捨てる
   useEffect(() => {
     unmounted.current = false;
     return () => {
       unmounted.current = true;
+      if (rec.current) setRecordingNow(false);
       rec.current?.cancel();
       rec.current = null;
     };
@@ -46,6 +44,8 @@ export function VoiceRecorder({ onBlob, onMicError, onStarted, disabled, startLa
         return;
       }
       rec.current = r;
+      // 流れている声を止め、録っている間は流さない
+      setRecordingNow(true);
       onStarted?.();
       const t = Date.now();
       setStartedAt(t);
@@ -62,9 +62,10 @@ export function VoiceRecorder({ onBlob, onMicError, onStarted, disabled, startLa
     rec.current = null;
     setStartedAt(null);
     if (!r) return;
+    setRecordingNow(false);
     try {
       const { blob, durationMs } = await r.stop();
-      if (durationMs >= MIN_RECORDING_MS) onBlob(blob);
+      if (durationMs >= MIN_RECORDING_MS) onBlob(blob, durationMs);
     } catch {
       // 空の録音は送らない
     }
@@ -82,19 +83,46 @@ export function VoiceRecorder({ onBlob, onMicError, onStarted, disabled, startLa
     return () => clearInterval(t);
   }, [startedAt]);
 
-  const className = variant === "mic" ? `mic${recording ? " recording" : ""}` : "primary";
+  const recording = startedAt !== null;
+  return {
+    recording,
+    /** 経過時間の表示（"0:12"）。録っていなければ null */
+    elapsed: recording ? formatElapsed(now - startedAt) : null,
+    toggle: () => void (recording ? stop() : start()),
+  };
+}
+
+type Props = RecorderOptions & {
+  disabled?: boolean;
+  startLabel: string;
+  stopLabel: string;
+};
+
+/** 家族の画面の録音のボタン（横いっぱい）と経過時間 */
+export function VoiceRecorder({ disabled, startLabel, stopLabel, ...options }: Props) {
+  const r = useRecorder(options);
   return (
-    <div className="stack" style={{ alignItems: variant === "mic" ? "center" : "stretch" }}>
+    <div className="stack">
+      {r.elapsed !== null && <RecordingTime elapsed={r.elapsed} />}
       <button
         type="button"
-        className={className}
-        onClick={() => void (recording ? stop() : start())}
-        disabled={disabled && !recording}
-        aria-pressed={recording}
+        className={r.recording ? "primary stop" : "primary"}
+        onClick={r.toggle}
+        disabled={disabled && !r.recording}
+        aria-pressed={r.recording}
       >
-        {recording ? stopLabel : startLabel}
+        {r.recording ? stopLabel : startLabel}
       </button>
-      {recording && <p className="elapsed">{formatElapsed(now - startedAt)}</p>}
     </div>
+  );
+}
+
+/** 録っている間の印（赤い点。色だけに頼らず、経過時間の数字を並べる） */
+export function RecordingTime({ elapsed }: { elapsed: string }) {
+  return (
+    <p className="elapsed" aria-live="off">
+      <span className="rec-dot" aria-hidden="true" />
+      {elapsed}
+    </p>
   );
 }

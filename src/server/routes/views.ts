@@ -23,6 +23,10 @@ export const photoView = (p: PhotoRow): Photo => ({
   imageUrl: `/api/photos/${encodeURIComponent(p.id)}/image`,
 });
 
+/** 声の語りの録音の URL。文字の語りは null。返すときは合言葉を確かめ、Cache-Control: private, no-store を付ける（narrations.ts） */
+const narrationAudioUrl = (n: NarrationRow): string | null =>
+  n.kind === "voice" ? `/api/narrations/${encodeURIComponent(n.id)}/audio` : null;
+
 export const narrationView = (n: NarrationRow): Narration => ({
   id: n.id,
   speakerMemberId: n.speakerMemberId,
@@ -30,7 +34,8 @@ export const narrationView = (n: NarrationRow): Narration => ({
   entranceId: n.entranceId,
   replyToId: n.replyToId,
   kind: n.kind,
-  audioUrl: n.kind === "voice" ? `/api/narrations/${encodeURIComponent(n.id)}/audio` : null,
+  audioUrl: narrationAudioUrl(n),
+  durationMs: n.kind === "voice" ? n.durationMs : null,
   transcriptStatus: n.transcriptStatus,
   // 印の範囲は「……」に置き換え済み。生の範囲（uncertainSpans）は返さない
   text: displayText(n),
@@ -46,7 +51,14 @@ export function entranceView(e: EntranceRow, photo: PhotoRow, quoteFrom: Narrati
   let quote: Entrance["quote"] = null;
   const text = quoteFrom ? quoteText(quoteFrom, e.quoteStart, e.quoteEnd) : null;
   if (quoteFrom && text !== null && text.length > 0) {
-    quote = { narrationId: quoteFrom.id, speakerMemberId: quoteFrom.speakerMemberId, text };
+    // 声なら、引用の範囲ではなく語り全体の録音を流す（0011、0015）
+    quote = {
+      narrationId: quoteFrom.id,
+      speakerMemberId: quoteFrom.speakerMemberId,
+      text,
+      audioUrl: narrationAudioUrl(quoteFrom),
+      durationMs: quoteFrom.kind === "voice" ? quoteFrom.durationMs : null,
+    };
   }
   return {
     id: e.id,

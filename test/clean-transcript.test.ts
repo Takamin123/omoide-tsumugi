@@ -244,7 +244,15 @@ describe("quoteText: 切り出してから置き換える", () => {
       createdAt: 0,
     };
     const v = entranceView(e, photo, row());
-    expect(v.quote).toEqual({ narrationId: "n1", speakerMemberId: "m1", text: `${UNCERTAIN_PLACEHOLDER}で式を挙げたんよ。` });
+    // 声の語りなら、語り全体の録音の URL と長さも返す（0015）
+    expect(v.quote).toEqual({
+      narrationId: "n1",
+      speakerMemberId: "m1",
+      text: `${UNCERTAIN_PLACEHOLDER}で式を挙げたんよ。`,
+      audioUrl: "/api/narrations/n1/audio",
+      durationMs: null,
+    });
+    expect(entranceView(e, photo, row({ durationMs: 13_400 })).quote?.durationMs).toBe(13_400);
     expect(JSON.stringify(v)).not.toContain("交番");
     expect(entranceView({ ...e, quoteStart: 10, quoteEnd: 12 }, photo, row()).quote).toBeNull();
   });

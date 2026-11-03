@@ -251,6 +251,28 @@ describe("POST /api/narrations", () => {
     expect((await postForm(t, "/api/narrations", make(m.id, p.id), f.cookie)).status).toBe(400);
   });
 
+  it("声の語りは、クライアントが測った録音の長さを返す。省けば null、文字の語りは null、範囲の外は 400", async () => {
+    const f = await createFamily(t);
+    const m = await addMember(t, f.cookie);
+    const p = await addPhoto(t, f.cookie, m.id, 1);
+    const send = (extra: Record<string, unknown>, audio?: typeof fakeAudio) =>
+      postForm(t, "/api/narrations", narrationForm({ ...textMeta(m.id, p.id), ...extra }, audio), f.cookie);
+    const durationOf = async (res: Response) => ((await res.json()) as { narration: { durationMs: number | null } }).narration.durationMs;
+
+    expect(await durationOf(await send({ kind: "voice", text: null, durationMs: 13_400 }, fakeAudio))).toBe(13_400);
+    expect(await durationOf(await send({ kind: "voice", text: null }, fakeAudio))).toBeNull();
+    expect(await durationOf(await send({ kind: "voice", text: null, durationMs: null }, fakeAudio))).toBeNull();
+    expect(await durationOf(await send({ durationMs: 5_000 }))).toBeNull();
+    for (const bad of [-1, 1.5, 60 * 60_000 + 1, "13"]) {
+      expect((await send({ kind: "voice", text: null, durationMs: bad }, fakeAudio)).status).toBe(400);
+    }
+    await t.flush();
+    const list = (await (await t.app.request(`/api/narrations?photoId=${p.id}`, { headers: { Cookie: f.cookie } })).json()) as {
+      narrations: { durationMs: number | null }[];
+    };
+    expect(list.narrations.map((n) => n.durationMs).sort()).toEqual([13_400, null, null, null]);
+  });
+
   it("ほかの家族の語りへの返事、ほかの家族の録音は 404", async () => {
     const a = await createFamily(t);
     const b = await createFamily(t);

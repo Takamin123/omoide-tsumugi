@@ -2,6 +2,11 @@
 // 短く、素っ気ないくらいに。相づち、励まし、感想、AI を前に出す言葉、試す言葉を入れない。
 import type { ErrorKind, TimeSlot } from "../shared/api";
 
+/** 録音の長さ（lib/pure.ts の voiceLength が作る） */
+type VoiceLength = { minutes: number; seconds: number };
+/** 「13秒」「1分20秒」（「12枚のうち 5枚」に合わせ、数と単位の間に空白を入れない） */
+const voiceLengthText = ({ minutes, seconds }: VoiceLength) => (minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`);
+
 export const words = {
   appName: "おもいでつむぎ",
 
@@ -78,19 +83,43 @@ export const words = {
     failed: (n: number) => `送れなかった写真 ${n}枚`,
   },
 
-  // 祖父母の画面
+  // 祖父母の画面。ボタンは一語のひらがな。エラーの文はひらがなで「できること」を言う（家族向けの errors と分ける）
   elder: {
     speak: "はなす",
     stop: "おわる",
     sent: "おくりました",
-    sendFailed: "おくれませんでした。もういちど おしてください",
     resend: "おくる",
-    micDenied: "マイクがつかえません",
+    cancel: "やめる",
+    again: "もういちど",
+    /** 添える家族の言葉の録音を聞くボタン。そばに listenNote を出す（「よみあげ」と「AI の声で読みます」と同じ組み立て） */
+    listen: "こえを きく",
+    /** 誰の声か、と長さ。呼ばれ方が分からなければ「声」だけ、長さが分からなければ秒を出さない */
+    listenNote: (name: string | null, len: VoiceLength | null) => `${name ? `${name}の` : ""}声${len ? `（${voiceLengthText(len)}）` : ""}`,
+    stopVoice: "とめる",
+    /** 問いかけの読み上げ（0019） */
+    readAloud: "よみあげ",
+    readAloudNote: "AI の声で読みます",
+    errors: {
+      loadFailed: "ひらけませんでした。「もういちど」を おしてください",
+      unauthorized: "ひらけませんでした。かぞくに しらせてください",
+      sendFailed: "おくれませんでした。「おくる」を おすと、もういちど おくります",
+      micDenied: "マイクが つかえません。かぞくに しらせてください",
+    },
   },
 
   // 家族の画面
   home: {
     reply: "返事",
+    sent: "送りました",
+    speak: "話す",
+    stop: "終わる",
+    micDenied: "マイクが使えません",
+    /** 声の語りを聞く。長さが分からなければ秒を出さない */
+    listen: (len: VoiceLength | null) => `声で聞く${len ? `（${voiceLengthText(len)}）` : ""}`,
+    /** 添える家族の言葉の録音を聞く */
+    listenTo: (name: string | null, len: VoiceLength | null) =>
+      `${name ? `${name}の` : ""}声で聞く${len ? `（${voiceLengthText(len)}）` : ""}`,
+    stopVoice: "止める",
     byText: "文字で",
     byVoice: "声で",
     send: "送る",

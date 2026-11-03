@@ -1,5 +1,5 @@
 // 画面から分けた、純粋な小さな関数。DOM に頼らない（test/client/ から Node で確かめる）。
-import type { Clock } from "../../shared/api";
+import { MAX_VOICE_DURATION_MS, type Clock } from "../../shared/api";
 import { words } from "../words";
 
 /** 緯度経度を小数第 2 位（約 1 km）に丸める。生の値は送らない・保存しない。 */
@@ -77,6 +77,21 @@ export function formatElapsed(ms: number): string {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/** 測った録音の長さ（ミリ秒）を、送ってよい値にする。測れていない・ありえない値は null */
+export function validDurationMs(ms: number | null | undefined): number | null {
+  if (typeof ms !== "number" || !Number.isFinite(ms) || ms <= 0) return null;
+  const r = Math.round(ms);
+  return r > MAX_VOICE_DURATION_MS ? null : r;
+}
+
+/** 録音の長さを、画面に出す分と秒にする（1 秒未満は 1 秒）。分からなければ null */
+export function voiceLength(ms: number | null | undefined): { minutes: number; seconds: number } | null {
+  const v = validDurationMs(ms);
+  if (v === null) return null;
+  const total = Math.max(1, Math.round(v / 1000));
+  return { minutes: Math.floor(total / 60), seconds: total % 60 };
 }
 
 /** 招待リンクの道すじから合言葉を取り出す。"/join/<token>" でなければ null */

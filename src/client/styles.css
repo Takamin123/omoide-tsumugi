@@ -5,25 +5,52 @@
 :root {
   --font-main: 1.375rem; /* 語り・問いかけ・ボタン: 22px（最低 20px） */
   --font-sub: 1.0625rem; /* 補助の文字: 17px（最低 16px） */
+  --font-aux: 1.25rem; /* 補助のボタン（聞く、返事、ほかの人にかわる）: 20px（最低 20px） */
   --font-title: 1.625rem;
+  --font-told: 1.3125rem; /* 家族の言葉（明朝）: 21px */
+  --font-question: 1.5rem; /* 家族の画面の問いかけ: 24px */
+  --font-elder-told: 1.375rem; /* 祖父母の画面の添える言葉: 22px（タブレットは下で大きくする） */
+  --font-elder-question: 1.625rem; /* 祖父母の画面の問いかけ: 26px */
+  --font-elder-action: 2rem; /* 祖父母の画面の主な動作: 32px */
   --line-height: 1.6; /* 最低 1.5 */
+  --line-height-told: 1.8;
   --tap-min: 3.25rem; /* 押せる場所: 52px（最低 48px） */
   --tap-gap: 0.75rem; /* 隣との間: 12px（最低 8px） */
   --primary-height: 4.5rem; /* 主な動作: 72px（最低 64px） */
-  --mic-size: 9rem;
+  --elder-action-height: 5.25rem; /* 祖父母の画面の主な動作: 84px（タブレットは下で大きくする） */
   --page-pad: 1rem;
   --radius: 0.75rem;
 
-  /* 色（白地に対し文字は 4.5:1 以上、輪郭は 3:1 以上） */
-  --bg: #fbf8f3;
+  /* 書体。外のフォントは読み込まず、端末にある書体を使う */
+  --font-gothic: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic",
+    YuGothic, Meiryo, "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+  --font-mincho: "Yu Mincho", YuMincho, "Hiragino Mincho ProN", "Hiragino Mincho Pro", "BIZ UDPMincho", "BIZ UDMincho",
+    "Noto Serif JP", "Noto Serif CJK JP", serif;
+
+  /* 色（白地・地の色に対し文字は 4.5:1 以上、輪郭は 3:1 以上）。主な動作の色は --accent の一つだけ */
+  --bg: #eef1f3;
   --surface: #ffffff;
-  --text: #2a2522; /* 白地で約 15:1 */
-  --text-sub: #5b524b; /* 白地で約 7.6:1 */
-  --border: #7d726a; /* 白地で約 4.8:1 */
-  --accent: #8a3b12; /* 白地で約 8:1。白文字をのせる */
+  --text: #1c2024; /* 白地で約 16:1 */
+  --text-sub: #3e4851; /* 地の色で約 8:1 */
+  --border: #59616a; /* 白地で約 6:1 */
+  --line: #c9cfd4; /* 台紙のふちや区切りの線（飾り。意味は持たせない） */
+  --accent: #1f4e8c; /* 落ち着いた青。白文字で約 8:1 */
   --accent-text: #ffffff;
-  --recording: #a1170f; /* 白文字で約 7:1 */
-  --focus: #1f4fa3;
+  --recording: #b3261e; /* 録っている印の点。白文字で約 6:1 */
+  --done: #22553a; /* 「おくりました」の文字。白地で約 8:1 */
+  --done-border: #2e6b45;
+  --focus: #1f4e8c;
+}
+
+/* タブレット（祖父母の画面を大きく） */
+@media (min-width: 40rem) {
+  :root {
+    --font-elder-told: 1.75rem; /* 28px */
+    --font-elder-question: 2rem; /* 32px */
+    --font-elder-action: 2.5rem; /* 40px */
+    --elder-action-height: 7rem; /* 112px */
+    --page-pad: 1.75rem;
+  }
 }
 
 * {
@@ -38,7 +65,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-family: var(--font-gothic);
   font-size: var(--font-main);
   line-height: var(--line-height);
 }
@@ -183,62 +210,269 @@ textarea {
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+/* 写真は白い台紙に貼る形 */
+.mount {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  padding: 0.625rem 0.625rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .photo {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 60vh;
+  max-height: 55vh;
   object-fit: contain;
-  border-radius: var(--radius);
-  background: #e9e3da;
+  background: #dde2e6;
 }
 
-.quote {
+.mount figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0 0.25rem;
+}
+
+/* 家族が語った言葉（引用、語り、返事）は明朝 */
+.told {
   margin: 0;
-  padding: 0.5rem 1rem;
-  border-left: 4px solid var(--border);
+  font-family: var(--font-mincho);
+  font-weight: 600;
+  font-size: var(--font-told);
+  line-height: var(--line-height-told);
+  white-space: pre-wrap;
+}
+
+.who {
+  margin: 0;
+  font-size: var(--font-sub);
+  color: var(--text-sub);
 }
 
 .question {
-  font-size: var(--font-main);
+  margin: 0;
+  font-size: var(--font-question);
   font-weight: bold;
+  line-height: var(--line-height);
+}
+
+/* 補助のボタン（聞く、返事、ほかの人にかわる）。主な動作より小さく、文字は 20px 以上 */
+.aux {
+  font-size: var(--font-aux);
+  min-height: var(--tap-min);
+  gap: 0.5rem;
+  align-self: flex-start;
+}
+
+.aux.listen {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.aux.listen[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.aux svg {
+  flex: none;
+}
+
+.read-aloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tap-gap);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tap-gap);
+}
+
+.grid2 > button {
+  width: 100%;
+  min-height: var(--primary-height);
+}
+
+/* 録るのを止めるボタン: 色に頼らず、太い輪郭と四角の印で分ける */
+.primary.stop {
+  background: var(--surface);
+  color: var(--text);
+  border: 4px solid var(--text);
+}
+
+.done {
+  margin: 0;
+  min-height: var(--tap-min);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 2px solid var(--done-border);
+  color: var(--done);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0.25rem 1rem;
+  text-align: center;
+}
+
+.elapsed {
+  margin: 0;
+  font-size: var(--font-main);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+}
+
+.rec-dot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--recording);
+  flex: none;
+}
+
+/* ---- 家族の画面 ---- */
+
+main.home {
+  gap: 1.5rem;
+}
+
+.feed-photo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
 }
 
 .narration {
-  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+}
+
+.narration + .narration {
+  border-top: 1px solid var(--line);
   padding-top: 0.75rem;
 }
 
+/* 返事は、元の語りの下に左の線で */
 .narration.reply {
-  margin-left: 1.5rem;
+  border-top: none;
+  padding: 0.25rem 0 0 0.75rem;
+  margin-top: 0.25rem;
+  border-left: 4px solid var(--line);
 }
 
-audio {
-  width: 100%;
-  min-height: var(--tap-min);
-}
-
-.mic {
-  width: var(--mic-size);
-  height: var(--mic-size);
-  border-radius: 50%;
-  border-width: 3px;
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-  font-size: var(--font-title);
+.narration .speaker {
+  margin: 0;
+  font-size: var(--font-sub);
   font-weight: bold;
-  align-self: center;
 }
 
-.mic.recording {
-  background: var(--recording);
-  border-color: var(--recording);
+.reply-box {
+  border-left: 4px solid var(--line);
+  padding-left: 0.75rem;
+}
+
+.reply-box textarea,
+.answer textarea {
+  font-family: var(--font-mincho);
+  font-size: var(--font-told);
+  line-height: var(--line-height-told);
+}
+
+/* ---- 祖父母の画面 ---- */
+
+main.elder {
+  max-width: 52rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0;
+}
+
+.elder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.elder-name {
+  margin: 0;
+  font-size: var(--font-elder-question);
+  font-weight: bold;
+}
+
+.elder .aux {
+  align-self: auto;
+}
+
+.elder .told {
+  font-size: var(--font-elder-told);
+}
+
+.elder .question {
+  font-size: var(--font-elder-question);
+}
+
+/* 主な動作の帯。スマホでは画面の下に留まり、写真と問いかけを動かして見ても押せる */
+.elder-action {
+  position: sticky;
+  bottom: 0;
+  margin: auto calc(-1 * var(--page-pad)) 0;
+  padding: 0.75rem var(--page-pad) calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.elder-action .primary,
+.elder-action .grid2 > button {
+  min-height: var(--elder-action-height);
+  font-size: var(--font-elder-action);
+  border-radius: 1rem;
+  gap: 0.875rem;
+}
+
+.elder-action .done {
+  min-height: var(--primary-height);
+  font-size: var(--font-elder-question);
+}
+
+/* 「やめる」「おくる」: 並べると語が折れる幅（スマホで文字を大きくしたとき）では、縦に並べる */
+.elder-action .grid2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.elder-action .grid2 > button {
+  white-space: nowrap;
+}
+
+.elder-action p {
+  margin: 0;
+  text-align: center;
 }
 
 .speakers {
@@ -260,6 +494,10 @@ audio {
   border-radius: var(--radius);
   padding: 0.75rem 1rem;
   font-size: var(--font-sub);
+}
+
+.elder .demo {
+  margin: 1rem 0;
 }
 
 .demo button,
@@ -285,24 +523,17 @@ audio {
 nav.top {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--tap-gap);
+  gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+nav.top button {
+  flex: 1 1 auto;
+  font-size: var(--font-aux);
 }
 
 .foot {
   max-width: 40rem;
   margin: 0 auto;
   padding: 0 var(--page-pad) var(--page-pad);
-}
-
-.elapsed {
-  font-size: var(--font-title);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  margin: 0;
-}
-
-.speaker-now {
-  text-align: center;
-  font-weight: bold;
 }

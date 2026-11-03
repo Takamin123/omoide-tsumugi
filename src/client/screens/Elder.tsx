@@ -1,14 +1,13 @@
-// 祖父母の画面（タブレット）: 写真一枚と問いかけ一つ、大きなマイクボタン、話者の切り替え。
-// 主な動作はマイクだけ。話者の切り替えは補助として上に小さく置く。
-import { useEffect, useState } from "react";
+// 祖父母の画面（スマホとタブレット）: 写真一枚と問いかけ一つ、横いっぱいの「はなす」、話者の切り替え。
+// 主な動作は「はなす」だけ。下の帯に留め、写真と問いかけを動かして見ても押せる。
+// 話者の切り替え（ほかの人にかわる）は補助として上に置き、主な動作から離す。
+import { useCallback, useEffect, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
-import { api } from "../lib/api";
-import { errorText } from "../lib/errors";
+import { api, ApiError } from "../lib/api";
 import { useSender } from "../lib/useSender";
 import { DemoBar, type DemoProps } from "../parts/DemoBar";
 import { EntranceView } from "../parts/EntranceView";
-import { ErrorLine } from "../parts/ErrorLine";
-import { VoiceRecorder } from "../parts/VoiceRecorder";
+import { RecordingTime, useRecorder } from "../parts/VoiceRecorder";
 import { words } from "../words";
 
 type Props = {
@@ -18,28 +17,39 @@ type Props = {
   demo: DemoProps | null;
 };
 
-type Load = { state: "loading" } | { state: "ready"; entrance: Entrance | null } | { state: "error"; text: string };
+type Load =
+  | { state: "loading" }
+  | { state: "ready"; entrance: Entrance | null }
+  | { state: "error"; unauthorized: boolean };
 
 export function Elder({ view, me, onSwitch, demo }: Props) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [micError, setMicError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const elders = view.members.filter((m) => m.role === "elder");
+  const w = words.elder;
 
   useEffect(() => {
     let alive = true;
+    setLoad({ state: "loading" });
     api.todayEntrance(me.id).then(
       ({ entrance }) => alive && setLoad({ state: "ready", entrance }),
-      (e) => alive && setLoad({ state: "error", text: errorText(e) }),
+      (e) => alive && setLoad({ state: "error", unauthorized: e instanceof ApiError && e.kind === "unauthorized" }),
     );
     return () => {
       alive = false;
     };
-  }, [me.id]);
+  }, [me.id, attempt]);
 
   const entrance = load.state === "ready" ? load.entrance : null;
 
   return (
-    <main className="stack">
+    <main className="elder">
+      <header className="elder-head">
+        <p className="elder-name">{me.calledAs}</p>
+        <button type="button" className="aux" onClick={() => onSwitch(null)}>
+          {words.home.switchUser}
+        </button>
+      </header>
       {elders.length > 1 && (
         <div className="speakers" role="group">
           {elders.map((m) => (
@@ -51,71 +61,108 @@ export function Elder({ view, me, onSwitch, demo }: Props) {
       )}
 
       {load.state === "loading" && <p>{words.loading}</p>}
-      {load.state === "error" && <ErrorLine text={load.text} />}
+      {load.state === "error" &&
+        (load.unauthorized ? (
+          <p role="alert">{w.errors.unauthorized}</p>
+        ) : (
+          <div className="stack" role="alert">
+            <p>{w.errors.loadFailed}</p>
+            <button type="button" className="primary" onClick={() => setAttempt((n) => n + 1)}>
+              {w.again}
+            </button>
+          </div>
+        ))}
       {/* 入り口がないときは何も出さない。祖父母には写真を足す手段がないので、「写真がない」は行き止まりの文になる（0010） */}
       {entrance && (
         <>
-          <EntranceView entrance={entrance} members={view.members} />
-          <Answer
-            key={entrance.id}
-            entrance={entrance}
-            me={me}
-            micError={micError}
-            onMicError={() => setMicError(true)}
-            onMicOk={() => setMicError(false)}
-            demo={demo}
-          />
+          <EntranceView entrance={entrance} members={view.members} variant="elder" />
+          <Answer key={entrance.id} entrance={entrance} me={me} demo={demo} />
         </>
       )}
       {!entrance && demo && <DemoBar {...demo} />}
-
-      <button type="button" className="sub" style={{ marginTop: "2rem", alignSelf: "flex-start" }} onClick={() => onSwitch(null)}>
-        {words.home.switchUser}
-      </button>
     </main>
   );
 }
 
-function Answer({
-  entrance,
-  me,
-  micError,
-  onMicError,
-  onMicOk,
-  demo,
-}: {
-  entrance: Entrance;
-  me: Member;
-  micError: boolean;
-  onMicError: () => void;
-  onMicOk: () => void;
-  demo: DemoProps | null;
-}) {
-  const sender = useSender({ speakerMemberId: me.id, photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null });
+function Answer({ entrance, me, demo }: { entrance: Entrance; me: Member; demo: DemoProps | null }) {
+  /** 送った後、次に「はなす」を押すまで「おくりました」を出しておく（数秒で消すと、目を離していると見逃す） */
+  const [done, setDone] = useState(false);
+  const [micError, setMicError] = useState(false);
+  const onSent = useCallback(() => setDone(true), []);
+  const sender = useSender({ speakerMemberId: me.id, photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }, onSent);
+  const rec = useRecorder({
+    onBlob: sender.sendVoice,
+    onStarted: () => setMicError(false),
+    onMicError: () => setMicError(true),
+  });
   const w = words.elder;
+
+  let body;
+  if (rec.recording) {
+    body = (
+      <>
+        {rec.elapsed !== null && <RecordingTime elapsed={rec.elapsed} />}
+        <button type="button" className="primary stop" aria-pressed="true" onClick={rec.toggle}>
+          <svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+          {w.stop}
+        </button>
+      </>
+    );
+  } else if (sender.state === "failed") {
+    body = (
+      <>
+        <p role="alert">{w.errors.sendFailed}</p>
+        <div className="grid2">
+          <button type="button" onClick={sender.discard}>
+            {w.cancel}
+          </button>
+          <button type="button" className="primary" onClick={sender.retry}>
+            {w.resend}
+          </button>
+        </div>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        {done && (
+          <p className="done" role="status">
+            <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12l5 5L20 7" />
+            </svg>
+            {w.sent}
+          </p>
+        )}
+        {micError && <p role="alert">{w.errors.micDenied}</p>}
+        <button
+          type="button"
+          className="primary"
+          aria-pressed="false"
+          disabled={sender.state === "sending"}
+          onClick={() => {
+            setDone(false);
+            rec.toggle();
+          }}
+        >
+          <svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="2" width="6" height="12" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0" />
+            <path d="M12 18v4" />
+          </svg>
+          {w.speak}
+        </button>
+      </>
+    );
+  }
 
   return (
     <>
-      <p className="speaker-now">{me.calledAs}</p>
-      {sender.state === "failed" ? (
-        <button type="button" className="mic" style={{ alignSelf: "center" }} onClick={sender.retry}>
-          {w.resend}
-        </button>
-      ) : (
-        <VoiceRecorder
-          variant="mic"
-          startLabel={w.speak}
-          stopLabel={w.stop}
-          disabled={sender.state === "sending"}
-          onBlob={sender.sendVoice}
-          onStarted={onMicOk}
-          onMicError={onMicError}
-        />
-      )}
-      <div aria-live="polite" style={{ textAlign: "center" }}>
-        {sender.state === "sent" && <p>{w.sent}</p>}
-        {sender.state === "failed" && <p>{w.sendFailed}</p>}
-        {micError && <p>{w.micDenied}</p>}
+      <div className="elder-action">
+        {/* 今の話者を、主な動作のすぐそばに常に見せる（0008） */}
+        <p className="who">{me.calledAs}</p>
+        {body}
       </div>
       {/* 録音済みの音声は、マイクの録音と同じ送る流れ（sender.sendVoice）に渡す */}
       {demo && <DemoBar {...demo} onAudioFile={sender.sendVoice} audioDisabled={sender.state === "sending"} />}

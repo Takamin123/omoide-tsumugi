@@ -1,14 +1,17 @@
 // 家族の画面（スマホ）: 自分の今日の入り口を一番上に開いて出し、その下に届いた語り。
+// 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は長さの入った「声で聞く」のボタンで流す。
 // 文字起こしが pending / failed の声は再生だけ（案内の文は出さない）。
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Entrance, FamilyView, Member, Narration, Photo } from "../../shared/api";
 import { api } from "../lib/api";
 import { errorText } from "../lib/errors";
-import { formatTakenDate } from "../lib/pure";
+import { formatTakenDate, voiceLength } from "../lib/pure";
+import { SENT_NOTICE_MS } from "../lib/useSender";
 import { navigate } from "../lib/route";
 import { EntranceView } from "../parts/EntranceView";
 import { ErrorLine } from "../parts/ErrorLine";
 import { PhotoImage } from "../parts/PhotoImage";
+import { PlayVoice } from "../parts/PlayVoice";
 import { ReplyBox } from "../parts/ReplyBox";
 import { words } from "../words";
 
@@ -43,7 +46,7 @@ export function Home({ view, me, onSwitchUser }: Props) {
   const w = words.home;
 
   return (
-    <main className="stack">
+    <main className="stack home">
       <nav className="top">
         <button type="button" onClick={() => navigate("/photos")}>
           {w.menuPhotos}
@@ -58,8 +61,8 @@ export function Home({ view, me, onSwitchUser }: Props) {
 
       {entrance === undefined && <p>{words.loading}</p>}
       {entrance && (
-        <section className="card stack">
-          <EntranceView entrance={entrance} members={view.members} />
+        <section className="stack">
+          <EntranceView entrance={entrance} members={view.members} variant="family" />
           <ReplyBox
             target={{ speakerMemberId: me.id, photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }}
             onSent={() => void loadFeed()}
@@ -100,11 +103,11 @@ function FeedPhoto({
   );
 
   return (
-    <section className="card stack">
+    <article className="mount feed-photo">
       <PhotoImage photo={item.photo} />
-      {taken && <p className="sub">{taken}</p>}
+      {taken && <p className="who">{taken}</p>}
       {roots.map((n) => renderNarration(n, 0))}
-    </section>
+    </article>
   );
 }
 
@@ -124,27 +127,38 @@ function NarrationView({
   children: ReactNode;
 }) {
   const [replying, setReplying] = useState(false);
+  /** 返事を送った後、しばらく「送りました」を出す */
+  const [sent, setSent] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const w = words.home;
   return (
-    <div className={`narration stack${reply ? " reply" : ""}`}>
-      <div className="sub">{speaker}</div>
-      {narration.text && <p style={{ whiteSpace: "pre-wrap" }}>{narration.text}</p>}
-      {narration.audioUrl && <audio controls preload="none" src={narration.audioUrl} />}
+    <div className={`narration${reply ? " reply" : ""}`}>
+      <p className="speaker">{speaker}</p>
+      {narration.text && <p className="told">{narration.text}</p>}
       {replying ? (
         <ReplyBox
           target={{ speakerMemberId: me.id, photoId: narration.photoId, entranceId: null, replyToId: narration.id }}
           onSent={() => {
             setReplying(false);
+            setSent(true);
+            clearTimeout(timer.current);
+            timer.current = setTimeout(() => setSent(false), SENT_NOTICE_MS);
             onSent();
           }}
           onCancel={() => setReplying(false)}
         />
       ) : (
-        <div>
-          <button type="button" onClick={() => setReplying(true)}>
-            {words.home.reply}
+        <div className="row">
+          {narration.audioUrl && (
+            <PlayVoice src={narration.audioUrl} label={w.listen(voiceLength(narration.durationMs))} stopLabel={w.stopVoice} />
+          )}
+          <button type="button" className="aux" onClick={() => setReplying(true)}>
+            {w.reply}
           </button>
         </div>
       )}
+      <div aria-live="polite">{sent && <p className="done">{w.sent}</p>}</div>
       {children}
     </div>
   );
