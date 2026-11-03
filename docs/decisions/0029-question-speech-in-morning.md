@@ -11,6 +11,7 @@
 - R2 の鍵: `families/<familyId>/speech/<entranceId>-<uuid>.mp3`。0027 の消す手順（`families/<id>/`）に入る。uuid は、同時に二つ走ったときに相手の音声を消さないため
 - 家族向け: `GET /api/entrances/today` の入り口に `questionAudioUrl`（`/api/entrances/<id>/question-audio`）か null。音声は合言葉の確認の後に返し、`Cache-Control: private, no-store`。ほかの家族の入り口は 404。null のとき（固定の入り口、作れなかった日、キーがない）は、画面にボタンも「AI の声で読みます」も出さない
 - 声の設定（gpt-4o-mini-tts、marin、速さ 1.0、指示文、mp3）は `src/server/core/question-speech.ts` の一か所の定数 `QUESTION_SPEECH`。実機で聞き比べるまでの仮の値（0019、0027。今は /check の初期値と同じ値）。/check の初期値とは結びつけない（0014。/check は試す場所で、変えても本番は動かない）。行に model と voice を残すので、後で定数を変えても出所は残る
+- 声は marin に決めた（人間、2026-11-03。shimmer などと聞き比べたうえで）。速さ・指示文は仮のまま、実機で聞いて変えるときは定数を変える
 - 読み上げの口は `Speaker`（ports）。開発用の `SpeechProbe` とは別に、応答を検証する（audio/*、mp3 の頭、大きさの上限）。時間切れ・再試行は implementation-policy 2 のとおり。ログは ID・モデル・声・長さ（バイト数）・所要時間・失敗の種類だけで、文は出さない。OpenAI のキーがなければ作らない
 
 ## 理由
