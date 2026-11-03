@@ -75,3 +75,6 @@ Thumbs.db
 # 生成物の中の `password: ...` がコミット前の検査に当たるため、コミットしない
 src/server/platform/cloudflare/worker-configuration.d.ts
 .claude/worktrees/
+
+# 市区町村の代表点の一覧（第三者のデータ。scripts/build-places.mjs が npm install の後とデプロイの前に作る。0047）
+src/server/core/places-data.ts

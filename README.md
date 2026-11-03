@@ -20,7 +20,7 @@
 
 ## 出典
 
-- 写真の場所の名前（「三重県伊勢市あたり」）は、Geolonia 住所データ（[japanese-addresses-v2](https://github.com/geolonia/japanese-addresses-v2)）から引いています。このデータは「[アドレス・ベース・レジストリ](https://dataset.address-br.digital.go.jp)」（デジタル庁）をもとに株式会社 Geolonia が作成したもので、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) で公開されています。読み仮名・ローマ字・コードを除き、代表点を小数第 3 位に丸めて `src/server/core/places-data.ts` に持っています（作り方は `scripts/build-places.mjs`。[0047](docs/decisions/0047-photo-date-place.md)）
+- 写真の場所の名前（「三重県伊勢市あたり」）は、Geolonia 住所データ（[japanese-addresses-v2](https://github.com/geolonia/japanese-addresses-v2)）から引いています。このデータは「[アドレス・ベース・レジストリ](https://dataset.address-br.digital.go.jp)」（デジタル庁）をもとに株式会社 Geolonia が作成したもので、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) で公開されています。このデータ自体はリポジトリに入れていません。`npm install` の後とデプロイの前に `scripts/build-places.mjs` が元のデータ（`https://japanese-addresses-v2.geoloniamaps.com/api/ja.json`）を取ってきて、読み仮名・ローマ字・コードを除き、代表点を小数第 3 位に丸めた一覧（`src/server/core/places-data.ts`、`.gitignore` 済み）を作ります。取り直すときは `npm run places`（[0047](docs/decisions/0047-photo-date-place.md)）
 
 ## 自分で動かす
 

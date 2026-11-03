@@ -7,8 +7,8 @@
     "build": "vite build",
     "build:preview": "CLOUDFLARE_ENV=preview vite build",
     "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
-    "deploy:production": "vite build && node scripts/assert-build-env.mjs production && wrangler deploy",
-    "deploy:preview": "CLOUDFLARE_ENV=preview vite build && node scripts/assert-build-env.mjs preview && wrangler deploy",
+    "deploy:production": "node scripts/build-places.mjs --fetch --if-missing --require && vite build && node scripts/assert-build-env.mjs production && wrangler deploy",
+    "deploy:preview": "node scripts/build-places.mjs --fetch --if-missing --require && CLOUDFLARE_ENV=preview vite build && node scripts/assert-build-env.mjs preview && wrangler deploy",
     "typecheck": "npm run cf-typegen && tsc -b",
     "test": "vitest run",
     "eval:clean": "vitest run --config vitest.evals.config.ts evals/clean-transcript.eval.ts",
@@ -18,7 +18,8 @@
     "eval:musubi": "vitest run --config vitest.evals.config.ts evals/musubi.eval.ts",
     "cf-typegen": "wrangler types src/server/platform/cloudflare/worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
-    "postinstall": "npm run cf-typegen"
+    "places": "node scripts/build-places.mjs --fetch",
+    "postinstall": "npm run cf-typegen && node scripts/build-places.mjs --fetch --if-missing"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",

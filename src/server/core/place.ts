@@ -1,5 +1,5 @@
 // 写真の位置（小数第 2 位に丸めた緯度経度）から、一番近い市区町村の名前を引く。外のサービスは使わない。0047
-// 一覧は places-data.ts（scripts/build-places.mjs が作る）。引いた地名は画面に出すだけ: Claude に渡さず、ログにも出さない。
+// 一覧は places-data.ts（scripts/build-places.mjs が npm install の後とデプロイの前に作る。第三者のデータなのでリポジトリに入れない）。引いた地名は画面に出すだけ: Claude に渡さず、ログにも出さない。
 import { PLACES_TSV, PREFECTURES } from "./places-data";
 
 /** 一番近い代表点がこれより遠ければ、日本の外か、どこと言えない所として出さない（km） */
@@ -11,7 +11,8 @@ let places: Place[] | null = null;
 /** 一覧は最初に引くときに一度だけ読む */
 function load(): Place[] {
   if (places) return places;
-  places = PLACES_TSV.split("\n").map((line) => {
+  // 元のデータを取ってこられなかったときは空（地名を出さない）
+  places = PLACES_TSV.split("\n").filter(Boolean).map((line) => {
     const [pi, city, ward, lat, lng] = line.split("|");
     return { pref: PREFECTURES[Number(pi)]!, city: city!, ward: ward!, lat: Number(lat) / 1000, lng: Number(lng) / 1000 };
   });
