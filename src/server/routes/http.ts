@@ -9,6 +9,8 @@ const statusOf = {
   invalid_request: 400,
   duplicate: 409,
   not_demo: 404,
+  demo_seed_mismatch: 409,
+  demo_seed_missing: 409,
   too_large: 413,
   internal: 500,
 } as const satisfies Record<ErrorKind, number>;

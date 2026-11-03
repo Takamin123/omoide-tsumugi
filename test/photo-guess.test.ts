@@ -105,6 +105,29 @@ describe("登録の後に、一枚ずつ説明を作る（しきい値以下）"
     expect(await t.deps.repos.photoGuesses.listByFamily(f.familyId)).toHaveLength(3);
   });
 
+  it("候補を読んだ後にほかの処理が説明を入れた写真は、取らない（作業の行が消えた後でも二度呼ばない）", async () => {
+    const t = makeTestApp(d1);
+    const f = await familyWithPhotos(t, 1);
+    const photoId = f.photoIds[0]!;
+    const repo = t.deps.repos.photoGuesses;
+    const version = PROMPTS.photo_guess.version;
+    const opts = { staleBefore: 0, batchStaleBefore: 0, maxAttempts: 3 };
+    // キーなしで登録したので、作業の行は「取り直せる」状態で残っている。一度消して、まっさらな候補にする
+    await d1.prepare("DELETE FROM photo_guess_requests WHERE family_id = ?").bind(f.familyId).run();
+    // 処理 B が候補を読む
+    expect((await repo.listCandidates(f.familyId, version, 10, opts)).map((p) => p.id)).toEqual([photoId]);
+    // 処理 A が取って、説明を入れる（作業の行は消える）
+    expect(await repo.claim(f.familyId, [photoId], version, { now: 1, ...opts })).toEqual([photoId]);
+    await repo.saveGuess({ id: crypto.randomUUID(), photoId, familyId: f.familyId, description: "架空", model: "m", promptVersion: version, createdAt: 1 });
+    expect(await requestRows(f.familyId)).toEqual([]);
+    // 処理 B が、読んだ候補を取ろうとしても取れない
+    expect(await repo.claim(f.familyId, [photoId], version, { now: 2, ...opts })).toEqual([]);
+    expect(await requestRows(f.familyId)).toEqual([]);
+    // ほかの家族の写真も取れない
+    const other = await familyWithPhotos(t, 1);
+    expect(await repo.claim(f.familyId, [other.photoIds[0]!], version, { now: 3, ...opts })).toEqual([]);
+  });
+
   it("渡すのは縮小済みの画像だけ。撮影日・位置・持ち主の呼ばれ方は渡さない。Haiku で、版のプロンプトを system に", async () => {
     const f0 = fakeClaude({ replies: [guessReply()] });
     const t = makeTestApp(d1, { claude: f0.claude });

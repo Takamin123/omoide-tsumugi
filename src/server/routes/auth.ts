@@ -1,6 +1,7 @@
 // 合言葉の確認。ここ一か所で行い、既定で閉じる（docs/implementation-policy.md 4）。
 // 確認しない入り口は PUBLIC_ROUTES に明示的に並べる。それ以外の /api/* はすべて確認を通す。
 // 一覧が変わったら test/auth.test.ts が気づく。
+// 合言葉の代わりに別の鍵で守る入り口: 運営の記録（/api/ops/*、OPS_RECORD_TOKEN）と、デモの初期化（/api/demo/families/*、DEMO_RESET_TOKEN）
 // リンクは一人ずつ（0036）。合言葉から家族と人を引き、人のいない「最初の人のリンク」で通せる入り口は FIRST_PERSON_ROUTES に並べる。
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -88,10 +89,56 @@ export async function hasOpsKey(c: Context<AppEnv>): Promise<boolean> {
     console.warn(JSON.stringify({ event: "ops_key_misconfigured", reason: misconfig }));
     return false;
   }
+  return bearerEquals(c, expected);
+}
+
+/** Authorization: Bearer の値が expected と同じか（時間が一定の比較） */
+async function bearerEquals(c: Context<AppEnv>, expected: string): Promise<boolean> {
   const header = c.req.header("authorization") ?? "";
   const given = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
   if (!given || given.length > 500) return false;
   return timingSafeEqual(given, expected);
+}
+
+/**
+ * 合言葉ではなく、デモの初期化の鍵（DEMO_RESET_TOKEN の Bearer）で守る入り口の頭（0038）。
+ * POST /api/demo/families/:familyId/reset だけ。家族の合言葉の cookie でも、ほかの鍵でも開かない。
+ * デモの時計（/api/demo/clock/advance）は家族の合言葉で守る入り口のまま（この頭の外）
+ */
+export const DEMO_RESET_PATH_PREFIX = "/api/demo/families/";
+
+/** デモの初期化の鍵で守る入り口か（大文字・小文字によらない） */
+export function isDemoResetPath(path: string): boolean {
+  const p = path.toLowerCase();
+  return p === "/api/demo/families" || p.startsWith(DEMO_RESET_PATH_PREFIX);
+}
+
+export type DemoResetKeyMisconfig = "too_short" | "same_as_create_family_token" | "same_as_ops_record_token";
+
+/**
+ * 設定されたデモの初期化の鍵が使えるか。短すぎる・ほかの鍵と同じ値なら、設定なしとみなす（0030 と同じ規則。0038）。
+ * 設定がないときは null（誤りではない）
+ */
+export function demoResetKeyMisconfig(config: AppConfig): DemoResetKeyMisconfig | null {
+  const key = config.demoResetToken;
+  if (!key) return null;
+  if (key.length < OPS_KEY_MIN_LENGTH) return "too_short";
+  if (config.createFamilyToken && key === config.createFamilyToken) return "same_as_create_family_token";
+  if (config.opsRecordToken && key === config.opsRecordToken) return "same_as_ops_record_token";
+  return null;
+}
+
+/** Authorization: Bearer の値が、デモの初期化の鍵と同じか。鍵の設定がない・使えない設定なら誰も通さない */
+export async function hasDemoResetKey(c: Context<AppEnv>): Promise<boolean> {
+  const config = c.get("deps").config;
+  const expected = config.demoResetToken;
+  if (!expected) return false;
+  const misconfig = demoResetKeyMisconfig(config);
+  if (misconfig) {
+    console.warn(JSON.stringify({ event: "demo_reset_key_misconfigured", reason: misconfig }));
+    return false;
+  }
+  return bearerEquals(c, expected);
 }
 
 /**
@@ -102,6 +149,8 @@ export const requireInvite: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!isApiPath(c.req.path) || isPublicRoute(c.req.method, c.req.path)) return next();
   // 運営の入り口は合言葉では開かない。運営の鍵だけで確かめる（family は置かない）
   if (isOpsPath(c.req.path)) return (await hasOpsKey(c)) ? next() : fail(c, "unauthorized");
+  // デモの初期化も合言葉では開かない。初期化の鍵だけで確かめる（family は置かない。0038）
+  if (isDemoResetPath(c.req.path)) return (await hasDemoResetKey(c)) ? next() : fail(c, "unauthorized");
   const token = getCookie(c, INVITE_COOKIE);
   if (!token || token.length > 200) return fail(c, "unauthorized");
   const link = await c.get("deps").repos.families.findActiveLink(await hashToken(token));

@@ -11,6 +11,7 @@ CREATE_FAMILY_TOKEN=
 OPS_RECORD_TOKEN=
 # 運営が記録を見てよい、デモでない家族の ID（カンマ区切り）。親の同意を得た家族だけ。手元では空のままでよい（0030）
 OPS_RECORD_FAMILIES=
+# デモの初期化（/start の「デモを最初の状態に戻す」）の鍵。32 文字以上のランダムな値で、ほかの鍵とは別の値にする（0038）
 DEMO_RESET_TOKEN=
 HEALTHCHECK_TOKEN=
 # 秘密ではない。手元では本番の設定（APP_ENV=production）を上書きし、どの家族でもデモの時計を進められるようにする

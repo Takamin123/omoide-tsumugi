@@ -14,6 +14,7 @@
     "eval:clean": "vitest run --config vitest.evals.config.ts evals/clean-transcript.eval.ts",
     "eval:entrance": "vitest run --config vitest.evals.config.ts evals/entrance.eval.ts",
     "eval:records": "vitest run --config vitest.evals.config.ts evals/records.eval.ts",
+    "eval:demo-seed": "vitest run --config vitest.evals.config.ts evals/demo-seed-clean.eval.ts",
     "cf-typegen": "wrangler types src/server/platform/cloudflare/worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
     "postinstall": "npm run cf-typegen"

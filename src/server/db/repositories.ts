@@ -2,11 +2,13 @@
 // 実行環境ごとに違うのは「drizzle のデータベース」と「いくつかの文を一度に行う方法」だけで、入り口の層が渡す。
 // - D1: db.batch()（対話的なトランザクションは使えない）
 // - better-sqlite3: db.transaction() の中で順に run する
-import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, lt, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, lt, ne, notExists, or, sql, type SQLWrapper } from "drizzle-orm";
 import type { BatchItem as DrizzleBatchItem } from "drizzle-orm/batch";
 import { alias, type BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { DEMO_RESET_TABLES } from "../core/ports";
 import type {
   ClaimOpts,
+  DemoResetTable,
   EntranceRow,
   FamilyRow,
   MemberRow,
@@ -29,6 +31,19 @@ export type BatchItem = DrizzleBatchItem<"sqlite">;
 export type RunBatch = (items: [BatchItem, ...BatchItem[]]) => Promise<void>;
 
 const { families, inviteLinks, members, photos, narrations, entrances, photoGuesses, photoGuessRequests, records, recordExtractions } = schema;
+
+/** デモの初期化で消す表（名前 → drizzle の表）。DEMO_RESET_TABLES の順に消す */
+const demoTables = {
+  records: schema.records,
+  record_extractions: schema.recordExtractions,
+  musubi_photos: schema.musubiPhotos,
+  musubi: schema.musubi,
+  photo_guess_requests: schema.photoGuessRequests,
+  photo_guesses: schema.photoGuesses,
+  narrations: schema.narrations,
+  entrances: schema.entrances,
+  photos: schema.photos,
+} as const satisfies Record<DemoResetTable, unknown>;
 
 type FamilyRecord = typeof families.$inferSelect;
 const toFamily = (r: FamilyRecord): FamilyRow => ({
@@ -482,15 +497,39 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
       async claim(familyId, photoIds, promptVersion, { now, ...opts }) {
         if (photoIds.length === 0) return [];
         const claimed: string[] = [];
-        // 一行ずつ（D1 の一文の変数の上限に当たらないように）。取れたかどうかは RETURNING で見る
+        // 一行ずつ（D1 の一文の変数の上限に当たらないように）。取れたかどうかは RETURNING で見る。
+        // 説明がもうある写真は取らない: 候補を読んだ後に、ほかの処理が説明を入れて作業の行を消していると、
+        // 行がないので取れてしまい、同じ写真を二度呼ぶ（並んだ登録の背景処理で起きた）。説明の有無は取る文の中で確かめる
+        const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+        const noGuess = (photoId: SQLWrapper) =>
+          notExists(
+            db
+              .select({ one: sql`1` })
+              .from(photoGuesses)
+              .where(and(eq(photoGuesses.photoId, photoId), eq(photoGuesses.promptVersion, promptVersion))),
+          );
         for (const photoId of photoIds) {
           const r = await db
             .insert(photoGuessRequests)
-            .values({ photoId, promptVersion, familyId, state: "working", batchId: null, attempts: 1, claimedAt: now })
+            .select(
+              // drizzle は insert … select の列を表の定義の順で書く。select のキーは schema.ts の photoGuessRequests の列の順に並べる
+              db
+                .select({
+                  photoId: photos.id,
+                  promptVersion: v(promptVersion, "prompt_version"),
+                  familyId: photos.familyId,
+                  state: v("working" as const, "state"),
+                  batchId: v(null, "batch_id"),
+                  attempts: v(1, "attempts"),
+                  claimedAt: v(now, "claimed_at"),
+                })
+                .from(photos)
+                .where(and(eq(photos.id, photoId), eq(photos.familyId, familyId), noGuess(photos.id))),
+            )
             .onConflictDoUpdate({
               target: [photoGuessRequests.photoId, photoGuessRequests.promptVersion],
               set: { state: "working", batchId: null, attempts: sql`${photoGuessRequests.attempts} + 1`, claimedAt: now },
-              setWhere: and(eq(photoGuessRequests.familyId, familyId), claimable(photoGuessRequests, opts)),
+              setWhere: and(eq(photoGuessRequests.familyId, familyId), claimable(photoGuessRequests, opts), noGuess(photoGuessRequests.photoId)),
             })
             .returning({ photoId: photoGuessRequests.photoId })
             .all();
@@ -748,6 +787,50 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
             outputTokens: r.outputTokens,
           }),
         );
+      },
+    },
+
+    demoReset: {
+      async snapshot(familyId) {
+        const count = async (t: (typeof demoTables)[DemoResetTable]) => {
+          const r = await db.select({ n: sql<number>`count(*)` }).from(t).where(eq(t.familyId, familyId)).get();
+          return Number(r?.n ?? 0);
+        };
+        const rows = {} as Record<DemoResetTable, number>;
+        for (const name of DEMO_RESET_TABLES) rows[name] = await count(demoTables[name]);
+        const [p, n, e] = await Promise.all([
+          db.select({ k: photos.storageKey }).from(photos).where(eq(photos.familyId, familyId)).all(),
+          db
+            .select({ k: narrations.audioKey })
+            .from(narrations)
+            .where(and(eq(narrations.familyId, familyId), isNotNull(narrations.audioKey)))
+            .all(),
+          db
+            .select({ k: entrances.questionAudioKey })
+            .from(entrances)
+            .where(and(eq(entrances.familyId, familyId), isNotNull(entrances.questionAudioKey)))
+            .all(),
+        ]);
+        const storedKeys = [...p, ...n, ...e].map((r) => r.k).filter((k): k is string => typeof k === "string");
+        return { rows, storedKeys };
+      },
+      async replaceContent(familyId, seed, clock) {
+        // 子から順に消す（外部キー）。続けて、写真 → 入り口 → 語りの順に入れる（語りが入り口を指す）。
+        // 一行ずつ入れる（D1 の一文の変数の上限 100 に当たらないように）
+        const deletes = DEMO_RESET_TABLES.map((name) => {
+          const t = demoTables[name];
+          return db.delete(t).where(eq(t.familyId, familyId));
+        });
+        const inserts = [
+          ...seed.photos.map((r) => db.insert(photos).values(r)),
+          ...seed.entrances.map((r) => db.insert(entrances).values(r)),
+          ...seed.narrations.map((r) =>
+            db.insert(narrations).values({ ...r, uncertainSpans: r.uncertainSpans === null ? null : JSON.stringify(r.uncertainSpans) }),
+          ),
+        ];
+        const setClock = db.update(families).set({ clockDate: clock.date, clockSlot: clock.slot }).where(eq(families.id, familyId));
+        const [first, ...rest] = deletes;
+        await runBatch([first!, ...rest, ...inserts, setClock]);
       },
     },
   };

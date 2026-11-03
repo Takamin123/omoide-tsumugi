@@ -2,7 +2,7 @@
 // 確認しない入り口の一覧をここで固定する。入り口を足したら、ここが気づく。
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/server/app";
-import { FIRST_PERSON_ROUTES, isFirstPersonRoute, isOpsPath, PUBLIC_ROUTES } from "../src/server/routes/auth";
+import { FIRST_PERSON_ROUTES, isDemoResetPath, isFirstPersonRoute, isOpsPath, PUBLIC_ROUTES } from "../src/server/routes/auth";
 import { fakeDeps } from "./helpers";
 
 const app = createApp(() => fakeDeps());
@@ -42,6 +42,7 @@ describe("合言葉の確認", () => {
       "POST /api/check/speech",
       "POST /api/check/transcribe",
       "POST /api/demo/clock/advance",
+      "POST /api/demo/families/:familyId/reset",
       "POST /api/families",
       "POST /api/members",
       "POST /api/members/:id/link",
@@ -76,6 +77,12 @@ describe("合言葉の確認", () => {
       "GET /api/ops/families/:familyId/photos/:photoId/image",
       "GET /api/ops/families/:familyId/record",
     ]);
+  });
+
+  it("合言葉の代わりにデモの初期化の鍵で守る入り口は、初期化 1 つだけ。デモの時計は合言葉のまま（0038）", () => {
+    expect(apiRoutes.filter((r) => isDemoResetPath(r.split(" ")[1]!))).toEqual(["POST /api/demo/families/:familyId/reset"]);
+    expect(isDemoResetPath("/api/demo/clock/advance")).toBe(false);
+    expect(isDemoResetPath("/API/Demo/Families/x/reset")).toBe(true);
   });
 
   const guarded = apiRoutes.filter((r) => !PUBLIC_ROUTES.some(([m, p]) => `${m} ${p}` === r));

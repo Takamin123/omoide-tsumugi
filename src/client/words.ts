@@ -25,6 +25,22 @@ export const words = {
     /** 作った後の見出し。運営がコピーして、始める人に送る（一度きり。0036） */
     firstLink: "最初の人に送るリンク",
     next: "進む",
+    // デモを最初の状態に戻す（運営だけ。0038）
+    reset: {
+      title: "デモを最初の状態に戻す",
+      note: "デモの家族の写真・語り・入り口を、台本の状態に戻します。家族の人とリンクはそのままです",
+      familyId: "デモの家族の ID",
+      token: "戻すための鍵",
+      submit: "最初の状態に戻す",
+      running: "戻しています。1〜4 分かかります。この画面を閉じないでください",
+      elapsed: (sec: number) => `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, "0")}秒たちました`,
+      done: "戻しました",
+      result: (photos: number, narrations: number, entrances: number) =>
+        `写真 ${photos} 枚、語り ${narrations} 本、今日の入り口 ${entrances} 人分`,
+      morningFailed: "今日の入り口は作れませんでした。開いたときに用意されます",
+      notFound: "その ID のデモの家族は見つかりませんでした。何も変えていません",
+      unauthorized: "戻すための鍵が違います。何も変えていません",
+    },
   },
 
   // その人のリンクを開いたとき（0036）
@@ -185,6 +201,9 @@ export const words = {
     invalid_request: "うまくいきませんでした。もう一度お試しください",
     duplicate: "うまくいきませんでした。もう一度お試しください",
     not_demo: "うまくいきませんでした。もう一度お試しください",
+    // デモの初期化（運営の画面だけで出る。0038）
+    demo_seed_mismatch: "家族の人の呼ばれ方が、デモの台本と合いません。何も変えていません",
+    demo_seed_missing: "デモの写真か声が置かれていません。何も変えていません",
     too_large: "大きすぎて送れませんでした",
     internal: "うまくいきませんでした。もう一度お試しください",
   } satisfies Record<ErrorKind, string>,

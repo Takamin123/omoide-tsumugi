@@ -401,6 +401,44 @@ export interface OpsRecordRepository {
   listEntrances(familyId: string): Promise<OpsEntranceRow[]>;
 }
 
+// ---- デモの初期化（0038） ----
+
+/** 初期化で消して入れ直す表（家族の中身）。families・members・invite_links は残す（一行も書かない） */
+export const DEMO_RESET_TABLES = [
+  "records",
+  "record_extractions",
+  "musubi_photos",
+  "musubi",
+  "photo_guess_requests",
+  "photo_guesses",
+  "narrations",
+  "entrances",
+  "photos",
+] as const;
+export type DemoResetTable = (typeof DEMO_RESET_TABLES)[number];
+
+/** 初期化の前の、その家族の中身の件数と、行が指す保存先の鍵（写真・録音・問いかけの音声） */
+export interface DemoContentSnapshot {
+  rows: Record<DemoResetTable, number>;
+  storedKeys: string[];
+}
+
+/** 初期化で入れる行。入り口は固定の入り口だけ（question・model・reason は null） */
+export interface DemoSeedRows {
+  photos: PhotoRow[];
+  entrances: EntranceRow[];
+  narrations: NarrationRow[];
+}
+
+export interface DemoResetRepository {
+  snapshot(familyId: string): Promise<DemoContentSnapshot>;
+  /**
+   * その家族の中身（DEMO_RESET_TABLES）を消し、種の行を入れ、時計を合わせる。すべてを一つの batch で（全か無か）。
+   * デモの家族かどうかは呼ぶ側（core/demo-reset.ts）が確かめる
+   */
+  replaceContent(familyId: string, seed: DemoSeedRows, clock: Clock): Promise<void>;
+}
+
 /** データベースのリポジトリの集まり。 */
 export interface Repositories {
   families: FamilyRepository;
@@ -412,6 +450,7 @@ export interface Repositories {
   records: RecordRepository;
   recordExtractions: RecordExtractionRepository;
   opsRecords: OpsRecordRepository;
+  demoReset: DemoResetRepository;
 }
 
 // ---- 文字起こし ----
@@ -648,6 +687,11 @@ export interface AppConfig {
   opsRecordToken: string | null;
   /** 運営が記録を見てよい、デモでない家族の ID（親の同意を得た家族だけ。0030）。デモの家族は載せなくても開く */
   opsRecordFamilies: readonly string[];
+  /**
+   * デモの初期化（POST /api/demo/families/:familyId/reset）を守る Bearer（0038）。
+   * ないとき、短すぎるとき、CREATE_FAMILY_TOKEN・OPS_RECORD_TOKEN と同じ値のときは誰も戻せない
+   */
+  demoResetToken: string | null;
 }
 
 /** レスポンスを返した後に続ける処理。Workers では waitUntil、VPS ではそのまま待たずに走らせる。 */

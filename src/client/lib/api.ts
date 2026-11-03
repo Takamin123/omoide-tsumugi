@@ -3,6 +3,7 @@
 import {
   errorKindSchema,
   type AdvanceClockResult,
+  type DemoResetResult,
   type Entrance,
   type ErrorKind,
   type FamilyView,
@@ -103,6 +104,12 @@ export const api = {
   todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
 
   advanceClock: () => call<AdvanceClockResult>("/api/demo/clock/advance", { method: "POST" }),
+  /** デモの家族を最初の状態に戻す（運営だけ。鍵は渡すだけで残さない。0038） */
+  resetDemo: (familyId: string, resetToken: string) =>
+    call<DemoResetResult>(`/api/demo/families/${encodeURIComponent(familyId)}/reset`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${resetToken}` },
+    }),
 };
 
 function audioFileName(type: string): string {
