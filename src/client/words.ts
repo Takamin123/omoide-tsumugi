@@ -7,6 +7,9 @@ type VoiceLength = { minutes: number; seconds: number };
 /** 「13秒」「1分20秒」（「12枚のうち 5枚」に合わせ、数と単位の間に空白を入れない） */
 const voiceLengthText = ({ minutes, seconds }: VoiceLength) => (minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`);
 
+/** 「12枚のうち 5枚」 */
+const progressText = (at: number, total: number) => `${total}枚のうち ${at}枚`;
+
 export const words = {
   appName: "おもいでつむぎ",
 
@@ -81,7 +84,7 @@ export const words = {
   photos: {
     title: "写真を足す",
     pick: "写真を選ぶ",
-    progress: (done: number, total: number) => `${total}枚のうち ${done}枚`,
+    progress: (done: number, total: number) => progressText(done, total),
     added: (n: number) => `登録した写真 ${n}枚`,
     duplicate: (n: number) => `すでにある写真 ${n}枚`,
     unreadable: (n: number) => `読めなかった写真 ${n}枚`,
@@ -133,6 +136,20 @@ export const words = {
     menuPhotos: "写真を足す",
     menuHome: "もどる",
     switchUser: "ほかの人にかわる",
+    /** 読み上げだけの名前（見えない）。上のメニュー、下のタブ、アルバムの写真の帯 */
+    menuLabel: "メニュー",
+    tabsLabel: "切り替え",
+    albumBandLabel: "写真",
+    /** 下のタブ */
+    tabToday: "今日",
+    tabAlbum: "アルバム",
+    /** アルバムの矢印。見た目は矢印だけ。画面の向きで言う（新しい順なので「前」「次」は使わない） */
+    albumPrev: "左の写真へ",
+    albumNext: "右の写真へ",
+    /** アルバムのいま何枚目か。写真を足すの「12枚のうち 5枚」と同じ形 */
+    albumPosition: (at: number, total: number) => progressText(at, total),
+    /** 同じ文を、折ってよい所（空白）で二つに分けたもの。画面ではこの間でだけ折る */
+    albumPositionParts: (at: number, total: number) => progressText(at, total).split(" ") as [string, string],
   },
 
   // デモの操作

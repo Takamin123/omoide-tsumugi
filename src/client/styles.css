@@ -40,6 +40,15 @@
   --done: #22553a; /* 「おくりました」の文字。白地で約 8:1 */
   --done-border: #2e6b45;
   --focus: #1f4e8c;
+
+  /* 家族の画面のタブとアルバム */
+  --home-bg: #edeff1; /* 家族の画面の地（クリーム色にしない） */
+  --tab-height: max(64px, 3.5rem); /* 下のタブの高さ（最低 64px） */
+  --album-mat: #2a2f35; /* 写真の帯の黒い台紙 */
+  --album-print: #fbfaf7; /* 写真の白い縁 */
+  --album-corner: #d8cfbe; /* 写真コーナー（飾り） */
+  --album-on-mat: #f2f1ee; /* 台紙の上の文字と矢印。台紙で約 12:1 */
+  --album-off-mat: #8a929a; /* 端で押せない矢印。台紙で約 4.3:1（押せないことは disabled でも伝える） */
 }
 
 /* タブレット（祖父母の画面を大きく） */
@@ -552,4 +561,269 @@ nav.top button {
   max-width: 40rem;
   margin: 0 auto;
   padding: 0 var(--page-pad) var(--page-pad);
+}
+
+/* ---- 家族の画面の外枠と下のタブ ---- */
+
+/* 画面の高さいっぱいの縦の箱。上が今のタブの中身（中でスクロール）、下がタブ */
+.home-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--home-bg);
+  overflow: hidden;
+}
+
+.home-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.home-album {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.today-narrations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.tabs {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.tabs .tab {
+  min-height: var(--tab-height);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-sub);
+  font-size: var(--font-aux);
+  font-weight: normal;
+  box-shadow: inset 0 4px 0 transparent;
+}
+
+/* 今のタブ: 色だけでなく、太さと上の線でも示す */
+.tabs .tab[aria-current="page"] {
+  color: var(--accent);
+  font-weight: bold;
+  box-shadow: inset 0 4px 0 var(--accent);
+}
+
+/* ---- アルバム ---- */
+
+.album {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.album-error {
+  padding: 0 var(--page-pad);
+}
+
+/*
+ * 写真の帯。高さは画面の 1/3 程度まで。幅 375px・文字 150% でも、語り一つ（話者名＋本文 3 行＋「返事」）が
+ * 帯とタブの間に見えるよう、写真の高さを (画面の高さ − 語り一つとタブと帯の枠の分) で抑える
+ */
+.album-band {
+  --band-chrome: 6.75rem; /* 帯の上下の余白、矢印の行、白い縁 */
+  --band-reserve: 27.5rem; /* 帯の枠＋語り一つ＋節の頭＋タブ */
+  --band-photo: max(3rem, min(calc(34dvh - var(--band-chrome)), calc(100dvh - var(--band-reserve))));
+  flex: none;
+  background: var(--album-mat);
+  padding: 1rem 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.album-strip {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.album-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.album-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 2rem;
+  min-height: calc(var(--band-photo) + 1rem);
+}
+
+.album-print {
+  background: var(--album-print);
+  padding: 0.5rem;
+  max-width: 100%;
+}
+
+.album-corners {
+  position: relative;
+  display: flex;
+}
+
+.album-print .photo {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--band-photo);
+  object-fit: contain;
+}
+
+/* 淡い色の写真コーナー（飾り） */
+.corner {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--album-corner);
+}
+.corner.tl {
+  left: -0.75rem;
+  top: -0.75rem;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.corner.tr {
+  right: -0.75rem;
+  top: -0.75rem;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+.corner.bl {
+  left: -0.75rem;
+  bottom: -0.75rem;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+.corner.br {
+  right: -0.75rem;
+  bottom: -0.75rem;
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+}
+
+.album-nav {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--tap-gap);
+  padding: 0 var(--page-pad);
+}
+
+.album-count span {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.album-arrow {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  background: transparent;
+  border-color: var(--album-on-mat);
+  color: var(--album-on-mat);
+}
+
+/* 端では押せない。色を落とす（disabled で読み上げにも伝わる） */
+.album-arrow:disabled {
+  opacity: 1;
+  border-color: var(--album-off-mat);
+  color: var(--album-off-mat);
+}
+
+.album-arrow:focus-visible {
+  outline-color: var(--album-on-mat);
+}
+
+.album-count {
+  margin: 0;
+  word-break: keep-all; /* 「4枚のうち 1枚」を数と「枚」の間で折らない（空白でだけ折る） */
+  overflow-wrap: anywhere; /* 欄に収まらないときだけ、語の中でも折る（矢印に重ねない） */
+  min-width: 0;
+  text-align: center;
+  font-size: var(--font-sub);
+  color: var(--album-on-mat);
+  line-height: 1.4;
+}
+
+/* 語りの縦の欄。横には動かさない。節の位置（offsetTop）をこの欄から測るため relative にする */
+.album-text {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--page-pad);
+  overflow-wrap: anywhere;
+}
+
+.album-section {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.album-date {
+  margin: 0;
+  font-size: var(--font-sub);
+  color: var(--text-sub);
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 1.7rem;
+}
+
+.album-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.album-tail {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* 空のアルバム: デモの帯だけを欄の一番下に */
+.album-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.album-tail .foot,
+.album-empty .foot {
+  width: 100%;
+  padding: 0 0 var(--page-pad);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .album-strip,
+  .album-text {
+    scroll-behavior: auto;
+  }
 }

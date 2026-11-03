@@ -1,7 +1,9 @@
 // 文字か声で送る。入り口への答えにも、語りへの返事にも使う。
+// 文字・声の形が開いている間は、家族の画面に「入力中」を知らせる（下のタブを隠す）。
 // 送ったら入力欄を閉じる。入り口への答えはこの中で「送りました」を出し、返事は呼ぶ側（onSent）が閉じて出す。
 import { useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
+import { useComposing } from "../lib/composing";
 import { errorText } from "../lib/errors";
 import { useSender } from "../lib/useSender";
 import { words } from "../words";
@@ -18,6 +20,8 @@ export function ReplyBox({ target, onSent, onCancel }: Props) {
     setMode("choose");
     onSent();
   });
+  // 入力欄・録音が開いている間は、家族の画面の下のタブを描かない
+  useComposing(mode !== "choose");
   const w = words.home;
   const busy = sender.state === "sending";
   const close = () => {

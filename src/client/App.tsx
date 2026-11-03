@@ -149,7 +149,8 @@ export function App() {
     // 祖父母の画面は、録音済みファイルの送信も帯に入れるため、帯を自分で描く
     return <Elder key={`${meMember.id}-${tick}`} {...common} onSwitch={setMe} demo={demo} />;
   } else {
-    screen = <Home key={tick} {...common} onSwitchUser={() => setMe(null)} />;
+    // 家族の画面は、下のタブと重ならないよう、デモの帯を各タブのスクロールの一番下に自分で置く
+    return <Home key={tick} {...common} onSwitchUser={() => setMe(null)} demo={demo} />;
   }
   return (
     <>
