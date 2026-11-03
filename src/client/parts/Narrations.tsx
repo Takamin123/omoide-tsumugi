@@ -1,10 +1,11 @@
-// 写真一枚の語りと返事。家族の画面の今日のタブとアルバムで同じものを使う。
+// 写真一枚の語りと返事。今日のタブとアルバムで同じものを使う（祖父母の画面でも。言葉は lib/screen.ts。0043）。
 // 語りは明朝で全文、話者の呼ばれ方つき。返事は元の語りの下に左の線で。返事の入力欄は一度に一つ（開いている語りの ID を親が持つ）。
 // アルバムでは、入り口への答えの語りに「言葉の糸」（答えた入り口に添えた家族の言葉）を出し、押すと元の語りへ移る（0035）。今日のタブには出さない。
 // 声は「声で聞く（13秒）」のボタン。文字起こしが pending / failed の声は再生だけ（案内の文は出さない。0008、0028）。
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Narration, QuotedFrom } from "../../shared/api";
 import { voiceLength } from "../lib/pure";
+import { useScreen, useSentNotice } from "../lib/screen";
 import { SENT_NOTICE_MS } from "../lib/useSender";
 import { words } from "../words";
 import { PlayVoice } from "./PlayVoice";
@@ -73,11 +74,14 @@ function NarrationView({
   onSent: () => void;
   children: ReactNode;
 }) {
-  /** 返事を送った後、しばらく「送りました」を出す */
-  const [sent, setSent] = useState(false);
+  /** 返事を送った後、「送りました」を出す。家族の画面はしばらく。祖父母の画面は次に答える・返事するボタンを押すまで（画面に一つだけ。0043） */
+  const [sentHere, setSent] = useState(false);
+  const notice = useSentNotice();
+  const sent = notice ? notice.at === narration.id : sentHere;
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const w = words.home;
+  const { w } = useScreen();
+  const length = voiceLength(narration.durationMs);
   return (
     // data-narration: 言葉の糸から移ってくるときの目印（Album の jumpTo）
     <div className={`narration${reply ? " reply" : ""}`} data-narration={narration.id}>
@@ -97,19 +101,29 @@ function NarrationView({
           target={{ photoId: narration.photoId, entranceId: null, replyToId: narration.id }}
           onSent={() => {
             onReplying(false);
-            setSent(true);
             clearTimeout(timer.current);
-            timer.current = setTimeout(() => setSent(false), SENT_NOTICE_MS);
+            if (notice) notice.show(narration.id);
+            else {
+              setSent(true);
+              timer.current = setTimeout(() => setSent(false), SENT_NOTICE_MS);
+            }
             onSent();
           }}
           onCancel={() => onReplying(false)}
         />
       ) : (
         <div className="row">
-          {narration.audioUrl && (
-            <PlayVoice src={narration.audioUrl} label={w.listen(voiceLength(narration.durationMs))} stopLabel={w.stopVoice} />
-          )}
-          <button type="button" className="aux" onClick={() => onReplying(true)}>
+          {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen(length)} stopLabel={w.stopVoice} />}
+          {/* 祖父母の画面のボタンは一語のひらがな。長さはそばの補助の文に出す（入り口の「こえを きく」と同じ組み立て） */}
+          {narration.audioUrl && w.listenNote && <span className="who">{w.listenNote(speaker || null, length)}</span>}
+          <button
+            type="button"
+            className="aux"
+            onClick={() => {
+              notice?.clear();
+              onReplying(true);
+            }}
+          >
             {w.reply}
           </button>
         </div>

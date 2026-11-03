@@ -1,0 +1,163 @@
+// 祖父母の画面を家族の画面と同じ形にする（0043）。部品は react-dom/server で文字列にして確かめる（DOM なし）。
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, expect, it } from "vitest";
+import { fs, path, repoRoot } from "../node";
+
+const load = (name: string): Promise<any> => import(name);
+const { createElement: h } = await load("react");
+const { renderToStaticMarkup } = await load("react-dom/server");
+const { Elder } = await load("../../src/client/screens/Elder");
+const { Home } = await load("../../src/client/screens/Home");
+const { ReplyBox } = await load("../../src/client/parts/ReplyBox");
+const { Narrations } = await load("../../src/client/parts/Narrations");
+const { Album } = await load("../../src/client/parts/Album");
+const { ScreenContext, SentNoticeContext } = await load("../../src/client/lib/screen");
+const { words } = await load("../../src/client/words");
+
+const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), "utf8") as string;
+
+const grandma = { id: "m-grandma", calledAs: "ばあば", relation: "祖母", role: "elder", speechStyle: "dialect", dialectRegion: "山形", setUpByMemberId: null };
+const mother = { id: "m-mother", calledAs: "お母さん", relation: "母", role: "family", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null };
+const view = {
+  family: { id: "f-1", isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: false },
+  members: [grandma, mother],
+};
+const nameOf = (id: string) => view.members.find((m) => m.id === id)?.calledAs ?? "";
+const target = { photoId: "p-1", entranceId: "e-1", replyToId: null };
+const inElder = (el: any, notice: any = null) =>
+  renderToStaticMarkup(h(ScreenContext.Provider, { value: "elder" }, h(SentNoticeContext.Provider, { value: notice }, el))) as string;
+const voice = (over: Record<string, unknown> = {}) => ({
+  id: "n-1",
+  speakerMemberId: "m-grandma",
+  photoId: "p-1",
+  entranceId: null,
+  replyToId: null,
+  kind: "voice",
+  text: "海に行ったのよ",
+  transcriptStatus: "done",
+  audioUrl: "/api/narrations/n-1/audio",
+  durationMs: 13_400,
+  createdAt: 1,
+  ...over,
+});
+
+describe("祖父母の画面の形（家族の画面と同じ）", () => {
+  it("Elder は Home を祖父母の variant で描くだけ（部品を二重に持たない）", () => {
+    const src = read("src/client/screens/Elder.tsx");
+    expect(src).toContain('<Home {...props} variant="elder" />');
+    expect(src).not.toMatch(/useSender|useRecorder|EntranceView|ReplyBox/);
+  });
+  it("下のタブ「今日」「アルバム」があり、開いたときは「今日」。上にメニューは置かず、呼ばれ方だけ", () => {
+    const html = renderToStaticMarkup(h(Elder, { view: { ...view, me: grandma }, me: grandma, demo: null })) as string;
+    expect(html).toContain('class="home-shell elder"');
+    expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabToday}</button>`);
+    expect(html).toContain(`>${words.home.tabAlbum}</button>`);
+    expect(html).toContain(`<p class="elder-name">${grandma.calledAs}</p>`);
+    expect(html).not.toContain(words.home.menuFamily);
+    expect(html).not.toContain(words.home.menuPhotos);
+  });
+  it("家族の画面は今までどおり（メニューがあり、elder の印を付けない）", () => {
+    const html = renderToStaticMarkup(h(Home, { view: { ...view, me: mother }, me: mother, demo: null })) as string;
+    expect(html).toContain('class="home-shell"');
+    expect(html).toContain(words.home.menuFamily);
+    expect(html).not.toContain("elder-name");
+  });
+});
+
+describe("祖父母の答え方: 「はなす」「かく」", () => {
+  it("一語のひらがなのボタン二つ。同じ重さ（どちらも青にしない）。今の話者の呼ばれ方をすぐ上に出す", () => {
+    expect(words.screen.elder.byVoice).toBe("はなす");
+    expect(words.screen.elder.byText).toBe("かく");
+    const html = inElder(h(ReplyBox, { target, who: "ばあば" }));
+    expect(html).toContain('<p class="who answer-who">ばあば</p>');
+    expect(html).toMatch(/<div class="grid2 answer-choice"><button type="button" aria-pressed="false">.*?はなす<\/button><button type="button">.*?かく<\/button><\/div>/);
+    expect(html).not.toContain('class="primary"');
+  });
+  it("返事の欄には呼ばれ方を出さない（語りの話者名に見えるため）。「やめる」がある", () => {
+    const html = inElder(h(ReplyBox, { target: { ...target, entranceId: null, replyToId: "n-1" }, onSent: () => {}, onCancel: () => {} }));
+    expect(html).not.toContain("answer-who");
+    expect(html).toContain(`>${words.elder.cancel}</button>`);
+  });
+  it("家族の画面の言葉はそのまま（声で話す・文字で書く）", () => {
+    const html = renderToStaticMarkup(h(ReplyBox, { target })) as string;
+    expect(html).toContain(words.home.byVoice);
+    expect(html).toContain(words.home.byText);
+    expect(html).not.toContain(words.screen.elder.byText);
+  });
+  it("祖父母の「はなす」は押すとその場で録り始める（選ぶボタンと録るボタンを兼ねる。0008 の二度押しのまま）", () => {
+    const src = read("src/client/parts/ReplyBox.tsx");
+    expect(src).toMatch(/notice\?\.clear\(\);\s*rec\.toggle\(\);/);
+  });
+  it("送れなかった文は祖父母の文。家族は種類ごとの文", () => {
+    expect(words.screen.elder.sendFailed).toBe(words.elder.errors.sendFailed);
+    expect(words.screen.family.sendFailed).toBeNull();
+    expect(words.screen.elder.send).toBe("おくる");
+    expect(words.screen.elder.sent).toBe("おくりました");
+  });
+});
+
+describe("祖父母の画面の語りの欄", () => {
+  it("「へんじ」と「こえを きく」、そばに入り口と同じ注「{呼ばれ方}の声（13秒）」", () => {
+    const html = inElder(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }));
+    expect(html).toContain(`>${words.elder.reply}</button>`);
+    expect(html).toContain(words.elder.listen);
+    expect(html).toContain('<span class="who">ばあばの声（13秒）</span>');
+    expect(html).not.toContain("声で聞く");
+  });
+  it("「おくりました」は場所が今の語りのときだけ（画面に一つだけ）", () => {
+    const n = (at: string | null) =>
+      inElder(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }), {
+        at,
+        show: () => {},
+        clear: () => {},
+      });
+    expect(n("n-1")).toContain(`<p class="done">${words.elder.sent}</p>`);
+    expect(n("answer")).not.toContain(words.elder.sent);
+    expect(n(null)).not.toContain(words.elder.sent);
+  });
+  it("家族の画面の語りの声は今までどおり「声で聞く（13秒）」で、注を出さない", () => {
+    const html = renderToStaticMarkup(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} })) as string;
+    expect(html).toContain("声で聞く（13秒）");
+    expect(html).not.toContain("ばあばの声（13秒）");
+  });
+  it("アルバムの写真の拡大の閉じるは祖父母の言葉（ZoomablePhoto に画面を渡す）", () => {
+    const html = inElder(
+      h(Album, {
+        items: [{ photo: { id: "p-1", ownerMemberId: "m-mother", width: 4, height: 3, takenAt: null, hasLocation: false, imageUrl: "/x" }, narrations: [voice()] }],
+        nameOf,
+        currentId: null,
+        onCurrent: () => {},
+        onSent: () => {},
+        composing: false,
+      }),
+    );
+    expect(html).toContain('class="album-band"');
+    expect(html).toContain(`>${words.elder.reply}</button>`);
+    expect(read("src/client/parts/Album.tsx")).toContain("variant={variant}");
+  });
+});
+
+describe("祖父母の画面の決まり（ソース）", () => {
+  const home = read("src/client/screens/Home.tsx");
+  it("「おくりました」は祖父母の画面では時間で消さず、場所を一つだけ持つ", () => {
+    expect(home).toMatch(/if \(elder\) setNoticeAt\("answer"\);/);
+    expect(home).toContain("<SentNoticeContext.Provider value={elder ? notice : null}>");
+  });
+  it("入り口が開けていて一覧だけ読めなかったときは、祖父母の今日のタブに出さない", () => {
+    expect(home).toContain("const todayError = errorView(elder ? entranceError : (entranceError ?? feedError));");
+    expect(home).toContain("const albumError = errorView(elder ? feedError : (entranceError ?? feedError));");
+  });
+  it("読み込めなかったときの祖父母の文と「もういちど」", () => {
+    expect(home).toContain("words.elder.errors");
+    expect(home).toContain("{words.elder.again}");
+  });
+  it("大きさは .home-shell.elder の下で祖父母の定数に替える（答えのボタン、家族の言葉、問いかけ）", () => {
+    const css = read("src/client/styles.css");
+    expect(css).toMatch(/\.elder \.answer \.primary,[\s\S]*?min-height: var\(--elder-action-height\);\s*font-size: var\(--font-elder-action\);/);
+    expect(css).toMatch(/\.elder \.told,[^{]*\{\s*font-size: var\(--font-elder-told\);/);
+    expect(css).toMatch(/\.elder \.question \{\s*font-size: var\(--font-elder-question\);/);
+  });
+  it("家族の設定の画面の名前は声に限らない言い方", () => {
+    expect(words.member.roleElder).toBe("文字の大きな画面（祖父母向け）");
+  });
+});

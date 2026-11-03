@@ -95,7 +95,8 @@ describe("決まりごと（ソース）", () => {
   it("祖父母の画面（入り口）でも、家族の画面（入り口、アルバムの帯）でも開く。帯は止まっているときだけ開く", () => {
     expect(read("src/client/parts/EntranceView.tsx")).toContain("<ZoomablePhoto photo={entrance.photo} focus={entrance.focus} variant={variant} />");
     const album = read("src/client/parts/Album.tsx");
-    expect(album).toMatch(/<ZoomablePhoto photo=\{it\.photo\} variant="family" canOpen=\{bandSettled\}/);
+    // 閉じるボタンの言葉は画面ごと（祖父母の画面は「とじる」。0043）
+    expect(album).toMatch(/<ZoomablePhoto photo=\{it\.photo\} variant=\{variant\} canOpen=\{bandSettled\}/);
     expect(album).toContain("bandMovedAt.current = performance.now();");
   });
 });

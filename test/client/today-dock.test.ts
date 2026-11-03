@@ -46,10 +46,10 @@ describe("Home の組み立て", () => {
     expect(home.match(/<ReplyBox target=\{answerTarget\}/g)).toHaveLength(2);
   });
   it("段を閉じた後の「送りました」は問いかけの下に出す", () => {
-    expect(home).toMatch(/<div aria-live="polite">\s*\{sentNotice && <p className="done">\{w\.sent\}<\/p>\}/);
+    expect(home).toMatch(/<div aria-live="polite"(?: ref=\{noticeRef\})?>\s*\{showAnswerNotice && <p className="done">\{w\.sent\}<\/p>\}/);
   });
-  it("アルバムと語りへの返事、祖父母の画面には段を置かない", () => {
-    for (const f of ["src/client/parts/Album.tsx", "src/client/parts/Narrations.tsx", "src/client/screens/Elder.tsx"]) {
+  it("アルバムと語りへの返事には段を置かない（祖父母の画面は Home と同じ段を使う。0043）", () => {
+    for (const f of ["src/client/parts/Album.tsx", "src/client/parts/Narrations.tsx"]) {
       expect(read(f)).not.toContain("home-dock");
     }
   });
