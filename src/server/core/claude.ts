@@ -21,6 +21,8 @@ export const CLAUDE_PURPOSES: Record<ClaudePurpose, ClaudePurposeSettings> = {
   clean_transcript: { model: CLAUDE_HAIKU, maxTokens: 8_000 },
   entrance: { model: CLAUDE_SONNET, maxTokens: 16_000 },
   extract_records: { model: CLAUDE_HAIKU, maxTokens: 8_000 },
+  // 家族に見える言葉の材料になるので Sonnet。直した後の出し比べでは Haiku との差は小さい。どちらにするかは人間の答え待ち（0044）
+  musubi_guess: { model: CLAUDE_SONNET, maxTokens: 16_000 },
 };
 
 /** 送る前に止めたときや、応答がなかったときの記録 */

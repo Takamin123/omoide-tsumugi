@@ -1,5 +1,6 @@
 import { familyToday } from "./clock";
 import { ensureMorningEntrance } from "./entrance-claude";
+import { runMusubiGuess } from "./musubi-guess";
 import { runPhotoGuesses, type PhotoGuessOptions } from "./photo-guess";
 import type { AppDeps, EntranceRow } from "./ports";
 import { ensureQuestionAudio } from "./question-speech";
@@ -39,6 +40,7 @@ export interface MorningSummary {
  * - 「今日」は家族ごとに決める: 時計があればその日付、なければ now の日本時間の日付
  * - 家族ごとに、入り口づくりの前に写真の説明づくりを一回進める（runPhotoGuesses。失敗しても入り口づくりは続ける）
  * - 続けて、未処理の語りから記録（人・場所・時期・出来事）を取り出す（runRecordExtraction。0039。投げない）
+ * - 続けて、記録からむすび（同じ出来事の写真のまとまり）を推測する（runMusubiGuess。0044。投げない）
  * - 一人ひとりに、その日の入り口がなければ Claude の入り口を試し、だめなら固定の入り口を作る（ensureMorningEntrance）
  *   キーがない、または MORNING_CLAUDE_BUDGET_MS を過ぎたら、Claude を呼ばずに固定の入り口
  * - 全員の入り口を作った後に、今日の Claude の入り口に問いかけの読み上げの音声を作る（ensureQuestionAudio。0029）
@@ -76,6 +78,8 @@ export async function runMorning(
     await runPhotoGuesses(deps, familyId, opts.photoGuess);
     // 語りからの記録の取り出し（本文のまま。投げない。予算を超えた語りは翌朝）
     await runRecordExtraction(deps, familyId, { traceId: runId });
+    // 記録からのむすびの推測（guessed。記録の集合が前回と同じなら呼ばない。投げない）
+    await runMusubiGuess(deps, familyId, { traceId: runId });
     const forDate = familyToday(family, now);
     const members = await deps.repos.members.list(familyId);
     for (const member of members) {

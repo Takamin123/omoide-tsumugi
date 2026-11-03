@@ -87,8 +87,15 @@ async function seedFamily(d1: D1Database, bucket: R2Bucket, id: string, isDemo: 
       .bind(`${p}-n1`, id, now),
     d1.prepare("INSERT INTO musubi (id, family_id, created_by, created_at) VALUES (?, ?, 'family', ?)").bind(`${p}-mu`, id, now),
     d1
-      .prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, evidence_narration_id, created_at) VALUES (?, ?, ?, 'confirmed', ?, ?)")
-      .bind(`${p}-mu`, `${p}-ph`, id, `${p}-n1`, now),
+      .prepare(
+        "INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, evidence_narration_id, decided_by_member_id, decided_at, created_at) VALUES (?, ?, ?, 'confirmed', ?, ?, ?, ?)",
+      )
+      .bind(`${p}-mu`, `${p}-ph`, id, `${p}-n1`, `${p}-m1`, now, now),
+    d1
+      .prepare(
+        "INSERT INTO musubi_guess_runs (family_id, input_key, prompt_version, model, state, attempts, input_tokens, output_tokens, created_at) VALUES (?, ?, 'musubi_guess/v1', 'm', 'done', 1, 1, 1, ?)",
+      )
+      .bind(id, `${p}-key`, now),
   ]);
   for (const k of Object.values(keys)) await bucket.put(k, new Uint8Array([1, 2, 3]));
   // D1 のどの行も指さないファイル（孤児）も、接頭の下に置く
@@ -96,7 +103,7 @@ async function seedFamily(d1: D1Database, bucket: R2Bucket, id: string, isDemo: 
 }
 
 const ONE_EACH = Object.fromEntries(
-  ["records", "record_extractions", "musubi_photos", "musubi", "photo_guess_requests", "photo_guesses", "narrations", "entrances", "photos", "invite_links", "members", "families"].map(
+  ["records", "record_extractions", "musubi_photos", "musubi", "musubi_guess_runs", "photo_guess_requests", "photo_guesses", "narrations", "entrances", "photos", "invite_links", "members", "families"].map(
     (t) => [t, 1],
   ),
 );

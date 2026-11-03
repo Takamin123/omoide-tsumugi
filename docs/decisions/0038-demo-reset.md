@@ -13,7 +13,7 @@
 
 ### 残すもの・戻すもの
 - 残す: families の行（時計のほか）、members、invite_links。一行も書かない
-- 戻す: photos・narrations・entrances・photo_guesses・photo_guess_requests・records・record_extractions・musubi・musubi_photos と、それらの行が指す R2 のファイル（families/<id>/ の下だけ）
+- 戻す: photos・narrations・entrances・photo_guesses・photo_guess_requests・records・record_extractions・musubi・musubi_photos・musubi_guess_runs（0044 で足した）と、それらの行が指す R2 のファイル（families/<id>/ の下だけ）
 - 時計は、初期化した日（日本時間。種の asOfDate）の朝
 - D1 の「消す＋入れる＋時計」は一つの batch。種のファイルは batch の前に families/<id>/ の新しい鍵へ写し（get → ArrayBuffer → put）、古いファイルは batch の後に消す。何度呼んでも同じ状態（ID のほか）
 
@@ -71,6 +71,7 @@
 - 声の語りの整形は clean_transcript/v2・claude-haiku-5-5 で一度呼んだ（2026-11-03。4 本とも台本の文字そのまま、印なし）
 
 ## 見直す条件
+- 最後の毎朝の処理で、むすびの推測（0044。Sonnet 一回、再試行で二回）の分も待ちが延びる。初期化が 4 分に近づいたら、むすびの推測を初期化の外に回すか考える
 - 写真の説明を一枚ずつにしたので、初期化が 2〜3 分を超えることが続いたら、同時に呼ぶ数か予算を考え直す（しきい値は全体では上げない）
 - 二つの初期化が同時に走ると、先に終わった方が写したファイルが families/<id>/ の下に残る（行は後の方が消す）。画面は二度押しを止めているので守りは置かない。残ったファイルは家族の削除の接頭の掃除で消える。同時に押す場面が出てきたら、家族ごとの印で止めるか考える
 - 台本を変えるとき → seed.ts を直し、`npm run eval:demo-seed` で整えた文字を作り直す

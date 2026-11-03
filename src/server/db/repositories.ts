@@ -12,6 +12,9 @@ import type {
   EntranceRow,
   FamilyRow,
   MemberRow,
+  MusubiGuessAttempt,
+  MusubiGuessRunRow,
+  MusubiRow,
   NarrationRow,
   OpsEntranceRow,
   PhotoGuessRow,
@@ -30,7 +33,8 @@ export type BatchItem = DrizzleBatchItem<"sqlite">;
 /** いくつかの書き込みを、すべて行うか、どれも行わないかで行う。 */
 export type RunBatch = (items: [BatchItem, ...BatchItem[]]) => Promise<void>;
 
-const { families, inviteLinks, members, photos, narrations, entrances, photoGuesses, photoGuessRequests, records, recordExtractions } = schema;
+const { families, inviteLinks, members, photos, narrations, entrances, photoGuesses, photoGuessRequests, records, recordExtractions, musubi, musubiPhotos, musubiGuessRuns } =
+  schema;
 
 /** デモの初期化で消す表（名前 → drizzle の表）。DEMO_RESET_TABLES の順に消す */
 const demoTables = {
@@ -38,6 +42,7 @@ const demoTables = {
   record_extractions: schema.recordExtractions,
   musubi_photos: schema.musubiPhotos,
   musubi: schema.musubi,
+  musubi_guess_runs: schema.musubiGuessRuns,
   photo_guess_requests: schema.photoGuessRequests,
   photo_guesses: schema.photoGuesses,
   narrations: schema.narrations,
@@ -164,6 +169,23 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
       })
       .from(narrations)
       .where(and(eq(narrations.id, attempt.narrationId), eq(narrations.familyId, attempt.familyId)));
+  };
+  const runSelect = (attempt: MusubiGuessAttempt, state: "done" | "failed") => {
+    const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+    return db
+      .select({
+        familyId: families.id,
+        inputKey: v(attempt.inputKey, "inputKey"),
+        promptVersion: v(attempt.promptVersion, "promptVersion"),
+        model: v(attempt.model, "model"),
+        state: v(state, "state"),
+        attempts: v(1, "attempts"),
+        inputTokens: v(attempt.inputTokens, "inputTokens"),
+        outputTokens: v(attempt.outputTokens, "outputTokens"),
+        createdAt: v(attempt.createdAt, "createdAt"),
+      })
+      .from(families)
+      .where(eq(families.id, attempt.familyId));
   };
   return {
     families: {
@@ -773,6 +795,151 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .where(eq(recordExtractions.familyId, familyId))
           .orderBy(asc(recordExtractions.createdAt), asc(recordExtractions.narrationId))
           .all()) as RecordExtractionRow[];
+      },
+    },
+
+    musubi: {
+      async listByFamily(familyId) {
+        const [ms, ps] = await Promise.all([
+          db.select().from(musubi).where(eq(musubi.familyId, familyId)).orderBy(asc(musubi.createdAt), asc(musubi.id)).all(),
+          db.select().from(musubiPhotos).where(eq(musubiPhotos.familyId, familyId)).orderBy(asc(musubiPhotos.createdAt), asc(musubiPhotos.photoId)).all(),
+        ]);
+        return ms.map(
+          (m): MusubiRow => ({
+            id: m.id,
+            familyId: m.familyId,
+            createdBy: m.createdBy,
+            guessedReason: m.guessedReason,
+            guessedEvidenceRecordIds: Array.isArray(m.guessedEvidenceRecordIds) ? m.guessedEvidenceRecordIds : null,
+            model: m.model,
+            promptVersion: m.promptVersion,
+            createdAt: m.createdAt,
+            photos: ps
+              .filter((p) => p.musubiId === m.id)
+              .map((p) => ({ photoId: p.photoId, status: p.status, decidedByMemberId: p.decidedByMemberId, decidedAt: p.decidedAt })),
+          }),
+        );
+      },
+      async getRun(familyId, inputKey) {
+        const r = await db
+          .select()
+          .from(musubiGuessRuns)
+          .where(and(eq(musubiGuessRuns.familyId, familyId), eq(musubiGuessRuns.inputKey, inputKey)))
+          .get();
+        return (r ?? null) as MusubiGuessRunRow | null;
+      },
+      async saveGuessed(attempt, rows) {
+        const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+        // 同じ入力の done の行がまだないときだけ（同じ朝の処理が重なっても、むすびは一組だけ）
+        const notDone = notExists(
+          db
+            .select({ one: sql`1` })
+            .from(musubiGuessRuns)
+            .where(and(eq(musubiGuessRuns.familyId, attempt.familyId), eq(musubiGuessRuns.inputKey, attempt.inputKey), eq(musubiGuessRuns.state, "done"))),
+        );
+        const items: BatchItem[] = [];
+        for (const m of rows) {
+          // むすびはその家族があるときだけ。写真はその家族のもので、むすびが入ったときだけ
+          items.push(
+            db.insert(musubi).select(
+              db
+                .select({
+                  id: v(m.id, "id"),
+                  familyId: families.id,
+                  createdBy: v("guessed", "createdBy"),
+                  guessedReason: v(m.reason, "guessedReason"),
+                  guessedEvidenceRecordIds: v(JSON.stringify(m.evidenceRecordIds), "guessedEvidenceRecordIds"),
+                  model: v(attempt.model ?? "unknown", "model"),
+                  promptVersion: v(attempt.promptVersion, "promptVersion"),
+                  createdAt: v(m.createdAt, "createdAt"),
+                })
+                .from(families)
+                .where(
+                  and(
+                    eq(families.id, m.familyId),
+                    eq(families.id, attempt.familyId),
+                    notDone,
+                    // その家族の写真が 2 枚以上あるときだけ（写真の欠けたむすびの行を残さない）
+                    sql`(${db
+                      .select({ n: sql`count(*)` })
+                      .from(photos)
+                      .where(and(inArray(photos.id, m.photoIds), eq(photos.familyId, attempt.familyId)))}) >= 2`,
+                  ),
+                ),
+            ) as unknown as BatchItem,
+          );
+          for (const photoId of m.photoIds) {
+            items.push(
+              db.insert(musubiPhotos).select(
+                db
+                  .select({
+                    musubiId: v(m.id, "musubiId"),
+                    photoId: photos.id,
+                    familyId: photos.familyId,
+                    status: v("guessed", "status"),
+                    evidenceNarrationId: v<string | null>(null, "evidenceNarrationId"),
+                    decidedByMemberId: v<string | null>(null, "decidedByMemberId"),
+                    decidedAt: v<number | null>(null, "decidedAt"),
+                    createdAt: v(m.createdAt, "createdAt"),
+                  })
+                  .from(photos)
+                  .where(
+                    and(
+                      eq(photos.id, photoId),
+                      eq(photos.familyId, attempt.familyId),
+                      exists(db.select({ one: sql`1` }).from(musubi).where(and(eq(musubi.id, m.id), eq(musubi.familyId, attempt.familyId)))),
+                    ),
+                  ),
+              ) as unknown as BatchItem,
+            );
+          }
+        }
+        // むすびを先に入れ、作業の行を後で done にする（done になった後では not exists で入らなくなるため）
+        await runBatch([
+          ...items,
+          db
+            .insert(musubiGuessRuns)
+            .select(runSelect(attempt, "done"))
+            .onConflictDoUpdate({
+              target: [musubiGuessRuns.familyId, musubiGuessRuns.inputKey],
+              set: {
+                promptVersion: attempt.promptVersion,
+                model: attempt.model,
+                state: "done",
+                attempts: sql`${musubiGuessRuns.attempts} + 1`,
+                inputTokens: attempt.inputTokens,
+                outputTokens: attempt.outputTokens,
+                createdAt: attempt.createdAt,
+              },
+              setWhere: ne(musubiGuessRuns.state, "done"),
+            }),
+        ] as unknown as [BatchItem, ...BatchItem[]]);
+      },
+      async markFailed(attempt) {
+        await db
+          .insert(musubiGuessRuns)
+          .select(runSelect(attempt, "failed"))
+          .onConflictDoUpdate({
+            target: [musubiGuessRuns.familyId, musubiGuessRuns.inputKey],
+            set: {
+              promptVersion: attempt.promptVersion,
+              model: attempt.model,
+              attempts: sql`${musubiGuessRuns.attempts} + 1`,
+              inputTokens: attempt.inputTokens,
+              outputTokens: attempt.outputTokens,
+              createdAt: attempt.createdAt,
+            },
+            setWhere: eq(musubiGuessRuns.state, "failed"),
+          })
+          .run();
+      },
+      async listRuns(familyId) {
+        return (await db
+          .select()
+          .from(musubiGuessRuns)
+          .where(eq(musubiGuessRuns.familyId, familyId))
+          .orderBy(asc(musubiGuessRuns.createdAt), asc(musubiGuessRuns.inputKey))
+          .all()) as MusubiGuessRunRow[];
       },
     },
 

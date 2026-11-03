@@ -198,7 +198,10 @@ export const recordExtractions = sqliteTable(
   (t) => [index("record_extractions_family").on(t.familyId)],
 );
 
-/** むすび（同じ出来事のまとまり）。 */
+/**
+ * むすび（同じ出来事のまとまり。0010）。Claude の推測（created_by = 'guessed'）は、根拠の記録（records の told）の ID を必ず持つ（0044）。
+ * guessed_reason は Claude の自由文で、運営と開発だけが見る（家族向けの API に出さない）
+ */
 export const musubi = sqliteTable(
   "musubi",
   {
@@ -206,14 +209,17 @@ export const musubi = sqliteTable(
     familyId: text("family_id").notNull().references(() => families.id),
     createdBy: text("created_by", { enum: ["guessed", "family"] }).notNull(),
     guessedReason: text("guessed_reason"),
+    // 推測の根拠にした記録（records.id、origin = 'told'）の JSON の配列
+    guessedEvidenceRecordIds: text("guessed_evidence_record_ids", { mode: "json" }).$type<string[]>(),
     model: text("model"),
     promptVersion: text("prompt_version"),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [
+    index("musubi_family").on(t.familyId),
     check(
       "musubi_origin",
-      sql`${t.createdBy} <> 'guessed' OR (${t.model} IS NOT NULL AND ${t.promptVersion} IS NOT NULL)`,
+      sql`${t.createdBy} <> 'guessed' OR (${t.model} IS NOT NULL AND ${t.promptVersion} IS NOT NULL AND ${t.guessedEvidenceRecordIds} IS NOT NULL)`,
     ),
   ],
 );
@@ -225,14 +231,42 @@ export const musubiPhotos = sqliteTable(
     photoId: text("photo_id").notNull().references(() => photos.id),
     familyId: text("family_id").notNull().references(() => families.id),
     status: text("status", { enum: ["guessed", "confirmed", "rejected"] }).notNull(),
+    // 語りを通して決めたときの印（任意）
     evidenceNarrationId: text("evidence_narration_id").references(() => narrations.id),
+    // 確定・却下は家族の手だけ（0044）。決めた人と時刻が必須
+    decidedByMemberId: text("decided_by_member_id").references(() => members.id),
     decidedAt: integer("decided_at"),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.musubiId, t.photoId] }),
-    check("musubi_photos_evidence", sql`${t.status} = 'guessed' OR ${t.evidenceNarrationId} IS NOT NULL`),
+    index("musubi_photos_family").on(t.familyId),
+    check(
+      "musubi_photos_decided",
+      sql`(${t.status} = 'guessed' AND ${t.decidedByMemberId} IS NULL AND ${t.decidedAt} IS NULL)
+       OR (${t.status} <> 'guessed' AND ${t.decidedByMemberId} IS NOT NULL AND ${t.decidedAt} IS NOT NULL)`,
+    ),
   ],
+);
+
+/**
+ * むすびの推測（musubi_guess）の作業の表（0044）。家族と、渡した told の記録 ID の集合（input_key）ごとに一行。
+ * 同じ記録の集合で二度呼ばない（版が上がっただけでは呼び直さない。0039 と同じ）。failed は attempts が上限に届くまで翌朝に取り直す
+ */
+export const musubiGuessRuns = sqliteTable(
+  "musubi_guess_runs",
+  {
+    familyId: text("family_id").notNull().references(() => families.id),
+    inputKey: text("input_key").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model"),
+    state: text("state", { enum: ["done", "failed"] }).notNull(),
+    attempts: integer("attempts").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.familyId, t.inputKey] })],
 );
 
 export const entrances = sqliteTable(
