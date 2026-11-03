@@ -88,6 +88,11 @@ describe("祖父母の答え方: 「はなす」「かく」", () => {
     const src = read("src/client/parts/ReplyBox.tsx");
     expect(src).toMatch(/notice\?\.clear\(\);\s*rec\.toggle\(\);/);
   });
+  it("家族の「声で話す」も押すとその場で録り始める（選んだ後にもう一度「話す」を押させない。人間、2026-11-04）", () => {
+    const src = read("src/client/parts/ReplyBox.tsx");
+    expect(src).toMatch(/setMode\("voice"\);[\s\S]{0,120}if \(!failed\) rec\.toggle\(\);/);
+    expect(src).not.toMatch(/onClick=\{\(\) => setMode\("voice"\)\}/);
+  });
   it("送れなかった文は祖父母の文。家族は種類ごとの文", () => {
     expect(words.screen.elder.sendFailed).toBe(words.elder.errors.sendFailed);
     expect(words.screen.family.sendFailed).toBeNull();

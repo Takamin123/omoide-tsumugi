@@ -1,6 +1,7 @@
 // 文字か声で送る。入り口への答えにも、語りへの返事にも使う。家族の画面と祖父母の画面で同じ部品（言葉と大きさだけが違う。0043）。
-// 家族の画面: 「声で話す」「文字で書く」を選び、声なら「話す」→「終わる」、文字なら欄と「送る」。
-// 祖父母の画面: 「はなす」「かく」。「はなす」を押すとその場で録り始め、「おわる」で送る（二度押しのまま。0008）。
+// 家族の画面: 「声で話す」「文字で書く」。「声で話す」を押すとその場で録り始め、「終わる」で送る。文字なら欄と「送る」。
+// 祖父母の画面: 「はなす」「かく」。同じく「はなす」でその場で録り始め、「おわる」で送る（0008）。
+// 選んだ後にもう一度「話す」を押させない（二度押さないと録り始めないのは分かりにくい。人間、2026-11-04）。
 // 文字・声の形が開いている間は、画面に「入力中」を知らせる（下のタブを隠す）。
 // 送ったら入力欄を閉じる。「送りました」は呼ぶ側が出す（今日の答えは Home、返事は Narrations）。
 import { useEffect, useState } from "react";
@@ -196,7 +197,17 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
     body = (
       <>
         <div className="grid2 phrase-break">
-          <button type="button" onClick={() => setMode("voice")}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              notice?.clear();
+              setMicError(false);
+              setMode("voice");
+              // 送れなかった声があるときは録り始めず、今までどおり「送る」で送り直す段に移る（録音が見えないまま始まらないように）
+              if (!failed) rec.toggle();
+            }}
+          >
             {w.byVoice}
           </button>
           <button type="button" onClick={() => setMode("text")}>
