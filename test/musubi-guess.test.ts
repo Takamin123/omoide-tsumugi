@@ -134,7 +134,6 @@ describe("buildMusubiInput", () => {
     ];
     const input = baseInput(existing);
     expect(input.text).toContain('<existing>\n<musubi photos="p1"/>\n</existing>');
-    expect([...input.takenPhotoIds]).toEqual(["photo-a"]);
   });
 
   it("語りに指示のような文やタグがあっても、データとして閉じ込める", () => {
@@ -441,6 +440,37 @@ describe("runMusubiGuess", () => {
     expect(await musubiPhotoRows(a.familyId)).toEqual([]);
     expect(await musubiPhotoRows(b.familyId)).toEqual([]);
     expect(await runRows(a.familyId)).toEqual([expect.objectContaining({ state: "done" })]);
+  });
+
+  it("saveGuessed はモデルの分からない推測を入れず（\"unknown\" で埋めない）、作業の行を失敗にして翌朝に取り直す", async () => {
+    const s = await setup();
+    const attempt = { familyId: s.familyId, inputKey: "k-null", promptVersion: "musubi_guess/v1", model: null, inputTokens: 0, outputTokens: 0, createdAt: 1 };
+    const row = { id: crypto.randomUUID(), familyId: s.familyId, photoIds: [s.photos[0]!, s.photos[1]!], evidenceRecordIds: ["x"], reason: "x", createdAt: 1 };
+    await s.t.deps.repos.musubi.saveGuessed(attempt, [row]);
+    expect(await musubiRows(s.familyId)).toEqual([]);
+    expect(await musubiPhotoRows(s.familyId)).toEqual([]);
+    expect(await runRows(s.familyId)).toEqual([expect.objectContaining({ input_key: "k-null", state: "failed", attempts: 1 })]);
+    // もう一度来ても、むすびは入らず失敗の回数だけが増える
+    await s.t.deps.repos.musubi.saveGuessed(attempt, [{ ...row, id: crypto.randomUUID() }]);
+    expect(await musubiRows(s.familyId)).toEqual([]);
+    expect(await runRows(s.familyId)).toEqual([expect.objectContaining({ state: "failed", attempts: 2 })]);
+  });
+
+  it("保存の層がモデルなしで入れなかったときは、done・created にせず failed として数える", async () => {
+    const fc = fakeClaude({ replies: [reply([{ photo_ids: ["p1", "p2"], evidence_record_ids: ["r1", "r2"] }])] });
+    const s = await setup(fc.claude);
+    await addTold(s, 0, TRIP[0], "伊勢の旅");
+    await addTold(s, 1, TRIP[1], "伊勢の旅");
+    const repo = s.t.deps.repos.musubi;
+    // 応答のモデルが欠けた場合を、保存の層に null を渡して作る（ClaudeCallMeta.model は型では string）
+    const deps = {
+      ...s.t.deps,
+      repos: { ...s.t.deps.repos, musubi: { ...repo, saveGuessed: (a: Parameters<typeof repo.saveGuessed>[0], rows: Parameters<typeof repo.saveGuessed>[1]) => repo.saveGuessed.call(repo, { ...a, model: null }, rows) } },
+    };
+    const r = await runMusubiGuess(deps, s.familyId);
+    expect(r).toMatchObject({ status: "failed", created: 0 });
+    expect(await musubiRows(s.familyId)).toEqual([]);
+    expect(await runRows(s.familyId)).toEqual([expect.objectContaining({ state: "failed", attempts: 1 })]);
   });
 
   it("ログには ID・件数・所要時間だけ。語りの本文・記録の値・理由を出さない", async () => {

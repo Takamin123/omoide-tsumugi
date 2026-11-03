@@ -46,8 +46,6 @@ export interface MusubiInput {
   photoAlias: Map<string, string>;
   recordAlias: Map<string, RecordRow>;
   text: string;
-  /** 新しいむすびに入れてはいけない写真（既存の guessed / confirmed のむすびの写真） */
-  takenPhotoIds: Set<string>;
 }
 
 const esc = (s: string) => s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]!);
@@ -125,18 +123,16 @@ export function buildMusubiInput(input: {
   });
   lines.push("</narrations>");
 
-  const takenPhotoIds = new Set<string>();
   const existingLines: string[] = [];
   for (const m of input.existing) {
     const live = m.photos.filter((p) => p.status !== "rejected").map((p) => p.photoId);
-    for (const id of live) takenPhotoIds.add(id);
     const shown = live.map((id) => aliasOfPhoto.get(id)).filter((a): a is string => a !== undefined)
       .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
     if (shown.length > 0) existingLines.push(`<musubi photos="${shown.join(" ")}"/>`);
   }
   lines.push("<existing>", ...existingLines, "</existing>");
 
-  return { recordIds: picked.map((r) => r.id).sort(), photoAlias, recordAlias, text: lines.join("\n"), takenPhotoIds };
+  return { recordIds: picked.map((r) => r.id).sort(), photoAlias, recordAlias, text: lines.join("\n") };
 }
 
 type Resolved = { photoIds: string[]; evidenceRecordIds: string[]; reason: string };
@@ -334,7 +330,11 @@ async function guess(
     reason: m.reason,
     createdAt: attempt.createdAt,
   }));
-  await repos.musubi.saveGuessed(attempt, rows);
+  if (!(await repos.musubi.saveGuessed(attempt, rows))) {
+    // 出所のモデルが分からない推測は入れない（失敗にして翌朝に取り直す）
+    extra.reason = "no_model";
+    return "failed";
+  }
   summary.created = rows.length;
   return "done";
 }

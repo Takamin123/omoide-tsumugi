@@ -254,6 +254,34 @@ describe("数える・消す（手元の D1・R2）", () => {
     expect((await lib.countFamily(env, B)).r2Objects).toBe(4);
   });
 
+  it("後から足した表がまだない（0004・0005 の前の）データベースでも、ある表だけを数えて消す", async () => {
+    await env.DB.exec("DROP TABLE musubi_guess_runs");
+    await env.DB.exec("DROP TABLE record_extractions");
+    const c = await lib.countFamily(env, A);
+    expect(c.missingTables).toEqual(["record_extractions", "musubi_guess_runs"]);
+    expect(c.tables).toEqual({ ...ONE_EACH, record_extractions: 0, musubi_guess_runs: 0 });
+    const r = await lib.deleteFamily(env, A);
+    expect(r.r2Deleted).toBe(4);
+    expect(lib.isEmpty(r.after)).toBe(true);
+    expect((await lib.countFamily(env, B)).tables).toEqual({ ...ONE_EACH, record_extractions: 0, musubi_guess_runs: 0 });
+  });
+
+  it("土台の表がないデータベース（つなぐ先の取り違え）では、数えずに止める", async () => {
+    // 外部キーで本物の表は落とせないので、表の一覧だけ entrances のない形に見せる
+    const db = env.DB;
+    const wrong = {
+      ...env,
+      DB: {
+        prepare: (q: string) => (q.includes("sqlite_master") ? db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'entrances'") : db.prepare(q)),
+        batch: (b: D1PreparedStatement[]) => db.batch(b),
+      } as unknown as D1Database,
+    };
+    await expect(lib.countFamily(wrong, A)).rejects.toThrow(/土台の表/);
+    await expect(lib.deleteFamily(wrong, A)).rejects.toThrow(/土台の表/);
+    expect((await lib.countFamily(env, A)).tables).toEqual(ONE_EACH);
+    expect((await env.BUCKET.list({ prefix: `families/${A}/` })).objects).toHaveLength(4);
+  });
+
   it("家族 ID は UUID の小文字の完全な形だけを受け付ける", async () => {
     for (const bad of [A.toUpperCase(), A.slice(0, -1), `${A} `, "%", `${A}' OR '1'='1`]) {
       await expect(lib.countFamily(env, bad)).rejects.toThrow(/家族 ID/);

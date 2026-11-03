@@ -829,6 +829,12 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
         return (r ?? null) as MusubiGuessRunRow | null;
       },
       async saveGuessed(attempt, rows) {
+        // 推測には出所のモデルを必ず付ける。モデルが分からない応答のむすびは入れず、失敗として翌朝に取り直す（"unknown" で埋めない）
+        if (!attempt.model) {
+          await this.markFailed(attempt);
+          return false;
+        }
+        const model = attempt.model;
         const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
         // 同じ入力の done の行がまだないときだけ（同じ朝の処理が重なっても、むすびは一組だけ）
         const notDone = notExists(
@@ -849,7 +855,7 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
                   createdBy: v("guessed", "createdBy"),
                   guessedReason: v(m.reason, "guessedReason"),
                   guessedEvidenceRecordIds: v(JSON.stringify(m.evidenceRecordIds), "guessedEvidenceRecordIds"),
-                  model: v(attempt.model ?? "unknown", "model"),
+                  model: v(model, "model"),
                   promptVersion: v(attempt.promptVersion, "promptVersion"),
                   createdAt: v(m.createdAt, "createdAt"),
                 })
@@ -914,6 +920,7 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
               setWhere: ne(musubiGuessRuns.state, "done"),
             }),
         ] as unknown as [BatchItem, ...BatchItem[]]);
+        return true;
       },
       async markFailed(attempt) {
         await db

@@ -15,6 +15,8 @@ import { PROMPTS } from "../prompts";
 
 /** 一回の処理の時間の予算。超えたら新しい語りは呼ばず、翌朝に回す（毎朝の処理の本体は入り口づくり） */
 export const RECORD_EXTRACTION_BUDGET_MS = 60_000;
+/** デモの初期化のときの予算（語り 12 本を順に取り出す。0038）。毎朝の処理の前段の締め切りの内側 */
+export const RECORD_EXTRACTION_DEMO_RESET_BUDGET_MS = 120_000;
 /** 一回の処理で見る語りの上限（残りは翌朝） */
 export const RECORD_EXTRACTION_MAX_PER_RUN = 50;
 /** 同じ語りを試す回数の上限（失敗が続いたら、それ以上呼ばない。家族には知らせない） */

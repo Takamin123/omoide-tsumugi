@@ -73,8 +73,14 @@ async function countR2(bucket, prefix) {
 export async function countFamily(env, familyId) {
   if (!isFamilyId(familyId)) throw new Error("家族 ID の形が違います（UUID の小文字）");
   const fam = await env.DB.prepare("SELECT id, is_demo FROM families WHERE id = ?").bind(familyId).first();
+  const missing = await missingTables(env);
   const tables = {};
   for (const t of FAMILY_TABLES) {
+    // まだマイグレーションで作られていない表（例: 0004・0005 の前の本番）は 0 件として数える
+    if (missing.includes(t)) {
+      tables[t] = 0;
+      continue;
+    }
     const row = await env.DB.prepare(`SELECT count(*) AS n FROM ${t} WHERE ${idColumn(t)} = ?`).bind(familyId).first();
     tables[t] = Number(row?.n ?? 0);
   }
@@ -102,8 +108,26 @@ export async function countFamily(env, familyId) {
     keysOutsidePrefix,
     othersInPrefix,
     r2Objects: await countR2(env.BUCKET, prefix),
+    ...(missing.length > 0 ? { missingTables: missing } : {}),
   };
 }
+
+/**
+ * FAMILY_TABLES のうち、そのデータベースにまだない表。後から足した表（LATER_TABLES）だけは、
+ * マイグレーションを当てる前の環境でも消せるように飛ばす（人間の決定 2026-11-04: 本番の既存の家族は 0005 の前に消す）。
+ * ほかの表がなければ、つなぐ先の取り違えかマイグレーションの当て忘れなので止める
+ */
+async function missingTables(env) {
+  const { results } = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
+  const have = new Set(results.map((r) => r.name));
+  const missing = FAMILY_TABLES.filter((t) => !have.has(t));
+  const base = missing.filter((t) => !LATER_TABLES.includes(t));
+  if (base.length > 0) throw new Error(`土台の表がありません（${base.join(", ")}）。つなぐ先を確かめてください`);
+  return missing;
+}
+
+/** 0000 の後のマイグレーションで足した表（0001・0004・0005）。これだけは、まだなくても飛ばしてよい */
+const LATER_TABLES = ["photo_guess_requests", "record_extractions", "musubi_guess_runs"];
 
 export const isEmpty = (c) => !c.exists && Object.values(c.tables).every((n) => n === 0) && c.r2Objects === 0;
 
@@ -121,7 +145,8 @@ export async function deleteFamily(env, familyId, { log = () => {}, allowDemo = 
   if (before.othersInPrefix > 0) {
     throw new Error(`ほかの家族の行が、この家族の接頭の下のキーを ${before.othersInPrefix} 件指しています。消さずに止めました`);
   }
-  await env.DB.batch(FAMILY_TABLES.map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE ${idColumn(t)} = ?`).bind(familyId)));
+  const present = FAMILY_TABLES.filter((t) => !(before.missingTables ?? []).includes(t));
+  await env.DB.batch(present.map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE ${idColumn(t)} = ?`).bind(familyId)));
   log(`D1: ${Object.values(before.tables).reduce((a, b) => a + b, 0)} 行を消しました`);
 
   const prefix = familyPrefix(familyId);
@@ -156,6 +181,7 @@ function formatCount(env, c) {
     `種類: ${kind}`,
     `人: ${t.members}  写真: ${t.photos}  語り: ${t.narrations}  入り口: ${t.entrances}  R2 のファイル: ${c.r2Objects}`,
     `表ごとの行数: ${FAMILY_TABLES.map((name) => `${name}=${t[name]}`).join(" ")}`,
+    ...(c.missingTables ? [`まだない表（マイグレーションの前。0 件として数えた）: ${c.missingTables.join(" ")}`] : []),
     `D1 が指す R2 のキー: ${c.referencedKeys}（接頭の外: ${c.keysOutsidePrefix}、ほかの家族の行がこの接頭を指す: ${c.othersInPrefix}）`,
   ].join("\n");
 }

@@ -1,5 +1,5 @@
 // デモの初期化だけが写真の説明を Batch にしない（0038 の追記）ことの境界（qa-engineer）。
-// - runMorning に渡す引数: 初期化は { familyId, photoGuess: { noBatch, budgetMs: 90 秒 } }、時計のボタンは { familyId } のまま
+// - runMorning に渡す引数: 初期化は { familyId, photoGuess: { noBatch, budgetMs: 90 秒 }, recordExtraction: { budgetMs: 120 秒 } }、時計のボタンは { familyId } のまま
 // - 時計のボタンは、しきい値を超えたら従来どおり Batch
 // - 初期化の予算: 毎朝の 60 秒では止まらず、90 秒を過ぎたら残りを release（回数に数えない・Batch なし）し、入り口づくりは続く
 // - キーなしの初期化: 作業の行を残さない
@@ -13,6 +13,7 @@ import {
   PHOTO_GUESS_TIME_BUDGET_MS,
 } from "../src/server/core/photo-guess";
 import type { ClaudeClient } from "../src/server/core/ports";
+import { RECORD_EXTRACTION_DEMO_RESET_BUDGET_MS } from "../src/server/core/record-extraction";
 import { SEED_MEMBERS, SEED_NARRATIONS, SEED_PHOTOS, seedPhotoKey, seedVoiceKey } from "../src/server/demo/seed";
 import { createR2PhotoStore } from "../src/server/platform/cloudflare/r2-photo-store";
 import {
@@ -109,13 +110,18 @@ const entranceCount = async (familyId: string) =>
   (await d1.prepare("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ? AND for_date = '2026-11-02'").bind(familyId).first<{ n: number }>())!.n;
 
 describe("runMorning に渡す引数", () => {
-  it("初期化は photoGuess { noBatch: true, budgetMs: 90 秒 } を渡す", async () => {
+  it("初期化は photoGuess { noBatch: true, budgetMs: 90 秒 } と recordExtraction { budgetMs: 120 秒 } を渡す", async () => {
     const t = appWithR2();
     const f = await demoFamily(t);
     expect((await reset(t, f.familyId)).status).toBe(200);
     expect(morningCalls).toHaveLength(1);
-    expect(morningCalls[0]![2]).toEqual({ familyId: f.familyId, photoGuess: { noBatch: true, budgetMs: PHOTO_GUESS_DEMO_RESET_BUDGET_MS } });
+    expect(morningCalls[0]![2]).toEqual({
+      familyId: f.familyId,
+      photoGuess: { noBatch: true, budgetMs: PHOTO_GUESS_DEMO_RESET_BUDGET_MS },
+      recordExtraction: { budgetMs: RECORD_EXTRACTION_DEMO_RESET_BUDGET_MS },
+    });
     expect(PHOTO_GUESS_DEMO_RESET_BUDGET_MS).toBe(90_000);
+    expect(RECORD_EXTRACTION_DEMO_RESET_BUDGET_MS).toBe(120_000);
   });
 
   it("時計のボタンは { familyId } のまま（photoGuess を渡さない）", async () => {
