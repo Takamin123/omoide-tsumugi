@@ -1,16 +1,24 @@
 import { familyToday } from "./clock";
 import { ensureMorningEntrance } from "./entrance-claude";
-import { runMusubiGuess } from "./musubi-guess";
-import { runPhotoGuesses, type PhotoGuessOptions } from "./photo-guess";
+import { MUSUBI_GUESS_BUDGET_MS, runMusubiGuess } from "./musubi-guess";
+import { PHOTO_GUESS_TIME_BUDGET_MS, runPhotoGuesses, type PhotoGuessOptions } from "./photo-guess";
 import type { AppDeps, EntranceRow } from "./ports";
 import { ensureQuestionAudio } from "./question-speech";
-import { runRecordExtraction } from "./record-extraction";
+import { RECORD_EXTRACTION_BUDGET_MS, runRecordExtraction } from "./record-extraction";
 
 /**
  * Claude の入り口を試してよい時間（処理の始まりから）。過ぎたら残りの人は固定の入り口にする。
  * 一人分の呼び出しは最長で 2 分ほど（60 秒 × 2 回と待ち）かかるので、全体を 10 分の内側に収めるための余白をとる
  */
 export const MORNING_CLAUDE_BUDGET_MS = 7 * 60_000;
+/**
+ * 入り口づくりの前段（写真の説明・記録の取り出し・むすびの推測）を始めてよい締め切り（処理の始まりから）。
+ * 家族が多い朝や前段が遅い朝に、前段だけで MORNING_CLAUDE_BUDGET_MS を使い切り、後ろの家族の入り口が固定に倒れるのを避ける。
+ * 入り口の予算から、Claude の入り口一人分の最長（60 秒 × 2 回と待ち）の余白をとる。ふだんの朝に、前段のせいで入り口が始めから固定に倒れないようにするため。
+ * 締め切りの直前に始めた前段の一回の呼び出しが最長まで延びた朝は余白が尽きうる。残りの人が全員 Claude で作られることも保証しない（0044 の「前段の予算」）。
+ * 前段は家族に見えず、残りは翌朝に回せる。入り口は家族が今日見る
+ */
+export const MORNING_PRELUDE_BUDGET_MS = MORNING_CLAUDE_BUDGET_MS - 2 * 60_000;
 /**
  * 問いかけの読み上げの締め切り（処理の始まりから）。入り口を全員分作った後に音声を作り、これを過ぎる呼び出しや再試行はしない。
  * 全体を 10 分の内側に収める（0029）
@@ -32,6 +40,14 @@ export interface MorningSummary {
   speech: { made: number; failed: { memberId: string; reason: string }[] };
 }
 
+export interface MorningOptions {
+  familyId?: string;
+  /** 写真の説明づくりにそのまま渡す（budgetMs は前段の締め切りで切り詰める）。デモの初期化だけが渡す（0038） */
+  photoGuess?: PhotoGuessOptions;
+  /** 記録の取り出しの時間の予算（前段の締め切りで切り詰める）。デモの初期化だけが渡す（0038） */
+  recordExtraction?: { budgetMs: number };
+}
+
 /**
  * 毎朝の処理（家族一人ひとりの今日の入り口づくり）。
  * Cron（scheduled）とデモの時計のボタンは、どちらもこの関数を呼ぶ。処理を二つに分けない。
@@ -46,16 +62,24 @@ export interface MorningSummary {
  * - 全員の入り口を作った後に、今日の Claude の入り口に問いかけの読み上げの音声を作る（ensureQuestionAudio。0029）
  *   入り口づくりを先に済ませ、音声は MORNING_SPEECH_DEADLINE_MS まで。作れなくても入り口はそのまま
  * - 失敗した人だけ飛ばして続ける。全員が失敗したときだけ、全体を失敗にする
+ * - 前段の三つ（写真の説明・記録の取り出し・むすびの推測）には、各自の予算を MORNING_PRELUDE_BUDGET_MS の残りで切り詰めて渡す。
+ *   残りが 0 なら呼ばない（翌朝に回る）。後ろの家族の入り口を MORNING_CLAUDE_BUDGET_MS の内側で作るため
  * - photoGuess は写真の説明づくりにそのまま渡す。デモの初期化だけが { noBatch: true, budgetMs } を渡す（0038）。
  *   Cron と時計のボタンは渡さない（しきい値を超えたら Batch）
+ * - recordExtraction も、デモの初期化だけが渡す（語り 12 本を順に取り出すので、既定の 60 秒では収まらないことがある。0038）
  */
 export async function runMorning(
   deps: AppDeps,
   now: Date = new Date(),
-  opts: { familyId?: string; photoGuess?: PhotoGuessOptions } = {},
+  opts: MorningOptions = {},
 ): Promise<MorningSummary> {
   const runId = crypto.randomUUID();
   const started = Date.now();
+  const preludeDeadline = started + MORNING_PRELUDE_BUDGET_MS;
+  /** 前段の一つに渡す予算: 各自の予算と、前段の締め切りまでの残りの小さい方（0 なら呼ばない） */
+  const preludeBudget = (own: number) => Math.max(0, Math.min(own, preludeDeadline - Date.now()));
+  /** 前段の締め切りを過ぎて呼ばなかった前段の数（ログだけ） */
+  let preludeSkipped = 0;
   const familyIds = opts.familyId ? [opts.familyId] : await deps.repos.families.listIdsWithoutClock();
   const summary: MorningSummary = {
     runId,
@@ -75,11 +99,17 @@ export async function runMorning(
     const family = await deps.repos.families.get(familyId);
     if (!family) continue;
     // 写真の説明（推測）づくりを先に進める: 終わった Batch の回収と、まだ説明のない写真。投げない
-    await runPhotoGuesses(deps, familyId, opts.photoGuess);
+    const photoBudget = preludeBudget(opts.photoGuess?.budgetMs ?? PHOTO_GUESS_TIME_BUDGET_MS);
+    if (photoBudget > 0) await runPhotoGuesses(deps, familyId, { ...opts.photoGuess, budgetMs: photoBudget });
+    else preludeSkipped++;
     // 語りからの記録の取り出し（本文のまま。投げない。予算を超えた語りは翌朝）
-    await runRecordExtraction(deps, familyId, { traceId: runId });
+    const recordBudget = preludeBudget(opts.recordExtraction?.budgetMs ?? RECORD_EXTRACTION_BUDGET_MS);
+    if (recordBudget > 0) await runRecordExtraction(deps, familyId, { budgetMs: recordBudget, traceId: runId });
+    else preludeSkipped++;
     // 記録からのむすびの推測（guessed。記録の集合が前回と同じなら呼ばない。投げない）
-    await runMusubiGuess(deps, familyId, { traceId: runId });
+    const musubiBudget = preludeBudget(MUSUBI_GUESS_BUDGET_MS);
+    if (musubiBudget > 0) await runMusubiGuess(deps, familyId, { budgetMs: musubiBudget, traceId: runId });
+    else preludeSkipped++;
     const forDate = familyToday(family, now);
     const members = await deps.repos.members.list(familyId);
     for (const member of members) {
@@ -131,6 +161,7 @@ export async function runMorning(
       noPhoto: summary.noPhoto,
       failed: summary.failed,
       speech: summary.speech,
+      preludeSkipped,
       ms: Date.now() - started,
     }),
   );

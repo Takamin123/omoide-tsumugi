@@ -3,7 +3,7 @@
 //   ANTHROPIC_API_KEY=... npm run eval:musubi
 //   または .dev.vars の ANTHROPIC_API_KEY（worktree では EVAL_DEV_VARS=<メインの .dev.vars> npm run eval:musubi）
 //   EVAL_REPEAT=2（既定）で同じ家族・同じモデルを 2 回ずつ。EVAL_MODELS=claude-sonnet-5-5,claude-haiku-5-5（既定）。EVAL_OUT=<path> で書き出し先を変える
-// 結果は docs/_wip/prompt-evals/<日本時間の日付>-musubi.md に書く。
+// 結果は docs/evals/<日本時間の日付>-musubi.md に書く。
 // - 記録（records）は、本番と同じく extract_records（Haiku）を本物で一度呼んで作る。記録の組は、どのモデル・どの回でも同じものを使う
 // - アプリと同じ部品（buildMusubiInput、checkMusubi、resolveMusubi、dropOverlapping、musubiSchema、PROMPTS.musubi_guess）を使い、検査も同じにする
 // - モデルは CLAUDE_PURPOSES.musubi_guess.model を差し替えて比べる（maxTokens などのほかの設定は本番のまま）
@@ -424,7 +424,7 @@ describe.skipIf(!apiKey)("出し比べ: musubi_guess", () => {
       CLAUDE_PURPOSES.musubi_guess.model = original;
     }
 
-    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/_wip/prompt-evals/${jstDate()}-musubi.md`);
+    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/evals/${jstDate()}-musubi.md`);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, report(fams, outcomes));
     console.log(`wrote ${path.relative(repoRoot, out)}`);

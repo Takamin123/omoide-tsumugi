@@ -439,9 +439,10 @@ export interface MusubiRepository {
   getRun(familyId: string, inputKey: string): Promise<MusubiGuessRunRow | null>;
   /**
    * 推測を入れる（一度に）。同じ入力の done の行がまだないときだけ musubi・musubi_photos を入れ、作業の行を done にする。
-   * 写真はその家族のものだけが入る。0 件でも done を残す
+   * 写真はその家族のものだけが入る。0 件でも done を残す。
+   * attempt.model がなければ（推測の出所が分からない）むすびは入れず、markFailed と同じく失敗にして false を返す
    */
-  saveGuessed(attempt: MusubiGuessAttempt, musubi: NewGuessedMusubi[]): Promise<void>;
+  saveGuessed(attempt: MusubiGuessAttempt, musubi: NewGuessedMusubi[]): Promise<boolean>;
   /** 失敗にする（attempts を一つ増やす）。done の行は変えない */
   markFailed(attempt: MusubiGuessAttempt): Promise<void>;
   listRuns(familyId: string): Promise<MusubiGuessRunRow[]>;

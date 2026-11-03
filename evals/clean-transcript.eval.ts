@@ -3,7 +3,7 @@
 //   ANTHROPIC_API_KEY=... npm run eval:clean
 //   または .dev.vars の ANTHROPIC_API_KEY（worktree では EVAL_DEV_VARS=<メインの .dev.vars> npm run eval:clean）
 //   EVAL_REPEAT=3 で同じ語りを 3 回ずつ（ぶれを見る）。EVAL_OUT=<path> で書き出し先を変える
-// 結果は docs/_wip/prompt-evals/<日本時間の日付>-clean-transcript.md に書く。
+// 結果は docs/evals/<日本時間の日付>-clean-transcript.md に書く。
 // アプリと同じ部品（buildCleanInput、checkMarked、parseMarked、displayText、PROMPTS）を使い、検査も同じにする。
 // fixtures の traits・mishearings・note は期待値なので、プロンプトには渡さない（ここでは結果と見比べるだけ）。
 import { describe, expect, it } from "vitest";
@@ -196,7 +196,7 @@ describe.skipIf(!apiKey)("出し比べ: clean_transcript", () => {
       }
     }
 
-    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/_wip/prompt-evals/${jstDate()}-clean-transcript.md`);
+    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/evals/${jstDate()}-clean-transcript.md`);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, report(fixture, outcomes));
     console.log(`wrote ${path.relative(repoRoot, out)}`);

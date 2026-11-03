@@ -3,7 +3,7 @@
 //   ANTHROPIC_API_KEY=... npm run eval:records
 //   または .dev.vars の ANTHROPIC_API_KEY（worktree では EVAL_DEV_VARS=<メインの .dev.vars> npm run eval:records）
 //   EVAL_REPEAT=2（既定）で同じ語りを 2 回ずつ（ぶれを見る）。EVAL_OUT=<path> で書き出し先を変える
-// 結果は docs/_wip/prompt-evals/<日本時間の日付>-records.md に書く。
+// 結果は docs/evals/<日本時間の日付>-records.md に書く。
 // アプリと同じ部品（buildRecordInput、checkRecords、locateRecords、displayText、PROMPTS）を使い、検査も同じにする。
 // 声の語りは整形済み（文字起こしそのまま）とみなし、fixtures の聞き間違い（mishearings）に印を付ける（「……」で渡る。entrance.eval と同じ）。
 // fixtures の traits・mishearings・note は期待値なので、プロンプトには渡さない（印の位置にだけ使う）。
@@ -188,7 +188,7 @@ describe.skipIf(!apiKey)("出し比べ: extract_records", () => {
       }
     }
 
-    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/_wip/prompt-evals/${jstDate()}-records.md`);
+    const out = env.EVAL_OUT ?? path.join(repoRoot, `docs/evals/${jstDate()}-records.md`);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, report(fixture, outcomes));
     console.log(`wrote ${path.relative(repoRoot, out)}`);

@@ -22,6 +22,7 @@ import { addDays, jstDate } from "./clock";
 import { locateQuote } from "./clean-transcript";
 import { runMorning, type MorningSummary } from "./morning";
 import { PHOTO_GUESS_DEMO_RESET_BUDGET_MS } from "./photo-guess";
+import { RECORD_EXTRACTION_DEMO_RESET_BUDGET_MS } from "./record-extraction";
 import type { AppDeps, DemoResetTable, EntranceRow, MemberRow, NarrationRow, PhotoRow } from "./ports";
 
 export interface DemoResetSummary {
@@ -254,7 +255,12 @@ export async function resetDemoFamily(deps: AppDeps, familyId: string): Promise<
   let morning: MorningSummary | null = null;
   try {
     // 写真を入れ直した直後なので、写真の説明は Batch にせず一枚ずつその場で作り、そろってから入り口を作る
-    morning = await runMorning(deps, now, { familyId, photoGuess: { noBatch: true, budgetMs: PHOTO_GUESS_DEMO_RESET_BUDGET_MS } });
+    morning = await runMorning(deps, now, {
+      familyId,
+      photoGuess: { noBatch: true, budgetMs: PHOTO_GUESS_DEMO_RESET_BUDGET_MS },
+      // 語り 12 本を順に取り出す（一本の中央 3.8 秒）。既定の 60 秒では残りが翌朝に回り、今日の入り口とむすびの材料が欠ける
+      recordExtraction: { budgetMs: RECORD_EXTRACTION_DEMO_RESET_BUDGET_MS },
+    });
   } catch (e) {
     // 外の本文を出さない: 毎朝の処理が投げる決まった種類のほかは、名前だけ
     const kind = e instanceof Error ? (e.message === "morning_all_failed" ? e.message : e.name) : "unknown";

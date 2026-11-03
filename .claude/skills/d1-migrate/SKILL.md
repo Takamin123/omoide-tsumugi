@@ -50,6 +50,9 @@ npx wrangler d1 migrations apply <DB> --env preview --remote
    - 適用するマイグレーションのファイル名と、SQL の中身
    - データが消える変更があるかどうか
    - プレビューで確かめた結果
+   - 0003（`0003_member_links.sql`）を含むとき: 本番の有効なリンクがすべて取り消されること（`docs/decisions/0036`。開いている端末は新しいリンクで開き直しになる）
+   - 先に `npx wrangler d1 execute <DB> --remote --command "SELECT id, is_demo, created_at FROM families"` で、本番の既存の家族を数えた結果（名前は出さない）
+   - 本番の既存の家族は消す（人間の決定、2026-11-04）。消すのは 0005（`0005_musubi_guess.sql`）を適用する前。一つずつ `/delete-family production <家族 ID>`（デモの家族なら `--allow-demo`）で、人間が自分の端末で打つ。段取りの全体は `/parent-trial`
 2. 了解をもらってから実行する
 
 ```bash
