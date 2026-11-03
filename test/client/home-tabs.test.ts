@@ -147,13 +147,18 @@ describe("アルバム", () => {
     const html = renderAlbum({ currentId: "p-2" });
     expect(html).toMatch(/aria-label="左の写真へ"><svg aria-hidden="true"[^>]*><path[^>]*><\/path><\/svg><\/button>/);
   });
-  it("写真ごとに撮影日と細い線を頭に置き、語りは全文・話者の呼ばれ方つき、返事は元の語りの下", () => {
+  it("写真ごとに見出し（小さい写真・撮影日・何枚目か）を頭に置き、語りは全文・話者の呼ばれ方つき、返事は元の語りの下", () => {
     const html = renderAlbum();
-    expect(html).toContain('<p class="album-date"><span>1994年10月9日</span><span class="album-rule" aria-hidden="true"></span></p>');
+    expect(words.home.albumOrdinal(2)).toBe("2枚目");
+    expect(html).toContain(
+      '<div class="album-head"><img class="album-thumb" src="/api/photos/p-1/image" alt="" loading="lazy" decoding="async"/><p class="album-head-text"><span>1994年10月9日</span><span class="album-ordinal" aria-hidden="true">1枚目</span></p></div>',
+    );
     expect(html).toContain("語り n-1");
     expect(html).toMatch(/<div class="narration" data-narration="n-1"><p class="speaker">ばあば<\/p><p class="told">語り n-1<\/p>.*<div class="narration reply" data-narration="n-2"><p class="speaker">お母さん<\/p><p class="told">返事の文<\/p>/);
-    // 撮影日がない写真は、線だけ
-    expect(html).toContain('<section data-photo="p-2" class="album-section" aria-label="4枚のうち 2枚"><p class="album-date"><span class="album-rule" aria-hidden="true"></span></p>');
+    // 撮影日がない写真は、小さい写真と何枚目かだけ。読み上げでは節の名前「4枚のうち 2枚」で区切りを伝え、見える「2枚目」は重ねて読ませない
+    expect(html).toContain(
+      '<section data-photo="p-2" class="album-section" aria-label="4枚のうち 2枚"><div class="album-head"><img class="album-thumb" src="/api/photos/p-2/image" alt="" loading="lazy" decoding="async"/><p class="album-head-text"><span class="album-ordinal" aria-hidden="true">2枚目</span></p></div>',
+    );
     expect(html).not.toContain("撮影日なし");
   });
   it("語りごとに「返事」ボタン。開いた入力欄は一度に一つ", () => {
@@ -173,6 +178,7 @@ describe("アルバム", () => {
       "1987年8月1日",
       words.home.reply,
       ...words.home.albumPositionParts(1, 4),
+      ...[1, 2, 3, 4].map((at) => words.home.albumOrdinal(at)),
     ]);
     expect(visible.filter((t) => !allowed.has(t))).toEqual([]);
   });
@@ -187,6 +193,21 @@ describe("アルバム", () => {
   it("返事の入力欄が開いている間は、写真の帯をたたむ", () => {
     expect(renderAlbum({ composing: true })).toMatch(/<section class="album-band" aria-label="写真" hidden="">/);
     expect(renderAlbum({ composing: false })).toMatch(/<section class="album-band" aria-label="写真">/);
+  });
+  it("見出しは押せない（button にしない）。欄の上端に貼り付き、次の見出しが押し上げる", () => {
+    const html = renderAlbum();
+    const heads = html.match(/<div class="album-head">.*?<\/div>/g) ?? [];
+    expect(heads.length).toBe(4);
+    for (const head of heads) expect(head).not.toMatch(/<button|tabindex|role=/);
+    const css = fs.readFileSync(path.join(repoRoot, "src/client/styles.css"), "utf8") as string;
+    expect(css).toMatch(/\.album-head \{[^}]*position: sticky;[^}]*top: 0;[^}]*background: var\(--home-bg\);/);
+    // 節に padding を置かない（見出しの上端 = 節の頭。帯の切り替えを見出しの位置で決めるため。
+    // 下の余白は中身（::after）にして、次の見出しが前の見出しに触れて押し上げる）
+    expect(css).toMatch(/\.album-section \{[^}]*padding: 0;/);
+    expect(css).toMatch(/\.album-section::after \{[^}]*content: "";/);
+    // 見出しの文字は一行に限る。一行に入らない幅では、画面ごとに何枚目かを出さない（撮影日を残す）
+    expect(css).toMatch(/\.album-text \{[^}]*container: album-text \/ inline-size;/);
+    expect(css).toMatch(/@container album-text \(width < 16\.5rem\) \{\s*\.album-ordinal \{\s*display: none;/);
   });
   it("デモの帯は、語りの欄の一番下の余白に置く", () => {
     const html = renderAlbum({ footer: h("div", { className: "foot" }, "デモ") });
@@ -213,12 +234,27 @@ describe("帯と語りの連動の決まり", () => {
     expect(album.bandIndex(390 * 9, 390, 4)).toBe(3);
     expect(album.bandIndex(100, 0, 4)).toBe(0);
   });
-  it("語りの欄で上に来た写真: 節の頭が上から threshold 以内に来た最後の節", () => {
+  it("語りの欄で上に来た写真: 次の見出しが欄の上端（貼り付く位置）に届いた瞬間に切り替わる", () => {
     const offsets = [0, 500, 900, 1400];
-    expect(album.sectionAtTop(offsets, 0, 96)).toBe(0);
-    expect(album.sectionAtTop(offsets, 403, 96)).toBe(0);
-    expect(album.sectionAtTop(offsets, 404, 96)).toBe(1);
-    expect(album.sectionAtTop(offsets, 1400, 96)).toBe(3);
+    expect(album.STUCK_SLACK_PX).toBe(1);
+    expect(album.sectionAtTop(offsets, 0)).toBe(0);
+    // 次の見出しが前の見出しを押し上げている最中（見出しの高さの分の手前）は、前の写真のまま
+    expect(album.sectionAtTop(offsets, 500 - 64)).toBe(0);
+    expect(album.sectionAtTop(offsets, 498.9)).toBe(0);
+    // 上端に届いた（端数のスクロールのため 1px の遊び）
+    expect(album.sectionAtTop(offsets, 499)).toBe(1);
+    expect(album.sectionAtTop(offsets, 500)).toBe(1);
+    expect(album.sectionAtTop(offsets, 898.9)).toBe(1);
+    expect(album.sectionAtTop(offsets, 899)).toBe(2);
+    expect(album.sectionAtTop(offsets, 1400)).toBe(3);
+    expect(album.sectionAtTop(offsets, 9999)).toBe(3);
+    expect(album.sectionAtTop([], 100)).toBe(0);
+  });
+  it("帯の矢印から語りを動かす位置（節の頭）で、その写真になる（往きと帰りで同じ位置）", () => {
+    const offsets = [0, 500, 900, 1400];
+    offsets.forEach((top, k) => expect(album.sectionAtTop(offsets, top)).toBe(k));
+    // 上に戻すときも同じ位置で前の写真に戻る
+    expect(album.sectionAtTop(offsets, 898.5)).toBe(1);
   });
   it("矢印は端で押せない", () => {
     expect(album.arrows(0, 4)).toEqual({ prev: false, next: true });

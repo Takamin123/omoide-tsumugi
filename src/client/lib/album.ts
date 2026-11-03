@@ -16,13 +16,21 @@ export function bandIndex(scrollLeft: number, width: number, count: number): num
 }
 
 /**
- * 語りの欄で、いま上にある写真の番号。
- * 節の頭（欄の中での位置 offsets[k]）が、欄の上から threshold 以内に来た最後の節。どれも来ていなければ 0
+ * 見出しが貼り付く位置（欄の上端）に届いたとみなす遊び（px）。スクロールの位置は端数になることがあるため
  */
-export function sectionAtTop(offsets: readonly number[], scrollTop: number, threshold: number): number {
+export const STUCK_SLACK_PX = 1;
+
+/**
+ * 語りの欄で、いま上にある写真の番号。
+ * 各節の頭には見出しがあり、欄の上端に貼り付く（position: sticky）。次の見出しは前の見出しを押し上げ、
+ * 欄の上端に届いた瞬間に、その節が「上にある」写真になる（押し上げの最中は前の写真のまま）。
+ * 見出しの上端は節の頭（欄の中での位置 offsets[k]）と同じなので、offsets[k] − scrollTop が遊び以内になった最後の節。
+ * どれも届いていなければ 0
+ */
+export function sectionAtTop(offsets: readonly number[], scrollTop: number): number {
   let at = 0;
   offsets.forEach((top, k) => {
-    if (top - scrollTop <= threshold) at = k;
+    if (top - scrollTop <= STUCK_SLACK_PX) at = k;
   });
   return at;
 }

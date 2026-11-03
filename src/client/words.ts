@@ -178,6 +178,8 @@ export const words = {
     albumPosition: (at: number, total: number) => progressText(at, total),
     /** 同じ文を、折ってよい所（空白）で二つに分けたもの。画面ではこの間でだけ折る */
     albumPositionParts: (at: number, total: number) => progressText(at, total).split(" ") as [string, string],
+    /** 語りの欄の見出しの何枚目か。帯の「4枚のうち 2枚」と同じ数え方（1 から、同じ並び）の短い形（0041） */
+    albumOrdinal: (at: number) => `${at}枚目`,
   },
 
   // 写真の拡大の画面（0040）。どちらも読み上げだけの名前（見えない）。祖父母の画面でも同じ
