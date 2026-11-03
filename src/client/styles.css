@@ -503,6 +503,14 @@ main.home {
   gap: 0.25rem;
 }
 
+/*
+ * 声の語りの [きく][へんじ] を、幅 360px・文字 150% でも一行に並べる（縦に積むと語り一つが語りの欄に入らない。0045）。
+ * 詰めるのはボタンの中の横の余白だけ（1rem → 0.75rem）。文字・押せる大きさ・隣との間は変えない
+ */
+.elder .narration > .row > .aux {
+  padding-inline: 0.75rem;
+}
+
 /* 言葉の糸と、その下の「へんじ」（や返事の欄）は、どちらも押せるので間を 0.5rem（最低 8px）に保つ */
 .elder .album-section .thread {
   margin-bottom: 0.25rem;

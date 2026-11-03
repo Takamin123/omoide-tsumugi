@@ -282,6 +282,26 @@ describe("数える・消す（手元の D1・R2）", () => {
     expect((await env.BUCKET.list({ prefix: `families/${A}/` })).objects).toHaveLength(4);
   });
 
+  it("families もないデータベースでは、families を引く前に、分かりやすい文で止める（生のエラーで落ちない）", async () => {
+    // 表の一覧から families を外し、families を引く問い合わせは本物の D1 と同じ生のエラーで落ちるようにする
+    const db = env.DB;
+    const wrong = {
+      ...env,
+      DB: {
+        prepare: (q: string) => {
+          if (q.includes("sqlite_master")) return db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'families'");
+          if (/\bfamilies\b/.test(q)) throw new Error("D1_ERROR: no such table: families: SQLITE_ERROR");
+          return db.prepare(q);
+        },
+        batch: (b: D1PreparedStatement[]) => db.batch(b),
+      } as unknown as D1Database,
+    };
+    await expect(lib.countFamily(wrong, A)).rejects.toThrow(/土台の表がありません（families）/);
+    await expect(lib.deleteFamily(wrong, A, { allowDemo: true })).rejects.toThrow(/土台の表がありません（families）/);
+    expect((await lib.countFamily(env, A)).tables).toEqual(ONE_EACH);
+    expect((await env.BUCKET.list({ prefix: `families/${A}/` })).objects).toHaveLength(4);
+  });
+
   it("家族 ID は UUID の小文字の完全な形だけを受け付ける", async () => {
     for (const bad of [A.toUpperCase(), A.slice(0, -1), `${A} `, "%", `${A}' OR '1'='1`]) {
       await expect(lib.countFamily(env, bad)).rejects.toThrow(/家族 ID/);
@@ -322,6 +342,22 @@ describe("本番で消す", () => {
     expect(r.out).toContain("自分の端末");
     expect(r.out).not.toContain("remote");
   });
+});
+
+describe("コマンド（local、表のない保存先）", () => {
+  const dir: string = fs.mkdtempSync(path.join(os.tmpdir(), "omoide-delete-family-test-"));
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it("マイグレーションを当てていない（0000 の表がない）D1 では、数えるのも消すのも、生のエラーでなく分かりやすい文で止まる", () => {
+    for (const args of [["local", A, "--persist-to", dir], ["local", A, "--delete", "--confirm", A, "--persist-to", dir]]) {
+      const r = run(args);
+      expect(r.status, r.out).toBe(1);
+      expect(r.out).toContain("土台の表がありません");
+      expect(r.out).toContain("つなぐ先を確かめてください");
+      expect(r.out).not.toContain("D1_ERROR");
+      expect(r.out).not.toContain("消しました");
+    }
+  }, 180_000);
 });
 
 describe("コマンド（local、一時の保存先）", () => {

@@ -7,6 +7,9 @@ type VoiceLength = { minutes: number; seconds: number };
 /** 「13秒」「1分20秒」（「12枚のうち 5枚」に合わせ、数と単位の間に空白を入れない） */
 const voiceLengthText = ({ minutes, seconds }: VoiceLength) => (minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`);
 
+/** 誰の声か、と長さ「ばあばの声（13秒）」。祖父母の画面と家族の画面で同じ文字列（0028、0045） */
+const listenNote = (name: string | null, len: VoiceLength | null) => `${name ? `${name}の` : ""}声${len ? `（${voiceLengthText(len)}）` : ""}`;
+
 /** 「12枚のうち 5枚」 */
 const progressText = (at: number, total: number) => `${total}枚のうち ${at}枚`;
 
@@ -22,10 +25,10 @@ const elderWords = {
   write: "かく",
   /** 語りへの返事を開く（0043） */
   reply: "へんじ",
-  /** 添える家族の言葉の録音を聞くボタン。そばに listenNote を出す（「よみあげ」と「AI の声で読みます」と同じ組み立て） */
-  listen: "こえを きく",
+  /** 声を聞くボタン（一語の動詞。0045）。入り口ではそばに、語りでは話者名の行に listenNote を出す */
+  listen: "きく",
   /** 誰の声か、と長さ。呼ばれ方が分からなければ「声」だけ、長さが分からなければ秒を出さない */
-  listenNote: (name: string | null, len: VoiceLength | null) => `${name ? `${name}の` : ""}声${len ? `（${voiceLengthText(len)}）` : ""}`,
+  listenNote,
   stopVoice: "とめる",
   /** 写真の拡大の画面を閉じる（0040） */
   close: "とじる",
@@ -47,11 +50,10 @@ const homeWords = {
   speak: "話す",
   stop: "終わる",
   micDenied: "マイクが使えません",
-  /** 声の語りを聞く。長さが分からなければ秒を出さない */
-  listen: (len: VoiceLength | null) => `声で聞く${len ? `（${voiceLengthText(len)}）` : ""}`,
-  /** 添える家族の言葉の録音を聞く */
-  listenTo: (name: string | null, len: VoiceLength | null) =>
-    `${name ? `${name}の` : ""}声で聞く${len ? `（${voiceLengthText(len)}）` : ""}`,
+  /** 声を聞くボタン（一語。長さは入れない。0045）。誰の声か・長さは listenNote */
+  listen: "聞く",
+  /** 誰の声か、と長さ。祖父母の画面と同じ文字列（0045） */
+  listenNote,
   stopVoice: "止める",
   /** 写真の拡大の画面を閉じる（0040） */
   close: "閉じる",
@@ -209,8 +211,8 @@ export const words = {
       sendFailed: null,
       reply: homeWords.reply,
       listen: homeWords.listen,
-      /** 声のボタンのそばの補助の文。null なら出さない（長さはボタンの中） */
-      listenNote: null,
+      /** 声の語りの話者名の行に出す「ばあばの声（13秒）」（0045） */
+      listenNote: homeWords.listenNote,
       stopVoice: homeWords.stopVoice,
     },
     elder: {
@@ -226,8 +228,8 @@ export const words = {
       micDenied: elderWords.errors.micDenied,
       sendFailed: elderWords.errors.sendFailed,
       reply: elderWords.reply,
-      listen: (_len: VoiceLength | null) => elderWords.listen,
-      /** 入り口の添える言葉と同じ注「ばあばの声（13秒）」 */
+      listen: elderWords.listen,
+      /** 入り口の添える言葉と同じ注「ばあばの声（13秒）」（0045） */
       listenNote: elderWords.listenNote,
       stopVoice: elderWords.stopVoice,
     },

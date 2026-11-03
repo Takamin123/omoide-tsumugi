@@ -25,8 +25,8 @@ argument-hint: "[preview|production]"
 | # | 確かめること | やり方 |
 |---|---|---|
 | 1 | トップページが開く | `curl -sS -o /dev/null -w '%{http_code} %{time_total}\n' <URL>/` が 200 |
-| 2 | 合言葉なしでは写真が取れない | デモの家族の写真の URL を合言葉なしで開くと 401 か 403 |
-| 3 | 写真が表示される | デモの家族の合言葉で、写真が 200 で返り、`content-type` が `image/*` |
+| 2 | 合言葉なしでは写真が取れない（preview だけ） | デモの家族の写真の URL を合言葉なしで開くと 401 か 403 |
+| 3 | 写真が表示される（preview だけ） | デモの家族の合言葉で、写真が 200 で返り、`content-type` が `image/*` |
 | 4 | Claude の呼び出しが通る | 毎朝の処理のログ `morning_done` で `byClaude` が 1 以上（下の「Claude と読み上げの確かめ」） |
 | 5 | 読み上げ（OpenAI）の呼び出しが通る | 同じ `morning_done` で `speech.made` が 1 以上 |
 | 6 | 毎朝の処理が登録されている | `wrangler.jsonc` の `triggers.crons` があり、ダッシュボードの Cron Triggers に出ている |
@@ -51,7 +51,7 @@ Claude や文字起こしを呼んで確かめる専用の入り口（ヘルス�
 ```
 対象: preview / production（URL、コミットのハッシュ）
 1 トップページ: OK 200 0.21s
-2 合言葉なし: OK 403
+2 合言葉なし: OK 403（production では「対象外」と書く。3 も同じ）
 …
 落ちたもの: …（ログは `npx wrangler tail` で見る）
 ```

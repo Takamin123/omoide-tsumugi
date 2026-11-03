@@ -102,12 +102,42 @@ describe("祖父母の答え方: 「はなす」「かく」", () => {
 });
 
 describe("祖父母の画面の語りの欄", () => {
-  it("「へんじ」と「こえを きく」、そばに入り口と同じ注「{呼ばれ方}の声（13秒）」", () => {
+  it("声の語りは、話者名の行が入り口と同じ注「{呼ばれ方}の声（13秒）」、その下に [きく][へんじ] を一つの行に（0045）", () => {
     const html = inElder(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }));
-    expect(html).toContain(`>${words.elder.reply}</button>`);
-    expect(html).toContain(words.elder.listen);
-    expect(html).toContain('<span class="who">ばあばの声（13秒）</span>');
-    expect(html).not.toContain("声で聞く");
+    expect(words.elder.listen).toBe("きく");
+    expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
+    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?きく<\/button><button type="button" class="aux">へんじ<\/button><\/div>/);
+    expect(html).not.toContain('class="who"');
+    expect(html).not.toContain("聞く");
+  });
+  it("文字起こしが pending / failed の声も、両画面で話者名の行の注と [聞く][返事]（本文と案内の文なし。0045）", () => {
+    for (const transcriptStatus of ["pending", "failed"]) {
+      const props = { narrations: [voice({ transcriptStatus, text: null })], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} };
+      for (const [html, listen, reply] of [
+        [inElder(h(Narrations, props)), "きく", "へんじ"],
+        [renderToStaticMarkup(h(Narrations, props)) as string, "聞く", "返事"],
+      ]) {
+        expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
+        expect(html).toMatch(new RegExp(`<div class="row"><button[^>]*class="aux listen"[^>]*>.*?${listen}</button><button type="button" class="aux">${reply}</button></div>`));
+        expect(html).not.toContain('class="told"');
+        expect(html).not.toContain('class="who"');
+      }
+    }
+  });
+  it("文字の語りの話者名は呼ばれ方だけ（注は声の語りだけ）", () => {
+    const text = voice({ kind: "text", audioUrl: null, durationMs: null, text: "こんにちは" });
+    const props = { narrations: [text], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} };
+    for (const html of [inElder(h(Narrations, props)), renderToStaticMarkup(h(Narrations, props)) as string]) {
+      expect(html).toContain('<p class="speaker">ばあば</p>');
+      expect(html).not.toContain("の声");
+      expect(html).not.toContain('class="aux listen"');
+    }
+  });
+  it("流している間の語は「とめる」「止める」のまま。祖父母の語りの行のボタンだけ横の余白を 0.75rem に（0045）", () => {
+    expect(words.screen.elder.stopVoice).toBe("とめる");
+    expect(words.screen.family.stopVoice).toBe("止める");
+    expect(words.screen.family.listen).toBe("聞く");
+    expect(read("src/client/styles.css")).toMatch(/\.elder \.narration > \.row > \.aux \{\s*padding-inline: 0\.75rem;\s*\}/);
   });
   it("「おくりました」は場所が今の語りのときだけ（画面に一つだけ）", () => {
     const n = (at: string | null) =>
@@ -120,10 +150,11 @@ describe("祖父母の画面の語りの欄", () => {
     expect(n("answer")).not.toContain(words.elder.sent);
     expect(n(null)).not.toContain(words.elder.sent);
   });
-  it("家族の画面の語りの声は今までどおり「声で聞く（13秒）」で、注を出さない", () => {
+  it("家族の画面の語りの声も同じ組み立て: 話者名の行「ばあばの声（13秒）」と [聞く][返事]（0045）", () => {
     const html = renderToStaticMarkup(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} })) as string;
-    expect(html).toContain("声で聞く（13秒）");
-    expect(html).not.toContain("ばあばの声（13秒）");
+    expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
+    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><button type="button" class="aux">返事<\/button><\/div>/);
+    expect(html).not.toContain("声で聞く");
   });
   it("アルバムの写真の拡大の閉じるは祖父母の言葉（ZoomablePhoto に画面を渡す）", () => {
     const html = inElder(

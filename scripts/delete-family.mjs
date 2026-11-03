@@ -72,8 +72,9 @@ async function countR2(bucket, prefix) {
  */
 export async function countFamily(env, familyId) {
   if (!isFamilyId(familyId)) throw new Error("家族 ID の形が違います（UUID の小文字）");
-  const fam = await env.DB.prepare("SELECT id, is_demo FROM families WHERE id = ?").bind(familyId).first();
+  // 表があるかを先に見る。families がないデータベースで families を引くと、wrangler の生のエラーで落ちる
   const missing = await missingTables(env);
+  const fam = await env.DB.prepare("SELECT id, is_demo FROM families WHERE id = ?").bind(familyId).first();
   const tables = {};
   for (const t of FAMILY_TABLES) {
     // まだマイグレーションで作られていない表（例: 0004・0005 の前の本番）は 0 件として数える

@@ -11,6 +11,7 @@ type Props = { entrance: Entrance; members: Member[]; variant: "elder" | "family
 
 export function EntranceView({ entrance, members, variant }: Props) {
   const { quote } = entrance;
+  const w = words.screen[variant];
   const quoteBy = quote ? (members.find((m) => m.id === quote.speakerMemberId)?.calledAs ?? null) : null;
   return (
     <>
@@ -21,20 +22,13 @@ export function EntranceView({ entrance, members, variant }: Props) {
           <figcaption>
             <blockquote className="told">{quote.text}</blockquote>
             {quoteBy && <span className="who">{quoteBy}</span>}
-            {quote.audioUrl &&
-              (variant === "elder" ? (
-                // ボタンは一語のひらがな。誰の声かと長さはそばの補助の文に出す
-                <div className="read-aloud">
-                  <PlayVoice src={quote.audioUrl} label={words.elder.listen} stopLabel={words.elder.stopVoice} />
-                  <span className="who">{words.elder.listenNote(quoteBy, voiceLength(quote.durationMs))}</span>
-                </div>
-              ) : (
-                <PlayVoice
-                  src={quote.audioUrl}
-                  label={words.home.listenTo(quoteBy, voiceLength(quote.durationMs))}
-                  stopLabel={words.home.stopVoice}
-                />
-              ))}
+            {quote.audioUrl && (
+              // ボタンは一語（祖父母「きく」、家族「聞く」）。誰の声かと長さはそばの補助の文に出す（0045）
+              <div className="read-aloud">
+                <PlayVoice src={quote.audioUrl} label={w.listen} stopLabel={w.stopVoice} />
+                <span className="who">{w.listenNote(quoteBy, voiceLength(quote.durationMs))}</span>
+              </div>
+            )}
           </figcaption>
         )}
       </figure>

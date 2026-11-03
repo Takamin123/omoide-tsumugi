@@ -3,7 +3,7 @@
 // 今日: 上にメニュー（祖父母の画面では呼ばれ方だけ）、自分の今日の入り口、その下に入り口の写真の語りと返事。答える前は「声で」「文字で」を欄の外のタブのすぐ上の段に置く（0034）。
 // アルバム: 語りのある写真の帯と、写真ごとの語りの縦の欄（parts/Album.tsx）。上にメニューは置かない。
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
-// 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は長さの入った「声で聞く」のボタンで流す。
+// 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
 import { api, ApiError } from "../lib/api";

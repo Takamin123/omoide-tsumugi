@@ -187,7 +187,8 @@ describe("アルバム", () => {
       { photo: photo("p-9", null), narrations: [narration("n-9", "p-9", { kind: "voice", audioUrl: "/api/narrations/n-9/audio", durationMs: 13_000, transcriptStatus: "pending", text: null })] },
     ];
     const html = renderAlbum({ items: pending });
-    expect(html).toContain("声で聞く（13秒）");
+    expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
+    expect(html).toMatch(/class="aux listen"[^>]*>.*?聞く<\/button>/);
     expect(html).not.toContain('class="told"');
   });
   it("返事の入力欄が開いている間は、写真の帯をたたむ", () => {
@@ -375,7 +376,7 @@ describe("言葉の糸（アルバムの答えの語りの「元の言葉」。0
   });
   it("本文がない（文字起こしが済んでいない）声の答えでも、話者名 → 糸 → ボタンの順", () => {
     const html = renderAlbum({ items: withAnswer(answer({ kind: "voice", audioUrl: "/api/narrations/n-ans/audio", transcriptStatus: "pending", text: null })) });
-    expect(html).toMatch(/<p class="speaker">お母さん<\/p><button type="button" class="thread">.*?<\/button><div class="row"><button[^>]*class="aux listen"/);
+    expect(html).toMatch(/<p class="speaker">お母さんの声<\/p><button type="button" class="thread">.*?<\/button><div class="row"><button[^>]*class="aux listen"/);
   });
   it("長すぎる引用は切らずに、呼ばれ方だけ", () => {
     const html = renderAlbum({ items: withAnswer(answer({ quotedFrom: { narrationId: "n-1", speakerMemberId: "m-grandma", text: null } })) });
