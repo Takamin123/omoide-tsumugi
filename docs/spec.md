@@ -11,9 +11,10 @@
 | フロントエンド | React（スマホ向け Web アプリ） | |
 | データベース | Cloudflare D1 + drizzle-orm | |
 | 写真と録音 | Cloudflare R2（非公開） | |
-| 定期処理 | Cron Triggers（毎朝の今日の一枚） | |
+| 定期処理 | Cron Triggers（毎朝 3:00（日本時間）に今日の一枚を作る。本番もプレビューも `0 18 * * *`） | [0027](decisions/0027-parent-trial-lines.md) |
 | 写真の縮小 | ブラウザ側で縮小してから送る。撮影日と位置情報は縮小の前に exifr で読む | [0003](decisions/0003-browser-side-resize.md) |
 | 文字起こし | OpenAI gpt-transcribe（話す人ごとの方言を prompt に入れる） | |
+| 問いかけの読み上げ | OpenAI gpt-4o-mini-tts（試しの段階。毎朝の処理で作って R2 に置き、押して聞く） | [0019](decisions/0019-read-question-aloud-trial.md)、[0029](decisions/0029-question-speech-in-morning.md) |
 | Claude | 整理と整形は Haiku 5.5。入り口づくりなどの判断は Sonnet 5.5（必要なら Opus 5.5） | |
 
 ## 構造の約束

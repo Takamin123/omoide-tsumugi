@@ -38,7 +38,7 @@ beforeEach(() => runMorning.mockClear());
 describe("scheduled（毎朝の処理）", () => {
   it("runMorning を一度だけ、Cron の時刻で呼ぶ", async () => {
     const scheduledTime = Date.UTC(2026, 10, 1, 21, 0, 0);
-    const controller = { scheduledTime, cron: "0 21 * * *", noRetry: () => {} } as unknown as ScheduledController;
+    const controller = { scheduledTime, cron: "0 18 * * *", noRetry: () => {} } as unknown as ScheduledController;
     await worker.scheduled(controller, fakeEnv(), fakeCtx());
     expect(runMorning).toHaveBeenCalledTimes(1);
     const [deps, now] = runMorning.mock.calls[0]!;
@@ -51,7 +51,7 @@ describe("scheduled（毎朝の処理）", () => {
   it("runMorning に渡す依存は、env の R2 と ctx.waitUntil につながっている", async () => {
     const bucket = fakeBucket();
     const ctx = fakeCtx();
-    await worker.scheduled({ scheduledTime: 0, cron: "0 21 * * *" } as unknown as ScheduledController, fakeEnv(bucket), ctx);
+    await worker.scheduled({ scheduledTime: 0, cron: "0 18 * * *" } as unknown as ScheduledController, fakeEnv(bucket), ctx);
     const [deps] = runMorning.mock.calls[0]!;
     await deps.photos.put("test/tiny", new Uint8Array([1, 2, 3]), { contentType: "application/octet-stream" });
     expect([...bucket.items.keys()]).toEqual(["test/tiny"]);
@@ -63,7 +63,7 @@ describe("scheduled（毎朝の処理）", () => {
   it("runMorning が失敗したら、scheduled も失敗する（黙って飲み込まない）", async () => {
     runMorning.mockRejectedValueOnce(new Error("boom"));
     await expect(
-      worker.scheduled({ scheduledTime: 0, cron: "0 21 * * *" } as unknown as ScheduledController, fakeEnv(), fakeCtx()),
+      worker.scheduled({ scheduledTime: 0, cron: "0 18 * * *" } as unknown as ScheduledController, fakeEnv(), fakeCtx()),
     ).rejects.toThrow("boom");
   });
 });

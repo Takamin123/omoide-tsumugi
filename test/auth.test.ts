@@ -27,6 +27,7 @@ describe("合言葉の確認", () => {
 
   it("登録されている入り口の一覧（増えたら、確認の要否を考えてからここを直す）", () => {
     expect(apiRoutes).toEqual([
+      "GET /api/entrances/:id/question-audio",
       "GET /api/entrances/today",
       "GET /api/family",
       "GET /api/feed",

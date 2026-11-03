@@ -165,10 +165,16 @@ export type Entrance = {
   quote: { narrationId: string; speakerMemberId: string; text: string } | null;
   /** Claude の問いかけ。null のときクライアントの固定の一文を出す */
   question: string | null;
+  /**
+   * 問いかけの読み上げの音声（/api/entrances/:id/question-audio。合言葉を確かめてから返す。Cache-Control: private, no-store）。
+   * 音声があるときだけ文字列。押して聞く（自動では流さない）。そばに「AI の声で読みます」を出す（0019）
+   */
+  questionAudioUrl?: string | null;
 };
 
 // GET /api/entrances/today?memberId= → { entrance: Entrance | null }
 //   なければその場で固定の入り口を作って保存する（Claude は呼ばない）。写真が一枚もなければ null
+// GET /api/entrances/:id/question-audio → 問いかけの読み上げの音声（ないもの、ほかの家族のものは 404）
 
 // ---- デモ ----
 

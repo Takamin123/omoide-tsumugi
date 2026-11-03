@@ -237,6 +237,9 @@ describe("quoteText: 切り出してから置き換える", () => {
       inputNarrationIds: null,
       inputTokens: null,
       outputTokens: null,
+      questionAudioKey: null,
+      questionAudioModel: null,
+      questionAudioVoice: null,
       shownAt: null,
       createdAt: 0,
     };

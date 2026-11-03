@@ -1,7 +1,7 @@
 import { createAnthropicClaude, type AnthropicClaudeOptions } from "../src/server/adapters/anthropic-claude";
 import { createApp } from "../src/server/app";
 import { notConfiguredClaude } from "../src/server/core/claude";
-import type { AppDeps, ClaudeClient, ClaudePurpose, PhotoStore, Repositories, SpeechProbe, Transcriber, TranscribeInput, TranscribeProbe } from "../src/server/core/ports";
+import type { AppDeps, ClaudeClient, ClaudePurpose, PhotoStore, Repositories, Speaker, SpeechProbe, Transcriber, TranscribeInput, TranscribeProbe } from "../src/server/core/ports";
 import { createD1Repositories } from "../src/server/platform/cloudflare/d1-repositories";
 import { INVITE_COOKIE } from "../src/server/routes/auth";
 import { fs, path, repoRoot } from "./node";
@@ -46,6 +46,7 @@ export function fakeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     claude: notConfiguredClaude,
     transcribeProbe: null,
     speechProbe: null,
+    speaker: null,
     runInBackground: () => {},
     config: { appEnv: "development", createFamilyToken: null },
     now: () => new Date(),
@@ -259,6 +260,7 @@ export function makeTestApp(
     claude?: ClaudeClient;
     transcribeProbe?: TranscribeProbe;
     speechProbe?: SpeechProbe;
+    speaker?: Speaker;
     now?: Date;
   } = {},
 ): TestApp {
@@ -273,6 +275,7 @@ export function makeTestApp(
     claude: opts.claude ?? notConfiguredClaude,
     transcribeProbe: opts.transcribeProbe ?? null,
     speechProbe: opts.speechProbe ?? null,
+    speaker: opts.speaker ?? null,
     runInBackground: (t) => void background.push(t),
     config: { appEnv: opts.appEnv ?? "development", createFamilyToken: CREATE_TOKEN },
     now: () => now,

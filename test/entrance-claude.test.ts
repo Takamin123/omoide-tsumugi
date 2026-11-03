@@ -396,7 +396,9 @@ describe("毎朝の処理: Claude の入り口を試し、だめなら固定の�
     const e = (JSON.parse(body) as { entrance: Record<string, unknown> }).entrance;
     expect(e).toMatchObject({ question: "この日のことを、聞かせてください", focus: { x: 0.1, y: 0.2, w: 0.5, h: 0.5 } });
     expect(e.quote).toMatchObject({ speakerMemberId: s.grandchild, text: "全然抜けなかった。" });
-    expect(Object.keys(e).sort()).toEqual(["focus", "forDate", "id", "memberId", "photo", "question", "quote"]);
+    expect(Object.keys(e).sort()).toEqual(["focus", "forDate", "id", "memberId", "photo", "question", "questionAudioUrl", "quote"]);
+    // 読み上げのキーがない（speaker が null）ので音声は作らない
+    expect(e.questionAudioUrl).toBeNull();
     for (const secret of [SECRET_REASON, SECRET_GUESS, "claude-sonnet", PROMPTS.entrance.version, "inputNarrationIds", "reason", "model"]) {
       expect(body).not.toContain(secret);
     }

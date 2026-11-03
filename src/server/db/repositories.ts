@@ -98,6 +98,9 @@ const toEntrance = (r: EntranceRecord): EntranceRow => ({
   inputNarrationIds: r.inputNarrationIds,
   inputTokens: r.inputTokens,
   outputTokens: r.outputTokens,
+  questionAudioKey: r.questionAudioKey,
+  questionAudioModel: r.questionAudioModel,
+  questionAudioVoice: r.questionAudioVoice,
   shownAt: r.shownAt,
   createdAt: r.createdAt,
 });
@@ -344,6 +347,21 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .update(entrances)
           .set({ shownAt: now })
           .where(and(eq(entrances.familyId, familyId), eq(entrances.id, entranceId), isNull(entrances.shownAt)));
+      },
+      async setQuestionAudio(familyId, entranceId, audio) {
+        const res = await db
+          .update(entrances)
+          .set({ questionAudioKey: audio.key, questionAudioModel: audio.model, questionAudioVoice: audio.voice })
+          .where(
+            and(
+              eq(entrances.familyId, familyId),
+              eq(entrances.id, entranceId),
+              eq(entrances.kind, "claude"),
+              isNull(entrances.questionAudioKey),
+              isNull(entrances.shownAt),
+            ),
+          );
+        return changes(res) > 0;
       },
     },
 
