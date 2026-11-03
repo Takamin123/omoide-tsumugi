@@ -68,6 +68,8 @@ export const members = new Hono<AppEnv>()
     if (input.setUpByMemberId === id) return fail(c, "invalid_request");
     if (!(await setUpByIsValid(c, input))) return fail(c, "not_found");
     const updated = await c.get("deps").repos.members.update(c.get("family").id, id, input);
+    // 直した後に家族の画面の人が一人もいなくなる変更も 403（誰もリンクを作れなくなる）。changesOwnRole と並ぶ検査で、確かめはリポジトリが直すのと一つの文で行う
+    if (updated === "no_family_left") return fail(c, "forbidden");
     if (!updated) return fail(c, "not_found");
     return c.json(memberView(updated, await hasActiveLink(c, updated.id)));
   })

@@ -48,17 +48,18 @@ const items = [
 
 const renderAlbum = (over: Record<string, unknown> = {}) =>
   renderToStaticMarkup(
-    h(Album, { items, me: mother, nameOf, currentId: null, onCurrent: () => {}, onSent: () => {}, composing: false, ...over }),
+    h(Album, { items, nameOf, currentId: null, onCurrent: () => {}, onSent: () => {}, composing: false, ...over }),
   ) as string;
 
 describe("家族の画面のタブ", () => {
   it("開いたときは「今日」。今のタブは aria-current で示し、上にメニューがある", () => {
-    const html = renderToStaticMarkup(h(Home, { view, me: mother, onSwitchUser: () => {}, demo: null })) as string;
+    const html = renderToStaticMarkup(h(Home, { view, me: mother, demo: null })) as string;
     expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabToday}</button>`);
     expect(html).toContain(`<button type="button" class="tab">${words.home.tabAlbum}</button>`);
     expect(html).toContain(words.home.menuPhotos);
     expect(html).toContain(words.home.menuFamily);
-    expect(html).toContain(words.home.switchUser);
+    // 「ほかの人にかわる」は置かない（端末はリンクの人。0036）
+    expect(html).not.toContain("ほかの人にかわる");
     expect(html).toContain(`<nav class="top" aria-label="${words.home.menuLabel}">`);
     expect(html).toContain(`<nav class="tabs" aria-label="${words.home.tabsLabel}">`);
   });
@@ -184,7 +185,7 @@ describe("アルバム", () => {
 describe("今日のタブの語り（アルバムと同じ部品）", () => {
   it("開いている語りにだけ返事の入力欄を出す", () => {
     const html = renderToStaticMarkup(
-      h(Narrations, { narrations: items[0]!.narrations, me: mother, nameOf, openReplyId: "n-2", onOpenReply: () => {}, onSent: () => {} }),
+      h(Narrations, { narrations: items[0]!.narrations, nameOf, openReplyId: "n-2", onOpenReply: () => {}, onSent: () => {} }),
     ) as string;
     expect(html.match(/reply-box/g)?.length).toBe(1);
     // 開いている語り（n-2）には「返事」のボタンを出さず、ほか（n-1）には出す
@@ -335,7 +336,7 @@ describe("言葉の糸（アルバムの答えの語りの「元の言葉」。0
   });
   it("今日のタブ（onJump を渡さない）には出さない", () => {
     const html = renderToStaticMarkup(
-      h(Narrations, { narrations: [answer({})], me: mother, nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }),
+      h(Narrations, { narrations: [answer({})], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }),
     ) as string;
     expect(html).not.toContain("thread");
     expect(html).not.toContain("から");

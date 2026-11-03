@@ -191,7 +191,11 @@ export interface MemberRepository {
   list(familyId: string): Promise<MemberRow[]>;
   get(familyId: string, memberId: string): Promise<MemberRow | null>;
   create(row: MemberRow): Promise<void>;
-  update(familyId: string, memberId: string, fields: MemberFields): Promise<MemberRow | null>;
+  /**
+   * 直す。いなければ null。直した後に role = family の人が家族に一人もいなくなるなら、直さずに "no_family_left"
+   * （家族のことを触れる人がいなくなり、誰もリンクを作れなくなる。0036）。確かめと直すのは一つの文で行う（同時に直しても抜けない）
+   */
+  update(familyId: string, memberId: string, fields: MemberFields): Promise<MemberRow | null | "no_family_left">;
   /**
    * 最初の一人を入れる。家族に人がまだいないときだけ、一度に「人を入れる → その人のリンクを作る → 最初の人のリンクを取り消す」。
    * 入れられたら true（ほかの端末が先に入れていたら false で、何も入れない）

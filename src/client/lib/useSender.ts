@@ -33,7 +33,7 @@ export function useSender(target: VoiceTarget, onSent?: () => void) {
         setState("failed");
       }
     },
-    [target.speakerMemberId, target.photoId, target.entranceId, target.replyToId, onSent],
+    [target.photoId, target.entranceId, target.replyToId, onSent],
   );
 
   return {

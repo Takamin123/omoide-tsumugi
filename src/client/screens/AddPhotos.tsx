@@ -1,6 +1,5 @@
 // /photos: 写真の一括登録。一枚ずつ順に、EXIF → SHA-256 → 縮小 → 送る
 import { useState } from "react";
-import type { FamilyView, Member } from "../../shared/api";
 import { api, ApiError } from "../lib/api";
 import { errorText } from "../lib/errors";
 import { preparePhoto, UnreadableImageError } from "../lib/photos";
@@ -8,8 +7,6 @@ import { emptyTally, tallyOne, type UploadTally } from "../lib/pure";
 import { navigate } from "../lib/route";
 import { ErrorLine } from "../parts/ErrorLine";
 import { words } from "../words";
-
-type Props = { view: FamilyView; me: Member; reload: () => Promise<void> };
 
 type Outcome = "added" | "duplicate" | "unreadable" | "failed";
 
@@ -30,7 +27,7 @@ async function uploadOne(file: File): Promise<Outcome> {
   }
 }
 
-export function AddPhotos(_props: Props) {
+export function AddPhotos() {
   const [tally, setTally] = useState<UploadTally | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

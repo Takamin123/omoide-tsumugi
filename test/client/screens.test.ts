@@ -119,7 +119,7 @@ describe("家族のこと: 一人ひとりを直す", () => {
     const mother = { id: "m-mother", role: "family", relation: "母", calledAs: "おかあさん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null };
     const view = { family: { id: "f", isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: true }, members: [grandma, mother] };
     const html = renderToStaticMarkup(
-      h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} }),
+      h(FamilySetup, { view, me: mother, reload: async () => {} }),
     ) as string;
     expect(words.member.edit).toBe("直す");
     expect(html.match(new RegExp(`<button[^>]*>${words.member.edit}</button>`, "g"))).toHaveLength(2);
@@ -150,7 +150,7 @@ describe("家族のこと: 一人ひとりを直す", () => {
     const familyId = "00000000-0000-4000-8000-000000000abc";
     const view = { family: { id: familyId, isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: true }, members: [grandma, mother] };
     const html = renderToStaticMarkup(
-      h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} }),
+      h(FamilySetup, { view, me: mother, reload: async () => {} }),
     ) as string;
     expect(words.family.familyIdLabel).toBe("家族の番号");
     expect(words.family.copyFamilyId).toBe("番号をコピー");

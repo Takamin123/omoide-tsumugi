@@ -11,7 +11,6 @@ const load = (name: string): Promise<any> => import(name);
 const { readExifFacts, readExifTagNames } = await load("../../src/client/lib/photos");
 const { api, ApiError } = await load("../../src/client/lib/api");
 const { sendVoice, sendText } = await load("../../src/client/lib/voice");
-const { loadMe, saveMe } = await load("../../src/client/lib/me");
 const { errorText } = await load("../../src/client/lib/errors");
 const { words } = await load("../../src/client/words");
 
@@ -135,7 +134,7 @@ describe("api: エラーは種類（ErrorKind）だけにする", () => {
 
 describe("語りを送る流れ（voice.ts）", () => {
   afterEach(() => vi.unstubAllGlobals());
-  const target = { speakerMemberId: "m-grandma", photoId: "p-1", entranceId: "e-1", replyToId: null };
+  const target = { photoId: "p-1", entranceId: "e-1", replyToId: null };
   const requestId = "0b3d6c1e-2f4a-4b8c-9d0e-1f2a3b4c5d6e";
   const narration = { id: "n-1" };
 
@@ -165,6 +164,16 @@ describe("語りを送る流れ（voice.ts）", () => {
     expect(lens).toEqual([13_401, null, null, null, null, null]);
   });
 
+  it("話した人の ID は送らない（サーバーが端末の人に決める。0036）", async () => {
+    const calls = stubFetch([() => jsonRes(202, { narration }), () => jsonRes(202, { narration })]);
+    await sendVoice(new Blob([new Uint8Array([1])], { type: "audio/webm" }), target, requestId);
+    await sendText("むかしの話", target, requestId);
+    for (const c of calls) {
+      const meta = JSON.parse((c.init.body as FormData).get("meta") as string);
+      expect(Object.keys(meta)).not.toContain("speakerMemberId");
+    }
+  });
+
   it("サーバーの約束（narrationMetaSchema）に合う", async () => {
     const { narrationMetaSchema } = await load("../../src/shared/api");
     const calls = stubFetch([() => jsonRes(202, { narration })]);
@@ -191,49 +200,5 @@ describe("語りを送る流れ（voice.ts）", () => {
       await sendVoice(new Blob([new Uint8Array([1])], { type }), target, requestId);
       expect(((calls[0]!.init.body as FormData).get("audio") as File).name).toBe(name);
     }
-  });
-});
-
-describe("本人の覚え方（me.ts）", () => {
-  let store: Map<string, string>;
-  beforeEach(() => {
-    store = new Map();
-    vi.stubGlobal("localStorage", {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => void store.set(k, v),
-      removeItem: (k: string) => void store.delete(k),
-    });
-  });
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("同じ家族なら覚えた人を返す", () => {
-    saveMe({ familyId: "f-demo", memberId: "m-1" });
-    expect(loadMe("f-demo")).toBe("m-1");
-  });
-  it("ほかの家族を開いたら、覚えた人を使わない（デモと実際の家族が混ざらない）", () => {
-    saveMe({ familyId: "f-demo", memberId: "m-1" });
-    expect(loadMe("f-other")).toBeNull();
-  });
-  it("壊れた値・空は null。null を渡すと忘れる", () => {
-    store.set("omoide.me", "{not json");
-    expect(loadMe("f-demo")).toBeNull();
-    saveMe({ familyId: "f-demo", memberId: "m-1" });
-    saveMe(null);
-    expect(loadMe("f-demo")).toBeNull();
-  });
-  it("localStorage が使えない端末でも例外にしない", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => {
-        throw new Error("denied");
-      },
-      setItem: () => {
-        throw new Error("denied");
-      },
-      removeItem: () => {
-        throw new Error("denied");
-      },
-    });
-    expect(() => saveMe({ familyId: "f", memberId: "m" })).not.toThrow();
-    expect(loadMe("f")).toBeNull();
   });
 });

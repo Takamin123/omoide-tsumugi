@@ -17,12 +17,17 @@ type Props = {
   onDone?: (m: Member) => void;
   /** あれば「やめる」を出す */
   onCancel?: () => void;
+  /**
+   * 画面（role）を決めておき、「画面」の欄を出さない。最初の人（家族の画面に決まっている）と、
+   * 自分を直すとき（自分の画面は自分では直せない。0036）
+   */
+  fixedRole?: MemberInput["role"];
 };
 
-export function MemberForm({ setUpByMemberId, initial, send = api.addMember, submitLabel, onDone, onCancel }: Props) {
+export function MemberForm({ setUpByMemberId, initial, send = api.addMember, submitLabel, onDone, onCancel, fixedRole }: Props) {
   const [relation, setRelation] = useState(initial?.relation ?? "");
   const [calledAs, setCalledAs] = useState(initial?.calledAs ?? "");
-  const [role, setRole] = useState<MemberInput["role"]>(initial?.role ?? "family");
+  const [role, setRole] = useState<MemberInput["role"]>(fixedRole ?? initial?.role ?? "family");
   const [speechStyle, setSpeechStyle] = useState<MemberInput["speechStyle"]>(initial?.speechStyle ?? "standard");
   const [dialectRegion, setDialectRegion] = useState(initial?.dialectRegion ?? "");
   const [busy, setBusy] = useState(false);
@@ -31,7 +36,7 @@ export function MemberForm({ setUpByMemberId, initial, send = api.addMember, sub
   async function submit(e: FormEvent) {
     e.preventDefault();
     const parsed = memberInputSchema.safeParse({
-      role,
+      role: fixedRole ?? role,
       relation,
       calledAs,
       speechStyle,
@@ -74,17 +79,19 @@ export function MemberForm({ setUpByMemberId, initial, send = api.addMember, sub
         <span className="sub">{w.calledAsHint}</span>
         <input type="text" value={calledAs} maxLength={20} onChange={(e) => setCalledAs(e.target.value)} required />
       </label>
-      <fieldset className="stack">
-        <legend>{w.role}</legend>
-        <label className="choice">
-          <input type="radio" name="role" checked={role === "elder"} onChange={() => setRole("elder")} />
-          {w.roleElder}
-        </label>
-        <label className="choice">
-          <input type="radio" name="role" checked={role === "family"} onChange={() => setRole("family")} />
-          {w.roleFamily}
-        </label>
-      </fieldset>
+      {!fixedRole && (
+        <fieldset className="stack">
+          <legend>{w.role}</legend>
+          <label className="choice">
+            <input type="radio" name="role" checked={role === "elder"} onChange={() => setRole("elder")} />
+            {w.roleElder}
+          </label>
+          <label className="choice">
+            <input type="radio" name="role" checked={role === "family"} onChange={() => setRole("family")} />
+            {w.roleFamily}
+          </label>
+        </fieldset>
+      )}
       <fieldset className="stack">
         <legend>{w.speech}</legend>
         <label className="choice">

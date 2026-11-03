@@ -19,9 +19,9 @@ import { ReplyBox } from "../parts/ReplyBox";
 import { TabBar, type HomeTab } from "../parts/TabBar";
 import { words } from "../words";
 
-type Props = { view: FamilyView; me: Member; onSwitchUser: () => void; demo: DemoProps | null };
+type Props = { view: FamilyView; me: Member; demo: DemoProps | null };
 
-export function Home({ view, me, onSwitchUser, demo }: Props) {
+export function Home({ view, me, demo }: Props) {
   const [tab, setTab] = useState<HomeTab>("today");
   const [entrance, setEntrance] = useState<Entrance | null | undefined>(undefined);
   const [feed, setFeed] = useState<AlbumItem[] | null>(null);
@@ -93,9 +93,6 @@ export function Home({ view, me, onSwitchUser, demo }: Props) {
             <button type="button" onClick={() => navigate("/family")}>
               {w.menuFamily}
             </button>
-            <button type="button" onClick={onSwitchUser}>
-              {w.switchUser}
-            </button>
           </nav>
 
           {entrance === undefined && <p>{words.loading}</p>}
@@ -103,7 +100,7 @@ export function Home({ view, me, onSwitchUser, demo }: Props) {
             <section className="stack">
               <EntranceView entrance={entrance} members={view.members} variant="family" />
               <ReplyBox
-                target={{ speakerMemberId: me.id, photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }}
+                target={{ photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }}
                 onSent={() => void loadFeed()}
               />
             </section>
@@ -115,7 +112,6 @@ export function Home({ view, me, onSwitchUser, demo }: Props) {
             <section className="today-narrations">
               <Narrations
                 narrations={todays.narrations}
-                me={me}
                 nameOf={nameOf}
                 openReplyId={openReplyId}
                 onOpenReply={setOpenReplyId}
@@ -138,7 +134,6 @@ export function Home({ view, me, onSwitchUser, demo }: Props) {
         )}
         <Album
           items={items}
-          me={me}
           nameOf={nameOf}
           currentId={albumCurrent}
           onCurrent={setAlbumCurrent}

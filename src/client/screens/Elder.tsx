@@ -1,6 +1,6 @@
-// 祖父母の画面（スマホとタブレット）: 写真一枚と問いかけ一つ、横いっぱいの「はなす」、話者の切り替え。
+// 祖父母の画面（スマホとタブレット）: 写真一枚と問いかけ一つ、横いっぱいの「はなす」。
 // 主な動作は「はなす」だけ。下の帯に留め、写真と問いかけを動かして見ても押せる。
-// 話者の切り替え（ほかの人にかわる）は補助として上に置き、主な動作から離す。
+// 話す人はリンクで決まる。切り替えの道は置かない（意図せず押して見知らぬ画面に行かないように。0036、0037）
 import { useCallback, useEffect, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
 import { api, ApiError } from "../lib/api";
@@ -13,7 +13,6 @@ import { words } from "../words";
 type Props = {
   view: FamilyView;
   me: Member;
-  onSwitch: (memberId: string | null) => void;
   demo: DemoProps | null;
 };
 
@@ -22,10 +21,9 @@ type Load =
   | { state: "ready"; entrance: Entrance | null }
   | { state: "error"; unauthorized: boolean };
 
-export function Elder({ view, me, onSwitch, demo }: Props) {
+export function Elder({ view, me, demo }: Props) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const elders = view.members.filter((m) => m.role === "elder");
   const w = words.elder;
 
   useEffect(() => {
@@ -46,19 +44,7 @@ export function Elder({ view, me, onSwitch, demo }: Props) {
     <main className="elder">
       <header className="elder-head">
         <p className="elder-name">{me.calledAs}</p>
-        <button type="button" className="aux" onClick={() => onSwitch(null)}>
-          {words.home.switchUser}
-        </button>
       </header>
-      {elders.length > 1 && (
-        <div className="speakers" role="group">
-          {elders.map((m) => (
-            <button key={m.id} type="button" aria-pressed={m.id === me.id} onClick={() => m.id !== me.id && onSwitch(m.id)}>
-              {m.calledAs}
-            </button>
-          ))}
-        </div>
-      )}
 
       {load.state === "loading" && <p>{words.loading}</p>}
       {load.state === "error" &&
@@ -89,7 +75,7 @@ function Answer({ entrance, me, demo }: { entrance: Entrance; me: Member; demo: 
   const [done, setDone] = useState(false);
   const [micError, setMicError] = useState(false);
   const onSent = useCallback(() => setDone(true), []);
-  const sender = useSender({ speakerMemberId: me.id, photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }, onSent);
+  const sender = useSender({ photoId: entrance.photo.id, entranceId: entrance.id, replyToId: null }, onSent);
   const rec = useRecorder({
     onBlob: sender.sendVoice,
     onStarted: () => setMicError(false),

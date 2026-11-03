@@ -3,7 +3,7 @@
 // 帯をめくるか矢印を押すと語りがその写真の頭まで動く。往復はしない。動きを減らす設定では動かさずに切り替える。
 // 出すのは家族の語り・返事・撮影日だけ。語りのある写真がなければ何も出さない（催促や状態の文を出さない）。
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { FeedNarration, Member, Photo } from "../../shared/api";
+import type { FeedNarration, Photo } from "../../shared/api";
 import { arrows, bandIndex, clampIndex, sectionAtTop, SyncGate } from "../lib/album";
 import { formatTakenDate } from "../lib/pure";
 import { words } from "../words";
@@ -14,7 +14,6 @@ export type AlbumItem = { photo: Photo; narrations: FeedNarration[] };
 
 type Props = {
   items: AlbumItem[];
-  me: Member;
   nameOf: (memberId: string) => string;
   /** 見ている写真の ID。null や一覧にない ID なら一枚目 */
   currentId: string | null;
@@ -32,7 +31,7 @@ const topZone = (paneHeight: number) => Math.min(paneHeight * 0.25, 96);
 const reducedMotion = () =>
   typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function Album({ items, me, nameOf, currentId, onCurrent, onSent, composing, footer }: Props) {
+export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, footer }: Props) {
   const count = items.length;
   const found = items.findIndex((it) => it.photo.id === currentId);
   const index = found < 0 ? 0 : found;
@@ -227,7 +226,6 @@ export function Album({ items, me, nameOf, currentId, onCurrent, onSent, composi
               </p>
               <Narrations
                 narrations={it.narrations}
-                me={me}
                 nameOf={nameOf}
                 openReplyId={openReplyId}
                 onOpenReply={setOpenReplyId}

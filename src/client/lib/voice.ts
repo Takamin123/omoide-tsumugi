@@ -10,8 +10,8 @@ import { validDurationMs } from "./pure";
  */
 export const AUDIO_FILE_ACCEPT = "audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm";
 
+/** 語りを送る先。話した人は送らない（サーバーが端末の人に決める。0036） */
 export type VoiceTarget = {
-  speakerMemberId: string;
   photoId: string;
   entranceId: string | null;
   replyToId: string | null;

@@ -106,3 +106,19 @@ export const emptyTally = (total: number): UploadTally => ({ total, done: 0, add
 export function tallyOne(t: UploadTally, outcome: "added" | "duplicate" | "unreadable" | "failed"): UploadTally {
   return { ...t, done: t.done + 1, [outcome]: t[outcome] + 1 };
 }
+
+/** 家族の様子を読んだ後に出す画面 */
+export type ScreenKind = "first-person" | "no-session" | "elder" | "family-setup" | "photos" | "home";
+
+/**
+ * 端末の人（サーバーの view.me）と道から、出す画面を決める（0036）。
+ * - me がない: 最初の人のリンク。家族にまだ誰もいなければ自分を入れる。もう誰かいれば、このリンクでは入れない
+ * - 祖父母の画面の人は、どの道でも祖父母の画面（/family、/photos を出さない）
+ */
+export function screenFor(me: { role: "elder" | "family" } | null, memberCount: number, path: string): ScreenKind {
+  if (!me) return memberCount > 0 ? "no-session" : "first-person";
+  if (me.role === "elder") return "elder";
+  if (path === "/family") return "family-setup";
+  if (path === "/photos") return "photos";
+  return "home";
+}

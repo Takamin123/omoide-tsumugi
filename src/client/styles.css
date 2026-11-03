@@ -280,7 +280,7 @@ textarea {
   line-height: var(--line-height);
 }
 
-/* 補助のボタン（聞く、返事、ほかの人にかわる）。主な動作より小さく、文字は 20px 以上 */
+/* 補助のボタン（聞く、返事、直す、リンクを作る）。主な動作より小さく、文字は 20px 以上 */
 .aux {
   font-size: var(--font-aux);
   min-height: var(--tap-min);
@@ -519,19 +519,6 @@ main.elder {
 .elder-action p {
   margin: 0;
   text-align: center;
-}
-
-.speakers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--tap-gap);
-}
-
-.speakers button[aria-pressed="true"] {
-  background: var(--text);
-  color: var(--surface);
-  border-color: var(--text);
-  font-weight: bold;
 }
 
 .demo {
@@ -858,4 +845,14 @@ nav.top button {
   .album-text {
     scroll-behavior: auto;
   }
+}
+
+/* 家族のこと（/family）の一人ひとりのカードの補助のボタン（リンクを作る、直す）。右に寄せ、狭い幅では折り返す（0036） */
+.card-actions {
+  justify-content: flex-end;
+}
+
+/* 「リンクを作り直す」の最後の一文字だけが次の行に落ちないよう、ボタンの中では折らない（並びごと折り返す） */
+.card-actions .aux {
+  white-space: nowrap;
 }

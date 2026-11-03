@@ -1,10 +1,9 @@
-// /family: 家族の一人ひとりを足す・直す、招待リンク、家族の番号
+// /family: 家族の一人ひとりを足す・直す、その人のリンクを作る（0036）、家族の番号
 import { useState } from "react";
 import type { FamilyView, Member } from "../../shared/api";
-import { api } from "../lib/api";
-import { errorText } from "../lib/errors";
 import { navigate } from "../lib/route";
 import { useMemberEditor } from "../lib/useMemberEditor";
+import { useMemberLinks } from "../lib/useMemberLinks";
 import { ErrorLine } from "../parts/ErrorLine";
 import { InviteLink } from "../parts/InviteLink";
 import { MemberForm } from "../parts/MemberForm";
@@ -14,12 +13,10 @@ type Props = {
   view: FamilyView;
   me: Member;
   reload: () => Promise<void>;
-  inviteToken: string | null;
-  onInviteToken: (token: string) => void;
 };
 
-export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Props) {
-  const [error, setError] = useState<string | null>(null);
+export function FamilySetup({ view, me, reload }: Props) {
+  const links = useMemberLinks(reload);
   const editor = useMemberEditor(reload);
   const w = words.family;
   const [idCopied, setIdCopied] = useState(false);
@@ -31,18 +28,6 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
       setIdCopied(true);
     } catch {
       setIdCopied(false);
-    }
-  }
-
-  async function regenerate() {
-    if (!confirm(w.regenerateConfirm)) return;
-    setError(null);
-    try {
-      // 画面は作り直す予定（0036）。それまでは、自分のリンクを作り直す
-      const { token } = await api.createMemberLink(me.id);
-      onInviteToken(token);
-    } catch (e) {
-      setError(errorText(e));
     }
   }
 
@@ -60,6 +45,7 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
         <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {view.members.map((m) => {
             const by = nameOf(m.setUpByMemberId);
+            const token = links.links[m.id];
             return (
               <li key={m.id} className="card">
                 <div>{words.member.summary(m.calledAs, m.relation)}</div>
@@ -74,17 +60,35 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
                 {editor.editingId === null || editor.editingId === m.id ? (
                   <div className="stack" style={{ marginTop: "var(--tap-gap)" }}>
                     {editor.editingId === m.id ? (
+                      // 自分の画面（role）は自分では直せない（サーバーも 403。0036）。「画面」の欄を出さない
                       <MemberForm
                         initial={m}
                         setUpByMemberId={m.setUpByMemberId}
                         send={(input) => editor.save(m.id, input)}
                         submitLabel={words.member.edit}
                         onCancel={editor.close}
+                        fixedRole={m.id === me.id ? m.role : undefined}
                       />
                     ) : (
-                      <button type="button" className="aux" style={{ alignSelf: "flex-end" }} onClick={() => editor.open(m.id)}>
-                        {words.member.edit}
-                      </button>
+                      <>
+                        {token && (
+                          <div className="stack">
+                            <p>{w.linkFor(m.calledAs)}</p>
+                            <InviteLink token={token} />
+                            <p className="sub">{w.inviteHidden}</p>
+                          </div>
+                        )}
+                        {links.error?.memberId === m.id && <ErrorLine text={links.error.text} />}
+                        {/* 「直す」の入力欄が開いている間は、リンクのボタンも出さない（この枝に来ない） */}
+                        <div className="row card-actions">
+                          <button type="button" className="aux" disabled={links.busy} onClick={() => void links.make(m)}>
+                            {m.hasLink ? w.remakeLink : w.makeLink}
+                          </button>
+                          <button type="button" className="aux" onClick={() => editor.open(m.id)}>
+                            {words.member.edit}
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 ) : null}
@@ -98,20 +102,6 @@ export function FamilySetup({ view, me, reload, inviteToken, onInviteToken }: Pr
       <section className="stack" hidden={editor.editingId !== null}>
         <h2>{words.member.addTitle}</h2>
         <MemberForm setUpByMemberId={me.id} onDone={() => void reload()} />
-      </section>
-
-      <section className="stack">
-        <h2>{w.invite}</h2>
-        {inviteToken ? (
-          <InviteLink token={inviteToken} />
-        ) : (
-          <p className="sub">{w.inviteHidden}</p>
-        )}
-        <p className="sub">{w.regenerateNote}</p>
-        <button type="button" onClick={regenerate}>
-          {w.regenerate}
-        </button>
-        <ErrorLine text={error} />
       </section>
 
       {/* 家族の番号（家族 ID）。鍵ではない。折り返して読める。コピーはボタンで（長押しの選択は Android で一部しか選べないため。0033） */}

@@ -1,4 +1,4 @@
-// /start: 家族の場を作る（運営の合言葉が要る）
+// /start: 家族の場を作る（運営の合言葉が要る）。作ったら「最初の人のリンク」を一度だけ見せる（0036）
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { errorText } from "../lib/errors";
@@ -6,7 +6,7 @@ import { ErrorLine } from "../parts/ErrorLine";
 import { InviteLink } from "../parts/InviteLink";
 import { words } from "../words";
 
-export function Start({ onCreated }: { onCreated: (inviteToken: string) => void }) {
+export function Start({ onCreated }: { onCreated: () => void }) {
   const [created, setCreated] = useState<string | null>(null);
   const [createToken, setCreateToken] = useState("");
   const [isDemo, setIsDemo] = useState(false);
@@ -29,12 +29,12 @@ export function Start({ onCreated }: { onCreated: (inviteToken: string) => void 
   }
 
   if (created) {
-    // 招待リンクを一度だけ見せる。運営が写して、始める人に渡す
+    // 最初の人のリンクを一度だけ見せる。運営がコピーして、始める人に送る（一度きり。最初の一人が入ると使えなくなる）
     return (
       <main className="stack">
-        <h1>{words.family.invite}</h1>
+        <h1>{words.start.firstLink}</h1>
         <InviteLink token={created} />
-        <button type="button" className="primary" onClick={() => onCreated(created)}>
+        <button type="button" className="primary" onClick={onCreated}>
           {words.start.next}
         </button>
       </main>

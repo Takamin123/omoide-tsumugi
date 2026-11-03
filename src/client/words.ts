@@ -22,26 +22,26 @@ export const words = {
     createToken: "作るための合言葉",
     isDemo: "デモの家族として作る",
     submit: "作る",
+    /** 作った後の見出し。運営がコピーして、始める人に送る（一度きり。0036） */
+    firstLink: "最初の人に送るリンク",
     next: "進む",
   },
 
-  // 招待リンクを開いたとき
+  // その人のリンクを開いたとき（0036）
   join: {
     opening: "開いています",
+    invalid: "このリンクは使えません。家族に知らせてください",
   },
   noSession: "家族から届いたリンクを開いてください",
 
-  // あなたはどなたですか
-  who: {
-    title: "あなたはどなたですか",
-    other: "この中にいません",
-    firstTitle: "まず、あなたのことを入れてください",
+  // 最初の人のリンクで開いたとき（0036）。画面の欄は出さない（家族の画面に決まっている）
+  firstPerson: {
+    title: "まず、あなたのことを入れてください",
   },
 
   // 家族の一人ひとり
   member: {
     addTitle: "家族を足す",
-    selfTitle: "あなたのこと",
     relation: "家族の中での立場",
     relationHint: "例: 祖母、母、孫",
     calledAs: "呼ばれ方",
@@ -66,12 +66,14 @@ export const words = {
   family: {
     title: "家族のこと",
     members: "家族",
-    invite: "家族に送るリンク",
+    /** 一人ひとりのカードの補助のボタン（0036）。リンクが使えるなら「作り直す」 */
+    makeLink: "リンクを作る",
+    remakeLink: "リンクを作り直す",
+    /** 作ったリンクの上の一行 */
+    linkFor: (name: string) => `${name}に送るリンク`,
     inviteHidden: "リンクは作ったときにだけ出ます",
-    regenerate: "作り直す",
-    regenerateNote: "作り直すと、いまのリンクは使えなくなります",
-    regenerateConfirm:
-      "いまのリンクは使えなくなります。いまのリンクで開いている端末（タブレットなど）は、新しいリンクで開きなおしが必要です",
+    /** 作り直すときだけ確かめる */
+    regenerateConfirm: "いまのリンクは使えなくなります。いまのリンクで開いている端末は、新しいリンクで開きなおしが必要です",
     copy: "コピー",
     copied: "コピーしました",
     /** 一番下に小さく出す家族 ID の見出し。説明の文は付けない（0033） */
@@ -135,7 +137,6 @@ export const words = {
     menuFamily: "家族のこと",
     menuPhotos: "写真を足す",
     menuHome: "もどる",
-    switchUser: "ほかの人にかわる",
     /** 読み上げだけの名前（見えない）。上のメニュー、下のタブ、アルバムの写真の帯 */
     menuLabel: "メニュー",
     tabsLabel: "切り替え",

@@ -221,6 +221,31 @@ describe("自分の role は直せない", () => {
     expect(other.status).toBe(200);
   });
 
+  it("家族の画面の人同士が同時に互いを祖父母の画面に変えても、家族の画面の人は一人残る（片方は 403）", async () => {
+    const { mom } = await family();
+    const dad = await addMember(t, mom.cookie, { ...defaultMember, relation: "父", calledAs: "おとうさん" });
+    const [a, b] = await Promise.all([
+      send("PATCH", `/api/members/${dad.id}`, mom.cookie, { ...defaultMember, relation: "父", calledAs: "おとうさん", role: "elder", setUpByMemberId: mom.id }),
+      send("PATCH", `/api/members/${mom.id}`, dad.cookie, { ...defaultMember, role: "elder" }),
+    ]);
+    // 自分の role は変えられないので、二つ目は自分以外（mom）を変える要求になる
+    expect([a.status, b.status].sort()).toEqual([200, 403]);
+    const roles = (await viewOf(mom.cookie)).members.map((m) => (m as unknown as { role: string }).role);
+    expect(roles.filter((r) => r === "family")).toHaveLength(1);
+  });
+
+  it("リポジトリ: 直した後に家族の画面の人がいなくなるなら直さない（no_family_left）。いない人は null", async () => {
+    const { f, mom } = await family();
+    const repos = t.deps.repos;
+    const input = { ...defaultMember, role: "elder" } as unknown as Parameters<typeof repos.members.update>[2];
+    expect(await repos.members.update(f.familyId, mom.id, input)).toBe("no_family_left");
+    expect((await repos.members.get(f.familyId, mom.id))?.role).toBe("family");
+    expect(await repos.members.update(f.familyId, "nobody", input)).toBeNull();
+    // role を family のままにする直しは、ほかに家族の画面の人がいなくても通る
+    const rename = { ...defaultMember, calledAs: "ママ" } as unknown as Parameters<typeof repos.members.update>[2];
+    expect(await repos.members.update(f.familyId, mom.id, rename)).toMatchObject({ calledAs: "ママ" });
+  });
+
   it("changesOwnRole: 自分で、かつ role が変わるときだけ", () => {
     const me = { id: "m", role: "family" } as MemberRow;
     const input = { ...defaultMember } as unknown as Parameters<typeof changesOwnRole>[2];

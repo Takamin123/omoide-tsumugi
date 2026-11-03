@@ -2,8 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi } from "vitest";
 
+const editing = vi.hoisted(() => ({ id: "m-grandma" }));
 vi.mock("../../src/client/lib/useMemberEditor", () => ({
-  useMemberEditor: () => ({ editingId: "m-grandma", open: () => {}, close: () => {}, save: async () => ({}) }),
+  useMemberEditor: () => ({ editingId: editing.id, open: () => {}, close: () => {}, save: async () => ({}) }),
 }));
 
 const load = (name: string): Promise<any> => import(name);
@@ -12,12 +13,12 @@ const { renderToStaticMarkup } = await load("react-dom/server");
 const { FamilySetup } = await load("../../src/client/screens/FamilySetup");
 const { words } = await load("../../src/client/words");
 
-const grandma = { id: "m-grandma", role: "elder", relation: "祖母", calledAs: "ばあば", speechStyle: "dialect", dialectRegion: "鹿児島", setUpByMemberId: "m-mother" };
-const mother = { id: "m-mother", role: "family", relation: "母", calledAs: "おかあさん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null };
-const view = { family: { id: "f", isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: true }, members: [grandma, mother] };
+const grandma = { id: "m-grandma", role: "elder", relation: "祖母", calledAs: "ばあば", speechStyle: "dialect", dialectRegion: "鹿児島", setUpByMemberId: "m-mother", hasLink: true };
+const mother = { id: "m-mother", role: "family", relation: "母", calledAs: "おかあさん", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null, hasLink: true };
+const view = { family: { id: "f", isDemo: true, clock: { date: "2026-11-03", slot: "morning" }, canAdvanceClock: true }, members: [grandma, mother], me: mother };
 
 describe("家族のこと: 一人を直している間", () => {
-  const html = renderToStaticMarkup(h(FamilySetup, { view, me: mother, reload: async () => {}, inviteToken: null, onInviteToken: () => {} })) as string;
+  const html = renderToStaticMarkup(h(FamilySetup, { view, me: mother, reload: async () => {} })) as string;
 
   // 「家族を足す」の節は外さずに隠す（入れかけの内容を残す）。見えている部分だけで確かめる
   const visible = html.replace(/<section[^>]*hidden[^>]*>[\s\S]*?<\/section>/, "");
@@ -35,5 +36,30 @@ describe("家族のこと: 一人を直している間", () => {
     expect(visible.match(new RegExp(`>${words.member.edit}</button>`, "g"))).toHaveLength(1);
     expect(html).toMatch(/<button type="submit"[^>]*>直す<\/button>/);
     expect(html).toContain(`>${words.home.cancel}</button>`);
+  });
+});
+
+describe("家族のこと: 直している間のリンクのボタンと、自分を直すとき（0036）", () => {
+  it("直している間は、どのカードにも「リンクを作る」「リンクを作り直す」を出さない", () => {
+    editing.id = "m-grandma";
+    const html = renderToStaticMarkup(h(FamilySetup, { view, me: mother, reload: async () => {} })) as string;
+    expect(html).not.toContain(words.family.makeLink);
+    expect(html).not.toContain(words.family.remakeLink);
+  });
+  it("ほかの人を直すときは「画面」の欄を出す", () => {
+    editing.id = "m-grandma";
+    const html = renderToStaticMarkup(h(FamilySetup, { view, me: mother, reload: async () => {} })) as string;
+    const visible = html.replace(/<section[^>]*hidden[^>]*>[\s\S]*?<\/section>/, "");
+    expect(visible).toContain(`<legend>${words.member.role}</legend>`);
+  });
+  it("自分を直すときは「画面」の欄を出さない（自分の画面は自分で直せない）。ほかの欄は出す", () => {
+    editing.id = "m-mother";
+    const html = renderToStaticMarkup(h(FamilySetup, { view, me: mother, reload: async () => {} })) as string;
+    const visible = html.replace(/<section[^>]*hidden[^>]*>[\s\S]*?<\/section>/, "");
+    expect(visible.match(/<form/g)).toHaveLength(1);
+    expect(visible).toContain('value="おかあさん"');
+    expect(visible).not.toContain(`<legend>${words.member.role}</legend>`);
+    expect(visible).not.toContain('name="role"');
+    expect(visible).toContain(`<legend>${words.member.speech}</legend>`);
   });
 });

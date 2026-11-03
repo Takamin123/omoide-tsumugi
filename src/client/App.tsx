@@ -1,19 +1,18 @@
-// 道すじと、家族の情報・本人の持ち方。画面の流れは docs/decisions/0008-first-day-screens-and-words.md
+// 道すじと、家族の情報。端末の人はサーバーが決める（view.me。リンクが人を指す。0036）。画面の流れは 0008 と 0036
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api, ApiError, type FamilyViewWithClock } from "./lib/api";
 import { errorText } from "./lib/errors";
-import { loadMe, saveMe } from "./lib/me";
-import { tokenFromJoinPath } from "./lib/pure";
+import { screenFor, tokenFromJoinPath } from "./lib/pure";
 import { navigate, usePath } from "./lib/route";
 import { DemoBar, type DemoProps } from "./parts/DemoBar";
 import { ErrorLine } from "./parts/ErrorLine";
 import { AddPhotos } from "./screens/AddPhotos";
 import { Elder } from "./screens/Elder";
 import { FamilySetup } from "./screens/FamilySetup";
+import { FirstPerson } from "./screens/FirstPerson";
 import { Home } from "./screens/Home";
 import { Join } from "./screens/Join";
 import { Start } from "./screens/Start";
-import { WhoAreYou } from "./screens/WhoAreYou";
 import { words } from "./words";
 
 /**
@@ -33,11 +32,8 @@ type Load =
 export function App() {
   const path = usePath();
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  /** 本人を変えたとき・デモの時計を進めたときに、画面を作り直す */
+  /** デモの時計を進めたときに、画面を作り直す */
   const [tick, setTick] = useState(0);
-  /** 作ったばかりの招待の合言葉。サーバーはハッシュしか持たないので、作ったときにだけ見せられる。端末には残さない */
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-
 
   const reload = useCallback(async () => {
     try {
@@ -85,8 +81,7 @@ export function App() {
   if (path === "/start") {
     return (
       <Start
-        onCreated={(token) => {
-          setInviteToken(token);
+        onCreated={() => {
           setLoad({ state: "loading" });
           navigate("/", { replace: true });
         }}
@@ -108,24 +103,11 @@ export function App() {
   }
 
   const view = load.view;
-  const familyId = view.family.id;
-  const setMe = (memberId: string | null) => {
-    saveMe(memberId ? { familyId, memberId } : null);
-    setTick((t) => t + 1);
-  };
-  const meId = loadMe(familyId);
-  const meMember = view.members.find((m) => m.id === meId) ?? null;
-  if (!meMember) {
-    return (
-      <WhoAreYou
-        view={view}
-        onChosen={(id) => {
-          setMe(id);
-          void reload();
-        }}
-      />
-    );
-  }
+  const meMember = view.me;
+  const kind = screenFor(meMember, view.members.length, path);
+  // 最初の人のリンクで、もう誰かいる（同じリンクを二台目で開いたなど）: このリンクでは入れない
+  if (kind === "no-session") return <main><p>{words.noSession}</p></main>;
+  if (kind === "first-person" || !meMember) return <FirstPerson onDone={() => void reload()} />;
 
   // デモの操作。出すかどうかはサーバーが決める（canAdvanceClock）。出さないときは描かない
   const demo: DemoProps | null =
@@ -139,18 +121,18 @@ export function App() {
         }
       : null;
 
-  const common = { view, me: meMember, reload };
+  const key = `${meMember.id}-${tick}`;
+  // 祖父母の画面の人は、どの道でも祖父母の画面（/family、/photos は出さない。家族のことはサーバーも 403。0036）。
+  // 録音済みファイルの送信も帯に入れるため、帯を自分で描く
+  if (kind === "elder") return <Elder key={key} view={view} me={meMember} demo={demo} />;
   let screen;
-  if (path === "/family") {
-    screen = <FamilySetup {...common} inviteToken={inviteToken} onInviteToken={setInviteToken} />;
-  } else if (path === "/photos") {
-    screen = <AddPhotos {...common} />;
-  } else if (meMember.role === "elder") {
-    // 祖父母の画面は、録音済みファイルの送信も帯に入れるため、帯を自分で描く
-    return <Elder key={`${meMember.id}-${tick}`} {...common} onSwitch={setMe} demo={demo} />;
+  if (kind === "family-setup") {
+    screen = <FamilySetup view={view} me={meMember} reload={reload} />;
+  } else if (kind === "photos") {
+    screen = <AddPhotos />;
   } else {
     // 家族の画面は、下のタブと重ならないよう、デモの帯を各タブのスクロールの一番下に自分で置く
-    return <Home key={tick} {...common} onSwitchUser={() => setMe(null)} demo={demo} />;
+    return <Home key={key} view={view} me={meMember} demo={demo} />;
   }
   return (
     <>

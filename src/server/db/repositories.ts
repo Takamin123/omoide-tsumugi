@@ -2,9 +2,9 @@
 // 実行環境ごとに違うのは「drizzle のデータベース」と「いくつかの文を一度に行う方法」だけで、入り口の層が渡す。
 // - D1: db.batch()（対話的なトランザクションは使えない）
 // - better-sqlite3: db.transaction() の中で順に run する
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, lt, ne, notExists, or, sql } from "drizzle-orm";
 import type { BatchItem as DrizzleBatchItem } from "drizzle-orm/batch";
-import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { alias, type BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type {
   ClaimOpts,
   EntranceRow,
@@ -189,11 +189,22 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
         await db.insert(members).values(row);
       },
       async update(familyId, memberId, fields) {
+        // 祖父母の画面に変えるときは、ほかに家族の画面の人が残るときだけ直す（一つの文で確かめて直す）
+        const others = alias(members, "others");
+        const keepsFamily =
+          fields.role === "family"
+            ? undefined
+            : exists(
+                db
+                  .select({ one: sql`1` })
+                  .from(others)
+                  .where(and(eq(others.familyId, familyId), eq(others.role, "family"), ne(others.id, memberId))),
+              );
         const res = await db
           .update(members)
           .set(fields)
-          .where(and(eq(members.familyId, familyId), eq(members.id, memberId)));
-        if (changes(res) === 0) return null;
+          .where(and(eq(members.familyId, familyId), eq(members.id, memberId), keepsFamily));
+        if (changes(res) === 0) return (await this.get(familyId, memberId)) ? "no_family_left" : null;
         return this.get(familyId, memberId);
       },
       async addFirst(row, link, now) {
