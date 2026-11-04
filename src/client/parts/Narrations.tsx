@@ -115,7 +115,7 @@ function NarrationView({
         />
       ) : (
         <div className="row">
-          {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen} stopLabel={w.stopVoice} />}
+          {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen} stopLabel={w.stopVoice} name={w.listenName(speaker || null)} />}
           <button
             type="button"
             className="aux"

@@ -37,7 +37,7 @@ export function EntranceView({ entrance, members, variant }: Props) {
                 {quote.audioUrl && (
                   // ボタンは一語（祖父母「きく」、家族「聞く」）。誰の声かと長さはそばの補助の文に出す（0045）
                   <div className="read-aloud">
-                    <PlayVoice src={quote.audioUrl} label={w.listen} stopLabel={w.stopVoice} />
+                    <PlayVoice src={quote.audioUrl} label={w.listen} stopLabel={w.stopVoice} name={w.listenName(quoteBy)} />
                     <span className="who">{w.listenNote(quoteBy, voiceLength(quote.durationMs))}</span>
                   </div>
                 )}

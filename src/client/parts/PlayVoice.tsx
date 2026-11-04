@@ -22,9 +22,14 @@ type Props = {
   stopLabel: string;
   /** 家族の声は再生の印、読み上げはスピーカーの印 */
   icon?: "play" | "speaker";
+  /**
+   * 読み上げの名前（見えない）。声が何本も並ぶ所で、読み上げでも誰の声か区別できるように（「ばあばの声を聞く」）。
+   * 見える文字（label・stopLabel）を含める。渡さなければ見える文字のまま（0045 の追記）
+   */
+  name?: { play: string; stop: string };
 };
 
-export function PlayVoice({ src, label, stopLabel, icon = "play" }: Props) {
+export function PlayVoice({ src, label, stopLabel, icon = "play", name }: Props) {
   const [playing, setPlaying] = useState(false);
   const mine = useRef<Player | null>(null);
 
@@ -66,6 +71,7 @@ export function PlayVoice({ src, label, stopLabel, icon = "play" }: Props) {
       type="button"
       className="aux listen"
       aria-pressed={playing}
+      aria-label={name ? (playing ? name.stop : name.play) : undefined}
       onClick={() => (playing ? mine.current?.stop() : play())}
     >
       {playing ? (
