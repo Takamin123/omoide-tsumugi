@@ -1,17 +1,19 @@
 // アプリが裏から前に戻ったときに、今日の入り口と家族の語りを静かに読み直す（0051）。
-// 読み直すのは、最後に読んだ時から日本時間の日付が替わったときと、裏にいた時間が RESUME_REFRESH_AFTER_MS 以上のとき。
+// 読み直すのは、最後に読んだ時から家族の一日が替わったとき（日本時間 3:00）と、裏にいた時間が RESUME_REFRESH_AFTER_MS 以上のとき。
 // 話している・書いている途中は読み直さない（途中のものを壊さない。終わった後に改めて読まない）。前に出ている間の定期的な読み直しはしない。
 import { useEffect, useRef } from "react";
 
 /** 日付が同じでも、裏にいた時間がこれ以上なら読み直す（ほかの家族の新しい語り・返事） */
 export const RESUME_REFRESH_AFTER_MS = 10 * 60_000;
 
+/** 家族の「今日」は日本時間 3:00 で替わる（サーバーの core/clock の appDate と同じ。0056） */
 const JST_OFFSET_MS = 9 * 60 * 60_000;
+const DAY_START_MS = 3 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
 
-/** 日本時間の暦日の番号（比べるだけに使う）。家族の「今日」はサーバーが決めるので、クライアントは実時間で比べれば足りる */
+/** 家族の一日の番号（比べるだけに使う）。日本時間 3:00 で替わる。家族の「今日」はサーバーが決めるので、クライアントは実時間で比べれば足りる */
 export function jstDay(t: number): number {
-  return Math.floor((t + JST_OFFSET_MS) / DAY_MS);
+  return Math.floor((t + JST_OFFSET_MS - DAY_START_MS) / DAY_MS);
 }
 
 export type ResumeState = {

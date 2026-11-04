@@ -14,11 +14,17 @@ const MIN = 60_000;
 
 describe("前に戻ったときに読み直すか", () => {
   const base = { busy: false };
-  it("日本時間の日付が替わったら、裏にいた時間が短くても読み直す", () => {
-    // 23:58 に読み、00:01 に戻った（日本時間）
+  it("家族の一日が替わったら（日本時間 3:00）、裏にいた時間が短くても読み直す", () => {
+    // 2:58 に読み、3:01 に戻った（日本時間）
+    const loadedAt = at("2026-11-05T02:58:00+09:00");
+    const now = at("2026-11-05T03:01:00+09:00");
+    expect(shouldRefreshOnResume({ ...base, now, loadedAt, hiddenAt: now - 2 * MIN })).toBe(true);
+  });
+
+  it("0:00 をまたいでも、3:00 より前なら日付では読み直さない", () => {
     const loadedAt = at("2026-11-04T23:58:00+09:00");
     const now = at("2026-11-05T00:01:00+09:00");
-    expect(shouldRefreshOnResume({ ...base, now, loadedAt, hiddenAt: now - 2 * MIN })).toBe(true);
+    expect(shouldRefreshOnResume({ ...base, now, loadedAt, hiddenAt: now - 2 * MIN })).toBe(false);
   });
 
   it("日付は UTC ではなく日本時間で比べる（UTC で日が替わっても日本時間で同じ日なら替わっていない）", () => {
@@ -47,8 +53,9 @@ describe("前に戻ったときに読み直すか", () => {
     expect(shouldRefreshOnResume({ busy: true, now, loadedAt, hiddenAt: loadedAt })).toBe(false);
   });
 
-  it("日本時間の 0:00 ちょうどで日付が替わる", () => {
-    expect(jstDay(at("2026-11-05T00:00:00+09:00"))).toBe(jstDay(at("2026-11-04T23:59:59.999+09:00")) + 1);
+  it("家族の一日は日本時間の 3:00 ちょうどで替わる。0:00 では替わらない（0056）", () => {
+    expect(jstDay(at("2026-11-05T03:00:00+09:00"))).toBe(jstDay(at("2026-11-05T02:59:59.999+09:00")) + 1);
+    expect(jstDay(at("2026-11-05T00:00:00+09:00"))).toBe(jstDay(at("2026-11-04T23:59:59.999+09:00")));
   });
 
   it("裏に回った時刻が分からず、同じ日なら読み直さない", () => {

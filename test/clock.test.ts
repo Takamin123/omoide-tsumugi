@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { addDays, canAdvanceClock, familyClock, jstDate, jstSlot, nextClock } from "../src/server/core/clock";
+import { addDays, appDate, canAdvanceClock, familyClock, jstDate, jstSlot, nextClock } from "../src/server/core/clock";
 import { pickFixedPhoto } from "../src/server/core/entrances";
 import type { PhotoRow } from "../src/server/core/ports";
 
 describe("日本時間", () => {
   it.each([
     ["2026-11-01T14:59:59Z", "2026-11-01", "night"],
-    ["2026-11-01T15:00:00Z", "2026-11-02", "morning"], // 0:00
+    ["2026-11-01T15:00:00Z", "2026-11-02", "night"], // 0:00（前の日の夜の続き）
+    ["2026-11-01T17:59:59Z", "2026-11-02", "night"], // 2:59
+    ["2026-11-01T18:00:00Z", "2026-11-02", "morning"], // 3:00
     ["2026-11-02T01:59:59Z", "2026-11-02", "morning"], // 10:59
     ["2026-11-02T02:00:00Z", "2026-11-02", "noon"], // 11:00
     ["2026-11-02T07:59:59Z", "2026-11-02", "noon"], // 16:59
@@ -14,6 +16,16 @@ describe("日本時間", () => {
   ])("%s → %s %s", (iso, date, slot) => {
     expect(jstDate(new Date(iso))).toBe(date);
     expect(jstSlot(new Date(iso))).toBe(slot);
+  });
+
+  it.each([
+    ["2026-11-01T14:59:59Z", "2026-11-01"], // 23:59
+    ["2026-11-01T15:00:00Z", "2026-11-01"], // 0:00 はまだ前の日
+    ["2026-11-01T17:59:59.999Z", "2026-11-01"], // 2:59
+    ["2026-11-01T18:00:00Z", "2026-11-02"], // 3:00（毎朝の処理の Cron と同じ時刻）で替わる
+  ])("家族の「今日」は日本時間 3:00 で替わる: %s → %s（0056）", (iso, date) => {
+    expect(appDate(new Date(iso))).toBe(date);
+    expect(familyClock({ clock: null }, new Date(iso)).date).toBe(date);
   });
 
   it("時計を持つ家族は時計、持たない家族は今の日本時間", () => {

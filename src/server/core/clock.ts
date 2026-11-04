@@ -1,4 +1,5 @@
-// 「今日」と時間帯。日本時間の暦の日付で決める（docs/decisions/0009）。
+// 「今日」と時間帯。日本時間で決める（docs/decisions/0009）。
+// 家族の「今日」は、毎朝の処理（日本時間 3:00）で替わる。0:00–2:59 は前の日の続き（0056）。
 import type { Clock, TimeSlot } from "../../shared/api";
 import type { AppConfig, FamilyRow } from "./ports";
 
@@ -9,17 +10,27 @@ export function jstDate(now: Date): string {
   return new Date(now.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
-/** 日本時間の時刻から時間帯を決める: 0:00–10:59 朝、11:00–16:59 昼、17:00– 夜 */
+/** 一日が替わる時刻（日本時間）。wrangler.jsonc の Cron（UTC 18:00 = 日本時間 3:00）と合わせる */
+export const DAY_START_HOUR_JST = 3;
+const DAY_START_MS = DAY_START_HOUR_JST * 60 * 60 * 1000;
+
+/** 家族の「今日」（YYYY-MM-DD）。日本時間 3:00 で替わる。0:00–2:59 は前の日 */
+export function appDate(now: Date): string {
+  return jstDate(new Date(now.getTime() - DAY_START_MS));
+}
+
+/** 日本時間の時刻から時間帯を決める: 3:00–10:59 朝、11:00–16:59 昼、17:00–翌 2:59 夜 */
 export function jstSlot(now: Date): TimeSlot {
   const hour = new Date(now.getTime() + JST_OFFSET_MS).getUTCHours();
+  if (hour < DAY_START_HOUR_JST) return "night";
   if (hour < 11) return "morning";
   if (hour < 17) return "noon";
   return "night";
 }
 
-/** その家族の今の時計。時計を持たない家族は本当の日本時間から作る。 */
+/** その家族の今の時計。時計を持たない家族は本当の日本時間から作る（日付は 3:00 で替わる）。 */
 export function familyClock(family: Pick<FamilyRow, "clock">, now: Date): Clock {
-  return family.clock ?? { date: jstDate(now), slot: jstSlot(now) };
+  return family.clock ?? { date: appDate(now), slot: jstSlot(now) };
 }
 
 /** その家族の「今日」 */
