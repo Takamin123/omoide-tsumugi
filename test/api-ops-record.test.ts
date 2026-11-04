@@ -450,6 +450,26 @@ describe("運営の記録: 中身", () => {
     expect(JSON.stringify(r)).not.toContain(MUSUBI_REASON);
   });
 
+  it("むすびが読めなくても記録の画面は開く（むすびは空、ログは種類だけ）", async () => {
+    const t = makeTestApp(d1);
+    const { f } = await seed(t);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await d1.prepare("ALTER TABLE musubi RENAME TO musubi_hidden").run();
+    try {
+      const res = await t.app.request(recordUrl(f.familyId), { headers: bearer() });
+      expect(res.status).toBe(200);
+      const r = (await res.json()) as OpsFamilyRecord;
+      expect(r.musubi).toEqual([]);
+      expect(r.entrances.length).toBeGreaterThan(0);
+      const lines = log.mock.calls.map((c) => String(c[0]));
+      const failed = lines.find((l) => l.includes("ops_record_musubi_read_failed"));
+      expect(failed).toBeDefined();
+      expect(Object.keys(JSON.parse(failed!)).sort()).toEqual(["errorType", "event", "familyId"]);
+    } finally {
+      await d1.prepare("ALTER TABLE musubi_hidden RENAME TO musubi").run();
+      log.mockRestore();
+    }
+  });
   it("ほかの家族のむすびの ID が入り口に入っていても、その家族のむすびは返さない。家族が決めた状態（確かめた・外した）はそのまま返す", async () => {
     const t = makeTestApp(d1);
     const a = await seed(t);

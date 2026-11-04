@@ -118,7 +118,17 @@ export const ops = new Hono<AppEnv>()
       repos.opsRecords.listEntrances(familyId),
       repos.narrations.listAll(familyId),
       repos.photoGuesses.listByFamily(familyId),
-      repos.musubi.listByFamily(familyId),
+      // むすびが読めなくても記録の画面は開く（見守りの間に画面ごと開けなくならないように）。種類だけをログに残す
+      repos.musubi.listByFamily(familyId).catch((err: unknown) => {
+        console.log(
+          JSON.stringify({
+            event: "ops_record_musubi_read_failed",
+            familyId,
+            errorType: err instanceof Error && /^[A-Za-z_$][\w$]*$/.test(err.name) ? err.name : typeof err,
+          }),
+        );
+        return null;
+      }),
     ]);
     const byId = new Map(narrations.map((n) => [n.id, n]));
     // むすびは、入り口 v3 で Claude に渡したものだけ。推測の理由と根拠の記録は返さない（画面で使わない）
@@ -146,7 +156,7 @@ export const ops = new Hono<AppEnv>()
         promptVersion: g.promptVersion,
         createdAt: g.createdAt,
       })),
-      musubi: musubi
+      musubi: (musubi ?? [])
         .filter((m) => passedMusubi.has(m.id))
         .map((m) => ({ id: m.id, photos: m.photos.map((p) => ({ photoId: p.photoId, status: p.status })) })),
     };
