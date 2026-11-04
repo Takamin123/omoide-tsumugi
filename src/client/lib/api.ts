@@ -89,6 +89,9 @@ export const api = {
     form.append("meta", JSON.stringify(meta));
     return call<UploadPhotoResult>("/api/photos", { method: "POST", body: form });
   },
+  /** 「この写真に追加する」でつないだ写真を外す（「はずす」。0048）。写真そのものは棚に残る */
+  removeFromMusubi: (musubiId: string, photoId: string) =>
+    call<void>(`/api/musubi/${encodeURIComponent(musubiId)}/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" }),
   listPhotos: (ownerMemberId: string) =>
     call<{ photos: Photo[] }>(`/api/photos?ownerMemberId=${encodeURIComponent(ownerMemberId)}`),
 
@@ -99,7 +102,7 @@ export const api = {
     if (audio) form.append("audio", audio, audioFileName(audio.type));
     return call<{ narration: Narration }>("/api/narrations", { method: "POST", body: form });
   },
-  getFeed: () => call<{ items: { photo: Photo; narrations: FeedNarration[] }[] }>("/api/feed"),
+  getFeed: () => call<{ items: { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] }[] }>("/api/feed"),
   /** この端末の人の今日の入り口 */
   todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
 

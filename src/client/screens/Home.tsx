@@ -228,6 +228,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
           currentId={albumCurrent}
           onCurrent={setAlbumCurrent}
           onSent={() => void loadFeed()}
+          onPhotosChanged={() => void loadFeed()}
           composing={composing}
           footer={demoBar}
         />

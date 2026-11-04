@@ -2,6 +2,7 @@
 // 下に写真ごとの語りの縦の欄。欄の節の頭には見出し（小さい写真・撮影日・場所・何枚目か）があり、欄の上端に貼り付く（0041）。
 // 帯と語りは連動する（lib/album.ts）。縦に読んで次の写真の見出しが欄の上端に届いたら帯が一度だけ切り替わり、
 // 帯をめくるか矢印を押すと語りがその写真の頭まで動く。往復はしない。動きを減らす設定では動かさずに切り替える。
+// 家族の画面だけ、節の末尾（語りの後）に「この写真に追加する」と追加した写真の列（parts/AddToPhoto。0048）。祖父母の画面には描かない。
 // 出すのは家族の語り・返事・写真の記録（撮影日・場所。0047）だけ。語りのある写真がなければ何も出さない（催促や状態の文を出さない）。
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FeedNarration, Photo } from "../../shared/api";
@@ -9,10 +10,12 @@ import { arrows, bandIndex, clampIndex, sectionAtTop, SyncGate } from "../lib/al
 import { formatPlace, formatTakenDate } from "../lib/pure";
 import { useScreen } from "../lib/screen";
 import { words } from "../words";
+import { AddToPhoto } from "./AddToPhoto";
 import { Narrations } from "./Narrations";
 import { ZoomablePhoto } from "./ZoomablePhoto";
 
-export type AlbumItem = { photo: Photo; narrations: FeedNarration[] };
+/** addedPhotos: この写真に追加された写真（/api/feed。0048） */
+export type AlbumItem = { photo: Photo; narrations: FeedNarration[]; addedPhotos?: Photo[] };
 
 type Props = {
   items: AlbumItem[];
@@ -21,6 +24,8 @@ type Props = {
   currentId: string | null;
   onCurrent: (photoId: string) => void;
   onSent: () => void;
+  /** 「この写真に追加する」で送り終えた・外した後（一覧を読み直す） */
+  onPhotosChanged?: () => void;
   /** 返事の入力欄が開いている間は、写真の帯をたたむ（打つ欄を広くする） */
   composing: boolean;
   /** 語りの欄の一番下に置くもの（デモの帯） */
@@ -33,7 +38,7 @@ const BAND_SETTLE_MS = 250;
 const reducedMotion = () =>
   typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, footer }: Props) {
+export function Album({ items, nameOf, currentId, onCurrent, onSent, onPhotosChanged, composing, footer }: Props) {
   const count = items.length;
   const found = items.findIndex((it) => it.photo.id === currentId);
   const index = found < 0 ? 0 : found;
@@ -256,6 +261,10 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, composing, 
                 onSent={onSent}
                 onJump={jumpTo}
               />
+              {/* 語りの後に置く（見出し＋語り一つの高さは変えない。0041・0043・0045） */}
+              {variant === "family" && (
+                <AddToPhoto photoId={it.photo.id} addedPhotos={it.addedPhotos ?? []} onChanged={onPhotosChanged ?? onSent} />
+              )}
             </section>
           );
         })}
