@@ -5,6 +5,7 @@
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
 // 声を送った直後は「送りました」の下に「とりなおす」（画面に一つだけ。lib/retake.ts。0050）。前の声は録り直した声が送れたときに消すので、
 // 取り直しの間も今日の入り口は「答えた」のまま（段は流れのまま。録音中に欄が作り直されない）。
+// 裏から前に戻ったときは、日付が替わったか裏に 10 分以上いたら、入り口と一覧を静かに読み直す（lib/useResumeRefresh.ts。0051）。
 // 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
@@ -17,6 +18,7 @@ import { RetakeContext, useRetakeSlot } from "../lib/retake";
 import { ScreenContext, SentNoticeContext, type ScreenVariant } from "../lib/screen";
 import { SENT_NOTICE_MS, useSender, type SentNarration } from "../lib/useSender";
 import { navigate } from "../lib/route";
+import { homeBusy, refreshQuietly, useResumeRefresh } from "../lib/useResumeRefresh";
 import { Album, type AlbumItem } from "../parts/Album";
 import { DemoBar, type DemoProps } from "../parts/DemoBar";
 import { EntranceView } from "../parts/EntranceView";
@@ -60,6 +62,15 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const sentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(sentTimer.current), []);
   const retake = useRetakeSlot();
+  /** 最後に入り口を読めた時刻（前に戻ったときの読み直しの判断に使う。0051） */
+  const loadedAt = useRef<number | null>(null);
+  /** 読み込みの回。開いたとき・「もういちど」で進め、前の回の静かな読み直しの結果を捨てる */
+  const loadRound = useRef(0);
+  /** 今出している入り口（静かな読み直しで替わったかを比べる。undefined は読み込み中） */
+  const shown = useRef<Entrance | null | undefined>(undefined);
+  shown.current = entrance;
+  /** 話している・書いている途中か（届いた時点でも確かめる。読み直しの最中に話し始めたら、その回の結果を捨てる） */
+  const busyNow = useRef(false);
 
   const loadFeed = useCallback(async (): Promise<AlbumItem[] | null> => {
     try {
@@ -75,11 +86,17 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
 
   useEffect(() => {
     let alive = true;
+    loadRound.current += 1;
     setEntranceError(null);
     setFeedError(null);
     setEntrance(undefined);
+    const startedAt = Date.now();
     api.todayEntrance().then(
-      (r) => alive && setEntrance(r.entrance),
+      (r) => {
+        if (!alive) return;
+        setEntrance(r.entrance);
+        loadedAt.current = startedAt;
+      },
       (e) => {
         if (!alive) return;
         setEntrance(null);
@@ -91,6 +108,45 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
       alive = false;
     };
   }, [me.id, loadFeed, attempt]);
+
+  const { clear: clearRetake } = retake;
+  /**
+   * 前に戻ったときの静かな読み直し（0051）。「読み込み中」に戻さず、今の写真を出したまま届いたものに差し替える。
+   * 読めなかったものは黙って前のものを残す。入り口が替わったら、前の入り口に結びついた知らせと「とりなおす」を消す
+   */
+  const refreshing = useRef(false);
+  const refresh = useCallback(() => {
+    if (refreshing.current || shown.current === undefined) return;
+    refreshing.current = true;
+    const round = loadRound.current;
+    const startedAt = Date.now();
+    const current = () => round === loadRound.current && !busyNow.current;
+    void refreshQuietly(
+      { entrance: () => api.todayEntrance(), feed: () => api.getFeed() },
+      {
+        entrance: ({ entrance: next }) => {
+          if (!current()) return;
+          if ((next?.id ?? null) !== (shown.current?.id ?? null)) {
+            setAnsweredHere(false);
+            clearTimeout(sentTimer.current);
+            setSentNotice(false);
+            setNoticeAt((at) => (at === "answer" ? null : at));
+            clearRetake();
+          }
+          setEntrance(next);
+          setEntranceError(null);
+          loadedAt.current = startedAt;
+        },
+        feed: ({ items }) => {
+          if (!current()) return;
+          setFeed(items);
+          setFeedError(null);
+        },
+      },
+    ).finally(() => {
+      refreshing.current = false;
+    });
+  }, [clearRetake]);
 
   const nameOf = (id: string) => view.members.find((m) => m.id === id)?.calledAs ?? "";
   const w = words.screen[variant];
@@ -140,6 +196,15 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   );
   const answer = useSender(answerTarget ?? NO_TARGET, onAnswered);
   // 録音済みファイルの入口は祖父母の画面の帯だけ（0008）。入り口がなければ送る先がないので出さない
+  // 話している・書いている途中は読み直さない（途中のものを壊さない。0051）
+  busyNow.current = homeBusy({
+    composing,
+    dockComposing,
+    openReplyId,
+    retaking: !!retake.slot?.retaking,
+    sending: answer.state === "sending" || answer.state === "failed",
+  });
+  useResumeRefresh({ busy: busyNow.current, loadedAt: () => loadedAt.current, refresh });
   const demoAudio = elder && answerTarget ? answer.sendVoice : undefined;
   const demoBar = demo && (
     <div className="foot">

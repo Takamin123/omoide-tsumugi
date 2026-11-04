@@ -226,7 +226,9 @@ describe("9 押した後（押したらすぐ録り直し、送れたときに�
   it("今日の答え: 押したら同じ欄で録り始める（家族は声の段で）。前は残るので段は流れのまま（取り直し用の段の固定はない）", () => {
     const home = code("src/client/screens/Home.tsx");
     expect(home).not.toMatch(/setRetaking|\[retaking,|answeredHere \|\|\s*retaking/);
-    expect(home).not.toMatch(/setAnsweredHere\(false\)/);
+    // 答えた印を戻すのは、前に戻ったときの読み直しで入り口そのものが替わったときだけ（0051）。取り直しでは戻さない
+    expect(home.match(/setAnsweredHere\(false\)/g)).toHaveLength(1);
+    expect(home).toMatch(/if \(\(next\?\.id \?\? null\) !== \(shown\.current\?\.id \?\? null\)\) \{\s*setAnsweredHere\(false\);/);
     expect(home).toContain('retakeAt="answer"');
     // 段（dock）の ReplyBox には渡さない
     expect(home).toMatch(/<ReplyBox target=\{answerTarget\} sender=\{answer\} who=\{who\} onComposing=\{setDockComposing\} \/>/);
