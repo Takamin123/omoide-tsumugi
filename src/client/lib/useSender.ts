@@ -18,7 +18,6 @@ export type Sender = ReturnType<typeof useSender>;
 export function useSender(target: VoiceTarget, onSent?: (sent: SentNarration) => void) {
   const [state, setState] = useState<SendState>("idle");
   const [error, setError] = useState<unknown>(null);
-  const [last, setLast] = useState<SentNarration | null>(null);
   const pending = useRef<Payload | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -35,7 +34,6 @@ export function useSender(target: VoiceTarget, onSent?: (sent: SentNarration) =>
             : await sendText(payload.text, target, payload.requestId);
         pending.current = null;
         const sent: SentNarration = { id: narration.id, kind: payload.kind, at: Date.now() };
-        setLast(sent);
         setState("sent");
         timer.current = setTimeout(() => setState((s) => (s === "sent" ? "idle" : s)), SENT_NOTICE_MS);
         onSent?.(sent);
@@ -51,8 +49,6 @@ export function useSender(target: VoiceTarget, onSent?: (sent: SentNarration) =>
     state,
     /** 送れなかったときの例外（文にするのは errorText） */
     error,
-    /** 最後に送れた語り（「とりなおす」で消す先。0050） */
-    last,
     /**
      * 声を送る。durationMs はマイクで測った長さ。録音済みファイル（省いたとき）はブラウザに読ませて測る。
      * 測る間も「送っている」にして、二度押しで二つ送らないようにする

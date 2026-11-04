@@ -81,7 +81,7 @@ describe("useSender", () => {
     expect(metas[0].requestId).not.toBe(metas[1].requestId);
   });
 
-  it("送れた語りの { id, kind, at } を onSent に渡し、手元に持つ（「とりなおす」。0050）", async () => {
+  it("送れた語りの { id, kind, at } を onSent に渡す（「とりなおす」。0050）", async () => {
     stubFetch([202]);
     const onSent = vi.fn();
     const s = useSender(target, onSent);
@@ -91,7 +91,6 @@ describe("useSender", () => {
     const sent = onSent.mock.calls[0]![0];
     expect(sent).toMatchObject({ id: "n-1", kind: "voice" });
     expect(sent.at).toBeGreaterThanOrEqual(before);
-    expect(states[2]).toEqual(sent);
     s.sendText("文字");
     await flush();
     expect(onSent.mock.calls[1]![0]).toMatchObject({ id: "n-1", kind: "text" });

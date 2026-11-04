@@ -3,7 +3,8 @@
 // 今日: 上にメニュー（祖父母の画面では呼ばれ方だけ）、自分の今日の入り口、その下に入り口の写真の語りと返事。答える前は「声で」「文字で」を欄の外のタブのすぐ上の段に置く（0034）。
 // アルバム: 語りのある写真の帯と、写真ごとの語りの縦の欄（parts/Album.tsx）。上にメニューは置かない。
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
-// 声を送った直後は「送りました」の下に「とりなおす」（画面に一つだけ。lib/retake.ts。0050）。今日の答えを取り直している間は、段を流れから動かさない。
+// 声を送った直後は「送りました」の下に「とりなおす」（画面に一つだけ。lib/retake.ts。0050）。前の声は録り直した声が送れたときに消すので、
+// 取り直しの間も今日の入り口は「答えた」のまま（段は流れのまま。録音中に欄が作り直されない）。
 // 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
@@ -59,8 +60,6 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const sentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(sentTimer.current), []);
   const retake = useRetakeSlot();
-  /** 今日の答えを取り直している（消えてから、録り直しを送るか捨てるまで）。この間は段を流れに置いたまま（段に移ると欄が作り直され、録音が止まる） */
-  const [retaking, setRetaking] = useState(false);
 
   const loadFeed = useCallback(async (): Promise<AlbumItem[] | null> => {
     try {
@@ -116,10 +115,10 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const onAnswered = useCallback(
     (sent: SentNarration) => {
       setAnsweredHere(true);
-      setRetaking(false);
       setDockComposing(false);
       clearTimeout(sentTimer.current);
-      offerRetake("answer", sent);
+      // 録り直した声なら前の答えを消す。消し終えてから一覧を読み直す（先に読むと、消す前の一覧が後から届きうる）
+      const replaced = offerRetake("answer", sent);
       // 祖父母の画面は、次に答え始めるか返事を始めるまで残す（数秒で消すと、目を離していると見逃す。0028、0043）
       if (elder) setNoticeAt("answer");
       // 家族の画面の声は「取り直す」と一緒に残す（4 秒で消さない。0050）。文字は 4 秒
@@ -127,25 +126,12 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
         setSentNotice(true);
         sentTimer.current = setTimeout(() => setSentNotice(false), SENT_NOTICE_MS);
       } else setSentNotice(false);
-      void loadFeed();
+      void replaced.then(() => loadFeed());
     },
     [loadFeed, elder, offerRetake],
   );
   /** 流れの中でもう一度答え始めたら、前の「送りました」を消す */
   const onFlowComposing = useCallback((on: boolean) => on && setSentNotice(false), []);
-  /** 今日の答えの「とりなおす」で消えた。ほかの操作をしていなければ、取り直しの間は段を流れに置く */
-  const answerRetake = {
-    at: "answer",
-    onStart: (current: boolean) => {
-      void loadFeed();
-      if (!current) return;
-      setNoticeAt(null);
-      setSentNotice(false);
-      setAnsweredHere(false);
-      setRetaking(true);
-    },
-    onEnd: () => setRetaking(false),
-  };
 
   // 今日の入り口への答えの送る状態。段と流れの答え、デモの帯の録音済みファイルが同じものを使う（マイクと同じ送る流れ。0008）
   const answerTarget = useMemo(
@@ -165,7 +151,9 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   // 祖父母の画面: 入り口が開けていて一覧だけ読めなかったときは、今日のタブには出さない（開いている写真のそばに「ひらけませんでした」は食い違う）。アルバムで出す
   const todayError = errorView(elder ? entranceError : (entranceError ?? feedError));
   const albumError = errorView(elder ? feedError : (entranceError ?? feedError));
-  const showAnswerNotice = elder ? noticeAt === "answer" : sentNotice || retake.slot?.at === "answer";
+  const answerSlot = retake.slot?.at === "answer" ? retake.slot : null;
+  // 録り直している間は「送りました」を出さない（やめたら、ボタンと一緒に戻る）
+  const showAnswerNotice = !answerSlot?.retaking && (elder ? noticeAt === "answer" : sentNotice || !!answerSlot);
   // 祖父母の画面: 段が閉じた後の「おくりました」と次のボタンが欄の下の方（画面の外）にあれば、見える所まで動かす（残す知らせを見逃さない。0043）
   const noticeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -181,7 +169,6 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
     // もう答えたか（この端末の人の、今日の入り口への語りがある）。答えた後は段に置かず、問いかけの下に戻す
     const answered =
       answeredHere ||
-      retaking ||
       (!!entrance && !!todays?.narrations.some((n) => n.entranceId === entrance.id && n.speakerMemberId === me.id));
     // ほかの入力欄（語りへの返事。ボタンを選ぶ前も含む）が開いている間は段を描かない。段の中で書いている間は段を残す（書きかけを消さない）
     const place = answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null));
@@ -222,7 +209,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
                 {showAnswerNotice && <p className="done">{w.sent}</p>}
               </div>
               {place === "flow" && answerTarget && (
-                <ReplyBox target={answerTarget} sender={answer} who={who} onComposing={onFlowComposing} retake={answerRetake} />
+                <ReplyBox target={answerTarget} sender={answer} who={who} onComposing={onFlowComposing} retakeAt="answer" />
               )}
             </section>
           )}

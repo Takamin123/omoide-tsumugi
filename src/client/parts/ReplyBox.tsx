@@ -6,8 +6,9 @@
 // 文字・声の形が開いている間は、画面に「入力中」を知らせる（下のタブを隠す）。
 // 段が替わる（押したボタンが消える）ときは、操作の位置を次の段の主なボタンへ移す（読み上げが新しい段を読む。消えたボタンで位置を失わない）。
 // 送ったら入力欄を閉じる。「送りました」は呼ぶ側が出す（今日の答えは Home、返事は Narrations）。
-// 今日の答えの「とりなおす」（0050）は、この欄の先頭（「送りました」のすぐ下）に出し、消えたらこの欄でそのまま録り始める（段を作り直さない）。
-// 返事の「とりなおす」は Narrations が出し、消えたら返事の欄を autoStart で開く。
+// 今日の答えの「とりなおす」（0050）は、この欄の先頭（「送りました」のすぐ下）に出し、押したらこの欄でそのまま録り始める（段を作り直さない）。
+// 返事の「とりなおす」は Narrations が出し、押したら返事の欄を autoStart で開く。
+// 前の声は、録り直した声が送れたときに消す（lib/retake.ts）。送らずに終えたら（やめた・短すぎて捨てた・マイクが使えない・欄が閉じた）取り直しを終え、前の声は残す。
 import { useEffect, useRef, useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
 import { useComposing } from "../lib/composing";
@@ -15,6 +16,7 @@ import { errorText } from "../lib/errors";
 import { useScreen, useSentNotice } from "../lib/screen";
 import { useRetake } from "../lib/retake";
 import { useSender, type Sender, type SentNarration } from "../lib/useSender";
+import { MicIcon } from "./MicIcon";
 import { Retake } from "./Retake";
 import { RecordingTime, useRecorder } from "./VoiceRecorder";
 
@@ -29,16 +31,13 @@ type Props = {
   onComposing?: (on: boolean) => void;
   /** 祖父母の画面の今日の答えで、ボタンのすぐ上に出す今の話者の呼ばれ方（0008） */
   who?: string;
-  /**
-   * 今日の答えの「とりなおす」（0050）。at はボタンの場所。消えたら onStart（current: ほかの操作をしていなければ、この欄で録り始める）。
-   * 取り直しの録音を送らずに終えたら（短すぎて捨てた・やめた）onEnd
-   */
-  retake?: { at: string; onStart: (current: boolean) => void; onEnd: () => void };
-  /** 開いたらすぐ録り始める（返事の「とりなおす」で消えた後。0050） */
+  /** 今日の答えの「とりなおす」（0050）を出す場所（"answer"）。押したらこの欄で録り始める */
+  retakeAt?: string;
+  /** 開いたらすぐ録り始める（返事の「とりなおす」を押した後。0050） */
   autoStart?: boolean;
 };
 
-export function ReplyBox({ target, sender: external, onSent, onCancel, onComposing, who, retake, autoStart }: Props) {
+export function ReplyBox({ target, sender: external, onSent, onCancel, onComposing, who, retakeAt, autoStart }: Props) {
   const { elder, w } = useScreen();
   const notice = useSentNotice();
   const retakeSlot = useRetake();
@@ -47,12 +46,34 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   const [micError, setMicError] = useState(false);
   const own = useSender(target, onSent);
   const sender = external ?? own;
+  /** この欄の取り直しの場所（今日の答えは "answer"、返事は返した先の語り）。送らずに終えたら取り直しを終える（前の声は残る） */
+  const at = retakeAt ?? target.replyToId;
+  const endRetake = () => {
+    if (at) retakeSlot?.end(at);
+  };
+  const endRef = useRef(endRetake);
+  endRef.current = endRetake;
   const rec = useRecorder({
     onBlob: sender.sendVoice,
     onStarted: () => setMicError(false),
-    onMicError: () => setMicError(true),
-    onDiscarded: () => retake?.onEnd(),
+    onMicError: () => {
+      setMicError(true);
+      endRetake();
+    },
+    onDiscarded: endRetake,
   });
+  // 録り直しの途中で欄が閉じた（タブを替えた、ほかの返事を開いた）ら、取り直しを終える。
+  // StrictMode の作り直し（片付け → すぐ組み立て直し）では終えない（片付けの後、組み立て直されていなければ閉じた）
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      queueMicrotask(() => {
+        if (!mounted.current) endRef.current();
+      });
+    };
+  }, []);
   // 返事の「とりなおす」: 開いたらすぐ録り始める（家族の画面は声の段で開く）
   useEffect(() => {
     if (autoStart) rec.toggle();
@@ -95,7 +116,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   const close = () => {
     setMicError(false);
     rec.cancel();
-    retake?.onEnd();
+    endRetake();
     // 送れなかったものを持ったまま閉じない（後で「送る」を押して、閉じた欄の中身が送られないように）
     if (failed) sender.discard();
     if (onCancel) onCancel();
@@ -283,13 +304,10 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
 
   return (
     <div ref={boxRef} className={onCancel ? "stack reply-box" : "stack answer"}>
-      {retake && mode === "choose" && !rec.recording && !rec.starting && (
+      {retakeAt && mode === "choose" && !rec.recording && !rec.starting && (
         <Retake
-          at={retake.at}
-          focusAfter={primaryRef}
-          onRetaken={(current) => {
-            retake.onStart(current);
-            if (!current) return;
+          at={retakeAt}
+          onRetake={() => {
             setMicError(false);
             if (!elder) setMode("voice");
             rec.toggle();
@@ -306,16 +324,6 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
 export function focusFollows(active: Element | null, body: Element, box: Element | null): boolean {
   if (!box) return false;
   return active === null || active === body || box.contains(active);
-}
-
-function MicIcon() {
-  return (
-    <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="2" width="6" height="12" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0" />
-      <path d="M12 18v4" />
-    </svg>
-  );
 }
 
 function PenIcon() {

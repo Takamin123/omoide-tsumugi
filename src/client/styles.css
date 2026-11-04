@@ -40,6 +40,12 @@
   --done: #22553a; /* 「おくりました」の文字。白地で約 8:1 */
   --done-border: #2e6b45;
   --focus: #1f4e8c;
+  /*
+   * 「とりなおす」の枠と文字（0050。人間の決定、2026-11-04）。赤（録音中）と青（送る）の意味と分けるためのオレンジ。塗りつぶさない。
+   * 白地で 6.0:1、地の色（--bg）で 5.3:1、押した間の地（--retake-press）で 5.4:1（文字 4.5:1 以上・枠 3:1 以上）
+   */
+  --retake: #a14a0b;
+  --retake-press: #fdf1e7;
 
   /* 家族の画面のタブとアルバム */
   --home-bg: #edeff1; /* 家族の画面の地（クリーム色にしない） */
@@ -605,7 +611,48 @@ main.home {
   text-align: center;
 }
 
-/* 「とりなおす」で消せなかったときの一文（0050）。ボタンのあった場所に、ボタンと同じ高さで（下の「はなす」を動かさない） */
+/*
+ * 「とりなおす」（0050）。「送りました」のすぐ下に横いっぱい。白地にオレンジの枠と文字、マイクの印。
+ * 大きさは家族の「声で話す」「文字で書く」と同じ（祖父母は下の .elder .retake で「はなす」「かく」と同じ）
+ */
+.retake {
+  display: flex;
+  width: 100%;
+  align-self: stretch;
+  gap: 0.5rem;
+  min-height: var(--primary-height);
+  font-size: var(--font-main);
+  font-weight: bold;
+  border: 3px solid var(--retake);
+  background: var(--surface);
+  color: var(--retake);
+}
+
+.retake svg {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* 押した間は少し沈め、地をごく淡いオレンジに（塗りつぶさない） */
+.retake:active {
+  background: var(--retake-press);
+  transform: translateY(1px);
+}
+
+.retake:focus-visible {
+  outline-color: var(--retake);
+}
+
+.elder .retake {
+  min-height: var(--elder-action-height);
+  font-size: var(--font-elder-action);
+  border-radius: 1rem;
+  white-space: nowrap;
+  padding-inline: 0.5rem;
+}
+
+/* 「とりなおす」で前の声を消せなかったときの一文（0050）。録り直した声の「おくりました」の下、ボタンの場所に出す */
 .retake-failed {
   margin: 0;
   min-height: var(--tap-min);
