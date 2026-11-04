@@ -104,3 +104,10 @@
 ### 根拠にしたもの（追記）
 - 実装: src/client/lib/retake.ts（afterSent・deleteReplaced・useRetakeSlot）、src/client/parts/Retake.tsx、src/client/parts/ReplyBox.tsx、src/client/parts/Narrations.tsx、src/client/screens/Home.tsx、src/client/styles.css（--retake・.retake）
 - テスト: test/client/retake.test.ts、test/client/retake-slot.test.ts（useRetakeSlot の振る舞い）
+
+## 追記（2026-11-05）「送りました」「おくりました」を押せない知らせの見た目にする
+
+- 決めた人: 人間（2026-11-05。「送った後の『送りました』の見た目がボタンっぽい」）。実装の細部は frontend-developer
+- `.done` の白地・緑の枠・角丸の箱をやめ、緑の文字（`--done`）の前に小さなチェックの印（CSS の `::before`。読み上げには出ない）を置いた一行の文にした。`--done-border` は使わなくなったので外した。すぐ下の「とりなおす」（白地にオレンジの枠）とは、枠の有無で見分けられる
+- 縦の高さは前の箱と同じ（家族 `--tap-min`、祖父母 `--primary-height`）。出た瞬間に下の「とりなおす」「はなす」「かく」が動かない。祖父母の文字の大きさ（`--font-elder-question`）は保つ。360px・文字 150% の祖父母の画面で「おくりました」が一行に入るよう、横の余白は 0 にした
+- 実装: src/client/styles.css（.done、.done::before）。テスト: test/client/retake.test.ts

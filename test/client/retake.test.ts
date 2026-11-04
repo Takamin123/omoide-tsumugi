@@ -106,6 +106,20 @@ describe("7 出る所と形", () => {
     expect(base).toMatch(/background: var\(--surface\);/);
     expect(css).toMatch(/\.retake:focus-visible \{\s*outline-color: var\(--retake\);/);
   });
+  it("「送りました」「おくりました」（.done）は押せない知らせ: 枠・白地の箱にせず、緑の文字の前にチェックの印。縦の高さは前の箱と同じ。「とりなおす」の枠とは違う見た目", () => {
+    const css = read("src/client/styles.css");
+    const done = css.match(/\n\.done \{([^}]*)\}/)![1]!;
+    expect(done).not.toMatch(/border|background|border-radius/);
+    expect(done).toMatch(/color: var\(--done\);/);
+    expect(done).toMatch(/min-height: var\(--tap-min\);/);
+    const mark = css.match(/\n\.done::before \{([^}]*)\}/)![1]!;
+    expect(mark).toMatch(/content: "";/);
+    expect(mark).toMatch(/border: solid currentColor;/);
+    const elder = css.match(/\n\.elder \.done \{([^}]*)\}/)![1]!;
+    expect(elder).toMatch(/min-height: var\(--primary-height\);/);
+    expect(elder).toMatch(/font-size: var\(--font-elder-question\);/);
+    expect(css).not.toContain("--done-border");
+  });
   it("大きさ: 家族は「声で話す」「文字で書く」と同じ（--primary-height・--font-main）、祖父母は主な動作（--elder-action-height・--font-elder-action）。横いっぱい", () => {
     const css = read("src/client/styles.css");
     const base = css.match(/\n\.retake \{([^}]*)\}/)![1]!;

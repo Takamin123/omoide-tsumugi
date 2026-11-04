@@ -38,7 +38,6 @@
   --accent-text: #ffffff;
   --recording: #b3261e; /* 録っている印の点。白文字で約 6:1 */
   --done: #22553a; /* 「おくりました」の文字。白地で約 8:1 */
-  --done-border: #2e6b45;
   --focus: #1f4e8c;
   /*
    * 「とりなおす」の枠と文字（0050。人間の決定、2026-11-04）。赤（録音中）と青（送る）の意味と分けるためのオレンジ。塗りつぶさない。
@@ -381,20 +380,33 @@ textarea {
   border: 4px solid var(--text);
 }
 
+/*
+ * 「送りました」「おくりました」: 押せない知らせ。枠・白地の箱にせず（ボタンに見えるため）、緑の文字の前に小さなチェックの印を置いた一行の文。
+ * 縦の高さは前の箱と同じだけ取り、出た瞬間に下の「とりなおす」などが動かないようにする
+ */
 .done {
   margin: 0;
   min-height: var(--tap-min);
-  border-radius: var(--radius);
-  background: var(--surface);
-  border: 2px solid var(--done-border);
   color: var(--done);
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.625rem;
-  padding: 0.25rem 1rem;
+  gap: 0.45em;
+  padding: 0.25rem 0;
   text-align: center;
+}
+
+/* チェックの印（飾り。文字の大きさに合わせる。読み上げには出ない） */
+.done::before {
+  content: "";
+  flex: none;
+  width: 0.35em;
+  height: 0.7em;
+  margin-bottom: 0.15em;
+  border: solid currentColor;
+  border-width: 0 0.14em 0.14em 0;
+  transform: rotate(45deg);
 }
 
 .elapsed {
