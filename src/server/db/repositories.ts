@@ -2,7 +2,7 @@
 // 実行環境ごとに違うのは「drizzle のデータベース」と「いくつかの文を一度に行う方法」だけで、入り口の層が渡す。
 // - D1: db.batch()（対話的なトランザクションは使えない）
 // - better-sqlite3: db.transaction() の中で順に run する
-import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, lt, ne, notExists, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, inArray, isNotNull, isNull, lt, ne, notExists, or, sql, type SQLWrapper } from "drizzle-orm";
 import type { BatchItem as DrizzleBatchItem } from "drizzle-orm/batch";
 import { alias, type BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { DEMO_RESET_TABLES } from "../core/ports";
@@ -526,6 +526,32 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
             ),
           );
         return changes(res) > 0;
+      },
+      async deleteForRetake(familyId, narrationId, speakerMemberId, createdSince) {
+        const one = { one: sql`1` };
+        const replies = alias(narrations, "retake_replies");
+        // 入り口の入力（JSON の配列）。壊れた値は空として読む（json_each を失敗させない）
+        const inputs = sql`${entrances}, json_each(CASE WHEN json_valid(${entrances.inputNarrationIds}) THEN ${entrances.inputNarrationIds} ELSE '[]' END) AS retake_input`;
+        // 外部キーで指している表（records・record_extractions・musubi_photos）は家族で絞らない（どの行が指していても消すと違反になる）
+        const rows = await db
+          .delete(narrations)
+          .where(
+            and(
+              eq(narrations.familyId, familyId),
+              eq(narrations.id, narrationId),
+              eq(narrations.speakerMemberId, speakerMemberId),
+              eq(narrations.kind, "voice"),
+              gte(narrations.createdAt, createdSince),
+              notExists(db.select(one).from(replies).where(and(eq(replies.familyId, familyId), eq(replies.replyToId, narrationId)))),
+              notExists(db.select(one).from(entrances).where(and(eq(entrances.familyId, familyId), eq(entrances.quoteNarrationId, narrationId)))),
+              notExists(db.select(one).from(inputs).where(and(eq(entrances.familyId, familyId), sql`retake_input.value = ${narrationId}`))),
+              notExists(db.select(one).from(records).where(eq(records.narrationId, narrationId))),
+              notExists(db.select(one).from(recordExtractions).where(eq(recordExtractions.narrationId, narrationId))),
+              notExists(db.select(one).from(musubiPhotos).where(eq(musubiPhotos.evidenceNarrationId, narrationId))),
+            ),
+          )
+          .returning({ audioKey: narrations.audioKey, createdAt: narrations.createdAt });
+        return rows[0] ?? null;
       },
     },
 

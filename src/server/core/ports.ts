@@ -239,6 +239,17 @@ export interface NarrationRepository {
    * 書き換えたら true
    */
   setCleaned(familyId: string, narrationId: string, cleaned: NarrationCleaned): Promise<boolean>;
+  /**
+   * 「とりなおす」（0050）: その人の声の語りで、createdSince（ミリ秒）以後に送られ、返事・入り口の引用／入力・記録・記録の取り出し・
+   * むすびの根拠のどれにも使われていないものだけを、一つの条件付き DELETE で消す。消したら録音のキーと送った時刻を返し、
+   * 条件に合わない・ないものは何も消さずに null
+   */
+  deleteForRetake(
+    familyId: string,
+    narrationId: string,
+    speakerMemberId: string,
+    createdSince: number,
+  ): Promise<{ audioKey: string | null; createdAt: number } | null>;
 }
 
 export interface EntranceRepository {

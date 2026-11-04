@@ -1,6 +1,6 @@
 // 語り。声は保存先へ流し、受け取ったことを先に返してから背景で文字起こしする。
 import { Hono } from "hono";
-import { narrationMetaSchema, type FeedNarration } from "../../shared/api";
+import { narrationMetaSchema, RETAKE_WINDOW_MS, type FeedNarration } from "../../shared/api";
 import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
 import { addedPhotoIds } from "../core/family-links";
@@ -109,6 +109,46 @@ export const narrations = new Hono<AppEnv>()
     if (!(await deps.repos.photos.get(familyId, photoId))) return fail(c, "not_found");
     const rows = await deps.repos.narrations.listByPhoto(familyId, photoId);
     return c.json({ narrations: rows.map(narrationView) });
+  })
+
+  // 「とりなおす」（0050）: この端末の人が送ったばかりの、まだ何にも使われていない声の語りを消す。
+  // 条件はリポジトリの一つの条件付き DELETE が守る。外れたものは、理由を区別せずすべて 404。行を消してから録音のファイルを消す
+  .delete("/narrations/:id", async (c) => {
+    const deps = c.get("deps");
+    const familyId = c.get("family").id;
+    const narrationId = c.req.param("id");
+    const speakerMemberId = currentMember(c).id;
+    const now = deps.now().getTime();
+    const removed = await deps.repos.narrations.deleteForRetake(familyId, narrationId, speakerMemberId, now - RETAKE_WINDOW_MS);
+    if (!removed) return fail(c, "not_found");
+    if (removed.audioKey) {
+      // 録音のファイルが消せなくても、語りはもう消えている（204 のまま）。種類だけをログに残す
+      try {
+        await deps.photos.delete(removed.audioKey);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            event: "narration_retake_audio_delete_failed",
+            familyId,
+            narrationId,
+            errorType: err instanceof Error && /^[A-Za-z_$][\w$]*$/.test(err.name) ? err.name : typeof err,
+          }),
+        );
+      }
+    }
+    // ID と数だけ（本文・録音のキー・URL は出さない）
+    console.log(
+      JSON.stringify({
+        event: "narration_retaken",
+        familyId,
+        narrationId,
+        speakerMemberId,
+        kind: "voice",
+        ageMs: now - removed.createdAt,
+        hadAudio: removed.audioKey !== null,
+      }),
+    );
+    return c.body(null, 204);
   })
 
   .get("/narrations/:id/audio", async (c) => {
