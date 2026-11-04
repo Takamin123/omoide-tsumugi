@@ -138,7 +138,7 @@ describe("家族のこと: 一人ひとりのリンク", () => {
     const card = html.slice(html.indexOf(words.member.summary("ばあば", "祖母")), html.indexOf(words.member.summary("じいじ", "祖父")));
     expect(card).toContain(`<p>${words.family.linkFor("ばあば")}</p>`);
     expect(words.family.linkFor("ばあば")).toBe("ばあばに送るリンク");
-    expect(card).toContain(`<p class="invite-url">${ORIGIN}/join/${token}</p>`);
+    expect(card).toContain(`<p class="invite-url">${ORIGIN}/join/${token}?openExternalBrowser=1</p>`);
     expect(card).toContain(`>${words.family.copy}</button>`);
     expect(card).toContain(`<p class="sub">${words.family.inviteHidden}</p>`);
     // ほかのカードには出さない

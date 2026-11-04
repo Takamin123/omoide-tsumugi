@@ -99,6 +99,19 @@ export function voiceLength(ms: number | null | undefined): { minutes: number; s
   return { minutes: Math.floor(total / 60), seconds: total % 60 };
 }
 
+/**
+ * 招待リンク。LINE で押されたとき、LINE の中の画面ではなくいつものブラウザで開くよう openExternalBrowser=1 を付ける（0055）。
+ * Android の LINE の中の画面ではマイクが使えず、入った記録も LINE の中にしか残らないため。ほかのアプリでは何もしない
+ */
+export function inviteUrl(origin: string, token: string): string {
+  return `${origin}/join/${token}?openExternalBrowser=1`;
+}
+
+/** Android の LINE の中の画面か（マイクが使えない。0055）。iPhone の LINE は使えるので含めない */
+export function isAndroidLineInApp(userAgent: string): boolean {
+  return /\bLine\//i.test(userAgent) && /Android/i.test(userAgent);
+}
+
 /** 招待リンクの道すじから合言葉を取り出す。"/join/<token>" でなければ null */
 export function tokenFromJoinPath(pathname: string): string | null {
   const m = /^\/join\/([A-Za-z0-9_-]{20,100})\/?$/.exec(pathname);

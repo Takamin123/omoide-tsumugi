@@ -49,6 +49,8 @@ const elderWords = {
     unauthorized: "ひらけませんでした。かぞくに しらせてください",
     sendFailed: "おくれませんでした。「おくる」を おすと、もういちど おくります",
     micDenied: "マイクが つかえません。かぞくに しらせてください",
+    /** Android の LINE の中の画面で開いているとき（0055）。直し方がはっきりあるので、家族に知らせるのではなく直し方を言う。漢字まじり（人間の「ひらがなだけだと逆に読みづらい」に合わせた。0050・0055）。メニューの名前は端末で違いうるので、字どおりの名前は書かない */
+    micInLine: "LINE の中では録音できません。右上の︙のメニューから、ブラウザで開いてください",
   },
 };
 
@@ -59,6 +61,7 @@ const homeWords = {
   speak: "話す",
   stop: "終わる",
   micDenied: "マイクが使えません",
+  micInLine: "LINE の中では録音できません。右上の︙のメニューから、ブラウザで開いてください",
   /** 声を聞くボタン（一語。長さは入れない。0045）。誰の声か・長さは listenNote */
   listen: "聞く",
   /** 誰の声か、と長さ。祖父母の画面と同じ文字列（0045） */
@@ -252,6 +255,7 @@ export const words = {
       cancel: homeWords.cancel,
       sent: homeWords.sent,
       micDenied: homeWords.micDenied,
+      micInLine: homeWords.micInLine,
       /** 送れなかったときの文。null なら種類ごとの文（errorText） */
       sendFailed: null,
       reply: homeWords.reply,
@@ -277,6 +281,7 @@ export const words = {
       cancel: elderWords.cancel,
       sent: elderWords.sent,
       micDenied: elderWords.errors.micDenied,
+      micInLine: elderWords.errors.micInLine,
       sendFailed: elderWords.errors.sendFailed,
       reply: elderWords.reply,
       listen: elderWords.listen,

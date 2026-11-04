@@ -423,3 +423,26 @@ describe("「今日」に写真がないとき（0010 の追記）", () => {
     expect(t).not.toMatch(/[！!]|ください/);
   });
 });
+
+const pure = await load("../../src/client/lib/pure");
+
+describe("LINE から開いたとき（0055）", () => {
+  it("招待リンクに openExternalBrowser=1 を付け、合言葉は道すじから取り出せる", () => {
+    const url = pure.inviteUrl("https://example.test", "abcdefghijklmnopqrstuvwx");
+    expect(url).toBe("https://example.test/join/abcdefghijklmnopqrstuvwx?openExternalBrowser=1");
+    expect(pure.tokenFromJoinPath(new URL(url).pathname)).toBe("abcdefghijklmnopqrstuvwx");
+  });
+  it("Android の LINE の中の画面だけを見分ける（iPhone の LINE と Chrome は含めない）", () => {
+    const androidLine = "Mozilla/5.0 (Linux; Android 13; F-53E) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36 Line/14.0.0";
+    const iphoneLine = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/14.0.0";
+    const chrome = "Mozilla/5.0 (Linux; Android 13; F-53E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36";
+    expect(pure.isAndroidLineInApp(androidLine)).toBe(true);
+    expect(pure.isAndroidLineInApp(iphoneLine)).toBe(false);
+    expect(pure.isAndroidLineInApp(chrome)).toBe(false);
+  });
+  it("マイクが使えないとき、Android の LINE なら直し方の文を出す（両画面）", () => {
+    const src = fs.readFileSync(path.join(repoRoot, "src/client/parts/ReplyBox.tsx"), "utf8");
+    expect(src).toContain("isAndroidLineInApp(navigator.userAgent) ? w.micInLine : w.micDenied");
+    for (const v of ["family", "elder"]) expect(words.screen[v].micInLine).toContain("ブラウザで開いて");
+  });
+});

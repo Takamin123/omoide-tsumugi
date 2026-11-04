@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
 import { useComposing } from "../lib/composing";
 import { errorText } from "../lib/errors";
+import { isAndroidLineInApp } from "../lib/pure";
 import { useScreen, useSentNotice } from "../lib/screen";
 import { useRetake } from "../lib/retake";
 import { useSender, type Sender, type SentNarration } from "../lib/useSender";
@@ -123,7 +124,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
     else setMode("choose");
   };
   const failure = failed && <p role="alert" className={elder ? undefined : "sub"}>{w.sendFailed ?? errorText(sender.error)}</p>;
-  const mic = micError && <p role="alert" className={elder ? undefined : "sub"}>{w.micDenied}</p>;
+  const mic = micError && <p role="alert" className={elder ? undefined : "sub"}>{isAndroidLineInApp(navigator.userAgent) ? w.micInLine : w.micDenied}</p>;
   const cancelAux = onCancel && (
     <button type="button" className="aux" onClick={close}>
       {w.cancel}
