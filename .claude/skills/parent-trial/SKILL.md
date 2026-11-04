@@ -55,6 +55,9 @@ argument-hint: "[before|create|watch|end]"
   - `morning_done` の `fallbacks`（固定の入り口に倒れた人と理由の種類）、`failed`、`speech.failed`、`preludeSkipped`
   - `record_extraction_run` の `deferred`（予算を超えて翌朝に回った語りの数）
 - 記録の画面（`/ops/record`。鍵は `OPS_RECORD_TOKEN`）
+- 「この写真に追加する」の間違ったつながり（`docs/decisions/0048-add-to-this-photo.md`）。家族が自分で「はずす」を押せず、本人から消してと頼まれたら、人間が自分の端末で `musubi_photos` の行を消す（写真は消さない）。家族 ID・むすびの ID・写真 ID は人間の手元から入れ、ここや会話の記録に書かない
+  - 見る: `npx wrangler d1 execute omoide-tsumugi --remote --command "SELECT m.id, mp.photo_id, mp.status, mp.decided_at FROM musubi m JOIN musubi_photos mp ON mp.musubi_id = m.id WHERE m.family_id = '<家族 ID>' AND m.created_by = 'family' ORDER BY m.created_at, mp.created_at"`
+  - 外す: `npx wrangler d1 execute omoide-tsumugi --remote --command "DELETE FROM musubi_photos WHERE family_id = '<家族 ID>' AND musubi_id = '<むすびの ID>' AND photo_id = '<写真 ID>' AND musubi_id IN (SELECT id FROM musubi WHERE family_id = '<家族 ID>' AND created_by = 'family')"`
 
 ## 4. 試しの後（end。2026-11-11）
 

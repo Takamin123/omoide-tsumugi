@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { narrationMetaSchema, type FeedNarration } from "../../shared/api";
 import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
+import { addedPhotoIds } from "../core/family-links";
 import type { NarrationRow, NewNarration } from "../core/ports";
 import { transcribeNarration } from "../core/transcribe";
 import { currentMember } from "./auth";
@@ -123,10 +124,21 @@ export const narrations = new Hono<AppEnv>()
   .get("/feed", async (c) => {
     const deps = c.get("deps");
     const familyId = c.get("family").id;
-    const [all, photoRows, members] = await Promise.all([
+    const [all, photoRows, members, musubi] = await Promise.all([
       deps.repos.narrations.listAll(familyId),
       deps.repos.photos.list(familyId),
       deps.repos.members.list(familyId),
+      // むすびが読めなくてもアルバムは開く（追加した写真が出ないだけ）。種類だけをログに残す
+      deps.repos.musubi.listByFamily(familyId).catch((err: unknown) => {
+        console.log(
+          JSON.stringify({
+            event: "feed_musubi_read_failed",
+            familyId,
+            errorType: err instanceof Error && /^[A-Za-z_$][\w$]*$/.test(err.name) ? err.name : typeof err,
+          }),
+        );
+        return [];
+      }),
     ]);
     // 入り口への答えに「元の言葉」を付けるため、家族の入り口を引く（一人ずつ。人数は少ない）
     const entranceById = new Map(
@@ -144,10 +156,16 @@ export const narrations = new Hono<AppEnv>()
       byPhoto.set(n.photoId, list);
     }
     const photoById = new Map(photoRows.map((p) => [p.id, p]));
+    // 家族の手のむすびの confirmed の写真だけ（推測は出さない。0044・0048）
+    const added = addedPhotoIds(musubi, new Set(photoById.keys()));
     const latest = (ns: NarrationRow[]) => ns.reduce((m, n) => Math.max(m, n.createdAt), 0);
     const items = [...byPhoto.entries()]
       .filter(([photoId]) => photoById.has(photoId))
       .sort(([, a], [, b]) => latest(b) - latest(a))
-      .map(([photoId, ns]) => ({ photo: photoView(photoById.get(photoId)!), narrations: ns.map(feedView) }));
+      .map(([photoId, ns]) => ({
+        photo: photoView(photoById.get(photoId)!),
+        narrations: ns.map(feedView),
+        addedPhotos: (added.get(photoId) ?? []).map((id) => photoView(photoById.get(id)!)),
+      }));
     return c.json({ items });
   });

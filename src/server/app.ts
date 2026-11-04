@@ -9,6 +9,7 @@ import { family } from "./routes/family";
 import { health } from "./routes/health";
 import { fail } from "./routes/http";
 import { members } from "./routes/members";
+import { musubi } from "./routes/musubi";
 import { narrations } from "./routes/narrations";
 import { ops } from "./routes/ops";
 import { photos } from "./routes/photos";
@@ -37,6 +38,7 @@ export function createApp<B extends object = object>(
     .route("/", members)
     .route("/", photos)
     .route("/", narrations)
+    .route("/", musubi)
     .route("/", entrances)
     .route("/", check)
     .route("/", ops)

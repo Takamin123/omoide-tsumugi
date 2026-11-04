@@ -1,5 +1,6 @@
 // むすびの推測（musubi_guess。0044）: 根拠の検査（全か無か）、重複除け、保存の形（guessed、出所、根拠の ID）、冪等、
-// 失敗と取り直し、キーなし、ログに本文が出ないこと、毎朝の処理の中の順番、失敗しても入り口づくりが続くこと、家族向けの API に出ないこと。
+// 失敗と取り直し、キーなし、ログに本文が出ないこと、毎朝の処理の中の順番、失敗しても入り口づくりが続くこと、
+// 推測が家族向けの API に出ないこと（家族の手の confirmed は写真としてだけ出る。0048）。
 // Claude は偽物。家族はすべて架空。
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CLAUDE_SONNET, notConfiguredClaude } from "../src/server/core/claude";
@@ -16,7 +17,7 @@ import {
 } from "../src/server/core/musubi-guess";
 import type { ClaudeClient, ClaudePurpose, MusubiRow, NarrationRow, PhotoRow, RecordRow } from "../src/server/core/ports";
 import { PROMPTS } from "../src/server/prompts";
-import { addMember, addPhoto, createFamily, fakeClaude, makeTestApp, onlyPurpose, type FakeClaudeReply, type FakeClaudeRequest, type TestApp } from "./helpers";
+import { addMember, addPhoto, createFamily, fakeClaude, hashOf, makeTestApp, onlyPurpose, photoForm, postForm, tinyJpeg, type FakeClaudeReply, type FakeClaudeRequest, type TestApp } from "./helpers";
 import { startD1 } from "./helpers";
 
 let d1: D1Database;
@@ -533,8 +534,8 @@ describe("毎朝の処理の中の順番と、失敗しても入り口が続く�
   });
 });
 
-describe("家族向けの API にむすびの推測を出さない", () => {
-  it("写真・家族・語り・入り口の応答に、理由・根拠の ID・むすびの言葉が入らない", async () => {
+describe("家族向けの API にむすびの推測を出さない（家族の手の confirmed は写真としてだけ出る。0048）", () => {
+  it("写真・家族・語り・入り口の応答に、理由・根拠の ID・むすびの言葉が入らない。推測の写真は addedPhotos に出ず、家族の手の写真だけが出る", async () => {
     const fc = fakeClaude({ replies: [reply([{ photo_ids: ["p1", "p2"], evidence_record_ids: ["r1", "r2"], reason: "架空のひみつの理由" }])] });
     const t = makeTestApp(d1, { claude: onlyPurpose(fc.claude, "musubi_guess") });
     const f = await createFamily(t);
@@ -545,6 +546,20 @@ describe("家族向けの API にむすびの推測を出さない", () => {
     const r1 = await addTold(s, 0, TRIP[0], "伊勢の旅", m.id);
     await addTold(s, 1, TRIP[1], "伊勢の旅", m.id);
     expect((await runMusubiGuess(t.deps, f.familyId)).created).toBe(1);
+    // 家族の手で p1 に p3 を追加する（0048）
+    const added = await postForm(
+      t,
+      "/api/photos",
+      photoForm({ contentHash: hashOf(203), width: 10, height: 10, takenAt: null, latitude: null, longitude: null, withPhotoId: p1.id }, tinyJpeg(203)),
+      m.cookie,
+    );
+    const p3 = ((await added.json()) as { photo: { id: string } }).photo;
+
+    const feed = (await (await t.app.request("/api/feed", { headers: { Cookie: m.cookie } })).json()) as {
+      items: { photo: { id: string }; addedPhotos: { id: string }[] }[];
+    };
+    // 推測のつながり（p1-p2）は出ない。家族の手の confirmed（p1-p3）は写真としてだけ出る
+    expect(Object.fromEntries(feed.items.map((i) => [i.photo.id, i.addedPhotos.map((p) => p.id)]))).toEqual({ [p1.id]: [p3.id], [p2.id]: [] });
 
     const urls = ["/api/photos", "/api/family", "/api/members", "/api/narrations", `/api/narrations?photoId=${p1.id}`, "/api/feed", "/api/entrances/today"];
     for (const url of urls) {

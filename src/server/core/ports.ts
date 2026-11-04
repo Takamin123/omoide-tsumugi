@@ -394,7 +394,8 @@ export interface RecordExtractionRepository {
 
 // ---- むすびの推測（musubi_guess。0044） ----
 // むすびは「同じ出来事」のまとまり（0010）。Claude の推測は guessed として持ち、根拠の記録（records の told）の ID を必ず付ける。
-// 確定・却下は家族の手だけ（決めた人と時刻）。家族向けの API の形には入れない（今は材料だけ）
+// 確定・却下は家族の手だけ（決めた人と時刻）。推測は家族向けの API の形には入れない。
+// 家族の手のむすび（created_by = family。「この写真に追加する」、0048）の confirmed の写真だけは、/api/feed に写真として出す
 
 export type MusubiPhotoStatus = "guessed" | "confirmed" | "rejected";
 
@@ -442,7 +443,40 @@ export interface MusubiGuessRunRow {
 }
 export type MusubiGuessAttempt = Omit<MusubiGuessRunRow, "state" | "attempts">;
 
+/**
+ * 「この写真に追加する」（0048）。表示中の写真 X と足す写真 Z を、家族の手のむすび（created_by = family）に入れる。
+ * X が既に家族のむすびにいれば（いちばん古いもの）そこへ Z を足し、いなければ新しいむすび {X, Z} を作る。推測のむすびには触らない
+ */
+export interface FamilyLinkRequest {
+  familyId: string;
+  /** 表示中の写真（X） */
+  withPhotoId: string;
+  /** 足す写真（Z）。X と違う写真 */
+  photoId: string;
+  /** 足した人（この端末の人）。両方の行の decided_by_member_id になる */
+  memberId: string;
+  /** 新しく作るときのむすびの ID */
+  newMusubiId: string;
+  now: number;
+}
+/** linked: 今回新しく入れたか（既に同じ家族のむすびに X と Z がいれば false） */
+export interface FamilyLinkResult {
+  musubiId: string;
+  linked: boolean;
+}
+
 export interface MusubiRepository {
+  /**
+   * 家族の手のむすびに入れる（0048）。newPhoto があれば、写真の insert（同じ持ち主・同じ content_hash があれば入れない）と
+   * むすびの insert を一つの batch で行う。写真が入らなかったときは、つながりも作らない（photoInserted = false、link = null）。
+   * X か Z がその家族の写真でなければ何も入れず link = null
+   */
+  linkByFamily(req: FamilyLinkRequest, newPhoto?: PhotoRow): Promise<{ photoInserted: boolean; link: FamilyLinkResult | null }>;
+  /**
+   * 家族の手のむすびから、その人が決めた写真の行を消す（「はずす」。0048）。写真とむすびの行は消さない。
+   * 家族の手のむすびでない・ほかの人が決めた行・ないものは消さずに false
+   */
+  unlinkByFamily(familyId: string, musubiId: string, photoId: string, memberId: string): Promise<boolean>;
   /** その家族のむすびと、それぞれの写真（作った順） */
   listByFamily(familyId: string): Promise<MusubiRow[]>;
   getRun(familyId: string, inputKey: string): Promise<MusubiGuessRunRow | null>;

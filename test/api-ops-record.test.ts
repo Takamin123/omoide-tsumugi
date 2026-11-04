@@ -440,6 +440,7 @@ describe("運営の記録: 中身", () => {
     expect(r.musubi).toEqual([
       {
         id: passedId,
+        createdBy: "guessed",
         photos: expect.arrayContaining([
           { photoId: photo.id, status: "guessed" },
           { photoId: other.id, status: "guessed" },

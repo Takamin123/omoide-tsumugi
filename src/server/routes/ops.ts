@@ -158,7 +158,7 @@ export const ops = new Hono<AppEnv>()
       })),
       musubi: (musubi ?? [])
         .filter((m) => passedMusubi.has(m.id))
-        .map((m) => ({ id: m.id, photos: m.photos.map((p) => ({ photoId: p.photoId, status: p.status })) })),
+        .map((m) => ({ id: m.id, createdBy: m.createdBy, photos: m.photos.map((p) => ({ photoId: p.photoId, status: p.status })) })),
     };
     c.header("Cache-Control", "private, no-store");
     console.log(

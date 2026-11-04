@@ -372,6 +372,7 @@ describe("入り口 v3 の推測（0046）", async () => {
     musubi: [
       {
         id: "mu1",
+        createdBy: "guessed" as const,
         photos: [
           { photoId: "p1", status: "guessed" },
           { photoId: "p3", status: "confirmed" },
@@ -454,6 +455,7 @@ describe("入り口 v3 の推測（0046）", async () => {
       musubi: [
         {
           id: "mu2",
+          createdBy: "guessed" as const,
           photos: [
             { photoId: "p2", status: "rejected" },
             { photoId: "b91383a1-70dd-49f5-a52e-90e1c970766c", status: "guessed" },

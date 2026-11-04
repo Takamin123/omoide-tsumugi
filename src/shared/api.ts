@@ -105,7 +105,7 @@ export type MemberLinkResult = { token: string };
  *   meta: JSON 文字列（photoMetaSchema）
  * → 201 { photo, duplicate: false, link } / 200 { photo, duplicate: true, link }（同じ持ち主・同じ content_hash）
  * 持ち主は、この端末の人（cookie のリンクの人）
- * meta.withPhotoId があれば「この写真に足す」（0048）: 写真の登録と、withPhotoId の写真との家族の手のむすび
+ * meta.withPhotoId があれば「この写真に追加する」（0048）: 写真の登録と、withPhotoId の写真との家族の手のむすび
  * （created_by = family、両方 confirmed、決めた人 = この端末の人）への入れ込みを一つの batch で行う。
  * withPhotoId がこの家族の写真でなければ 404 not_found で、写真を保存しない。重複の写真でもつながりは作る。
  */
@@ -121,7 +121,7 @@ export const photoMetaSchema = z.object({
   // ブラウザで小数第 2 位（約 1 km）に丸めた値。生の値は送らない。サーバーも丸めを確かめる
   latitude: z.number().min(-90).max(90).nullable(),
   longitude: z.number().min(-180).max(180).nullable(),
-  // 「この写真に足す」のつなぐ先の写真（0048）。省けば今までどおり棚に入れるだけ
+  // 「この写真に追加する」のつなぐ先の写真（0048）。省けば今までどおり棚に入れるだけ
   withPhotoId: z.string().min(1).optional(),
 });
 export type PhotoMeta = z.infer<typeof photoMetaSchema>;
@@ -141,13 +141,14 @@ export type Photo = {
   imageUrl: string; // /api/photos/:id/image（合言葉を確かめてから返す。Cache-Control: private, no-store）
 };
 /**
- * 「この写真に足す」でつないだ結果（0048）。withPhotoId がなければ null。
+ * 「この写真に追加する」でつないだ結果（0048）。withPhotoId がなければ null。
+ * 送った写真が withPhotoId の写真そのもの（同じ持ち主・同じ content_hash の重複）のときも、つながないので null。
  * linked: 今回新しくつないだか（既に同じ家族のむすびにいたら false）。musubiId: 入れた家族のむすび（「はずす」に使う）
  */
 export type PhotoLink = { musubiId: string; linked: boolean };
 export type UploadPhotoResult = { photo: Photo; duplicate: boolean; link: PhotoLink | null };
 
-/** 「この写真に足す」で一度に送れる枚数の上限（0048。クライアントで確かめる） */
+/** 「この写真に追加する」で一度に送れる枚数の上限（0048。クライアントで確かめる） */
 export const MAX_ADD_TO_PHOTO = 10;
 
 // DELETE /api/musubi/:musubiId/photos/:photoId → 204（「はずす」。0048）

@@ -10,6 +10,7 @@ import type {
   ClaimOpts,
   DemoResetTable,
   EntranceRow,
+  FamilyLinkRequest,
   FamilyRow,
   MemberRow,
   MusubiGuessAttempt,
@@ -188,6 +189,98 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
       })
       .from(families)
       .where(eq(families.id, attempt.familyId));
+  };
+  /** その家族の、写真 X がいる家族の手のむすびのうち、いちばん古いもの（SQL の部分。0048） */
+  const familyMusubiWith = (familyId: string, photoId: string) =>
+    db
+      .select({ id: musubi.id })
+      .from(musubi)
+      .innerJoin(musubiPhotos, eq(musubiPhotos.musubiId, musubi.id))
+      .where(
+        and(
+          eq(musubi.familyId, familyId),
+          eq(musubi.createdBy, "family"),
+          eq(musubiPhotos.familyId, familyId),
+          eq(musubiPhotos.photoId, photoId),
+        ),
+      )
+      .orderBy(asc(musubi.createdAt), asc(musubi.id))
+      .limit(1);
+  /** X と Z が両方いる家族の手のむすび（いちばん古いもの） */
+  const sharedFamilyMusubi = async (familyId: string, xId: string, zId: string): Promise<string | null> => {
+    const mpX = alias(musubiPhotos, "mp_x");
+    const mpZ = alias(musubiPhotos, "mp_z");
+    const r = await db
+      .select({ id: musubi.id })
+      .from(musubi)
+      .innerJoin(mpX, and(eq(mpX.musubiId, musubi.id), eq(mpX.photoId, xId), eq(mpX.familyId, familyId)))
+      .innerJoin(mpZ, and(eq(mpZ.musubiId, musubi.id), eq(mpZ.photoId, zId), eq(mpZ.familyId, familyId)))
+      .where(and(eq(musubi.familyId, familyId), eq(musubi.createdBy, "family")))
+      .orderBy(asc(musubi.createdAt), asc(musubi.id))
+      .limit(1)
+      .get();
+    return r?.id ?? null;
+  };
+  /**
+   * 家族の手のむすびに X と Z を入れる文（0048）。順に:
+   * 1. X がまだ家族のむすびにいなければ、新しいむすびを作る（X と Z が両方その家族の写真のときだけ）
+   * 2. 入れる先 = X のいる家族のむすびのいちばん古いもの、なければ 1 で作ったもの
+   * 3. X と Z を confirmed で入れる（既にいれば何もしない）。推測のむすびには触らない
+   */
+  const familyLinkItems = (req: FamilyLinkRequest): BatchItem[] => {
+    const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+    const photoIn = (id: string) =>
+      exists(db.select({ one: sql`1` }).from(photos).where(and(eq(photos.id, id), eq(photos.familyId, req.familyId))));
+    const target = () =>
+      sql<string>`coalesce((${familyMusubiWith(req.familyId, req.withPhotoId)}), (${db
+        .select({ id: musubi.id })
+        .from(musubi)
+        .where(and(eq(musubi.id, req.newMusubiId), eq(musubi.familyId, req.familyId), eq(musubi.createdBy, "family")))}))`;
+    const addRow = (photoId: string) =>
+      db
+        .insert(musubiPhotos)
+        .select(
+          db
+            .select({
+              musubiId: target().as("musubiId"),
+              photoId: photos.id,
+              familyId: photos.familyId,
+              status: v("confirmed", "status"),
+              evidenceNarrationId: v<string | null>(null, "evidenceNarrationId"),
+              decidedByMemberId: v(req.memberId, "decidedByMemberId"),
+              decidedAt: v(req.now, "decidedAt"),
+              createdAt: v(req.now, "createdAt"),
+            })
+            .from(photos)
+            .where(and(eq(photos.id, photoId), eq(photos.familyId, req.familyId), sql`${target()} IS NOT NULL`)),
+        )
+        .onConflictDoNothing() as unknown as BatchItem;
+    return [
+      db.insert(musubi).select(
+        db
+          .select({
+            id: v(req.newMusubiId, "id"),
+            familyId: families.id,
+            createdBy: v("family", "createdBy"),
+            guessedReason: v<string | null>(null, "guessedReason"),
+            guessedEvidenceRecordIds: v<string | null>(null, "guessedEvidenceRecordIds"),
+            model: v<string | null>(null, "model"),
+            promptVersion: v<string | null>(null, "promptVersion"),
+            createdAt: v(req.now, "createdAt"),
+          })
+          .from(families)
+          .where(
+            and(
+              eq(families.id, req.familyId),
+              photoIn(req.withPhotoId),
+              photoIn(req.photoId),
+              notExists(familyMusubiWith(req.familyId, req.withPhotoId)),
+            ),
+          ),
+      ) as unknown as BatchItem,
+      addRow(req.withPhotoId),
+      addRow(req.photoId),
+    ];
   };
   return {
     families: {
@@ -801,6 +894,55 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
     },
 
     musubi: {
+      async linkByFamily(req, newPhoto) {
+        const { familyId, withPhotoId, photoId } = req;
+        if (withPhotoId === photoId) throw new Error("same_photo");
+        if (newPhoto && (newPhoto.id !== photoId || newPhoto.familyId !== familyId)) throw new Error("photo_mismatch");
+        // 既に同じ家族のむすびに X と Z がいれば、何も書かない（新しい写真は、まだどこにもいない）
+        if (!newPhoto) {
+          const prior = await sharedFamilyMusubi(familyId, withPhotoId, photoId);
+          if (prior) return { photoInserted: false, link: { musubiId: prior, linked: false } };
+        }
+        const items = familyLinkItems(req);
+        if (newPhoto) {
+          await runBatch([
+            db.insert(photos).values(newPhoto).onConflictDoNothing({ target: [photos.ownerMemberId, photos.contentHash] }),
+            ...items,
+          ] as unknown as [BatchItem, ...BatchItem[]]);
+          const inserted = await db
+            .select({ id: photos.id })
+            .from(photos)
+            .where(and(eq(photos.familyId, familyId), eq(photos.id, newPhoto.id)))
+            .get();
+          // 写真が入らなかった（同時に同じ写真が届いた）ときは、Z の行は入っていない（新しいむすびも作られない）
+          if (!inserted) return { photoInserted: false, link: null };
+        } else {
+          await runBatch(items as unknown as [BatchItem, ...BatchItem[]]);
+        }
+        const musubiId = await sharedFamilyMusubi(familyId, withPhotoId, photoId);
+        return { photoInserted: true, link: musubiId ? { musubiId, linked: true } : null };
+      },
+      async unlinkByFamily(familyId, musubiId, photoId, memberId) {
+        const res = await db
+          .delete(musubiPhotos)
+          .where(
+            and(
+              eq(musubiPhotos.familyId, familyId),
+              eq(musubiPhotos.musubiId, musubiId),
+              eq(musubiPhotos.photoId, photoId),
+              eq(musubiPhotos.status, "confirmed"),
+              eq(musubiPhotos.decidedByMemberId, memberId),
+              exists(
+                db
+                  .select({ one: sql`1` })
+                  .from(musubi)
+                  .where(and(eq(musubi.id, musubiId), eq(musubi.familyId, familyId), eq(musubi.createdBy, "family"))),
+              ),
+            ),
+          )
+          .run();
+        return changes(res) > 0;
+      },
       async listByFamily(familyId) {
         const [ms, ps] = await Promise.all([
           db.select().from(musubi).where(eq(musubi.familyId, familyId)).orderBy(asc(musubi.createdAt), asc(musubi.id)).all(),

@@ -1,7 +1,8 @@
 // 写真。縮小済みの JPEG を受け取り、保存先へ流す。同じ持ち主・同じ content_hash は一つにまとめる。
 import { Hono } from "hono";
 import { PHOTO_GUESS_BACKGROUND_BUDGET_MS, runPhotoGuesses } from "../core/photo-guess";
-import { photoMetaSchema, type PhotoMeta, type UploadPhotoResult } from "../../shared/api";
+import type { AppDeps, FamilyLinkRequest, PhotoRow } from "../core/ports";
+import { photoMetaSchema, type PhotoLink, type PhotoMeta, type UploadPhotoResult } from "../../shared/api";
 import { currentMember } from "./auth";
 import type { AppEnv } from "./env";
 import { checkContentLength, fail, parseJsonString, parseWith, readForm } from "./http";
@@ -27,6 +28,12 @@ async function isJpeg(file: File): Promise<boolean> {
   return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
 }
 
+/** 既にある写真を家族の手のむすびに入れる（0048）。つながないときは null */
+async function linkExisting(deps: AppDeps, req: FamilyLinkRequest | null): Promise<PhotoLink | null> {
+  if (!req) return null;
+  return (await deps.repos.musubi.linkByFamily(req)).link;
+}
+
 export const photos = new Hono<AppEnv>()
   .post("/photos", async (c) => {
     const size = checkContentLength(c, MAX_PHOTO_BYTES);
@@ -45,13 +52,28 @@ export const photos = new Hono<AppEnv>()
     // 持ち主は、この端末の人（リンクの人）。クライアントからは受け取らない（0036）
     const ownerMemberId = currentMember(c).id;
 
+    // 「この写真に追加する」（0048）: つなぐ先がこの家族の写真か、保存する前に確かめる
+    let withPhoto: PhotoRow | null = null;
+    if (meta.withPhotoId !== undefined) {
+      withPhoto = await deps.repos.photos.get(familyId, meta.withPhotoId);
+      if (!withPhoto) return fail(c, "not_found");
+    }
+    const linkRequest = (photoId: string): FamilyLinkRequest | null =>
+      // 同じ写真（追加した写真が表示中の写真そのもの）はつながない
+      withPhoto && withPhoto.id !== photoId
+        ? { familyId, withPhotoId: withPhoto.id, photoId, memberId: ownerMemberId, newMusubiId: crypto.randomUUID(), now: deps.now().getTime() }
+        : null;
+
     const existing = await deps.repos.photos.findByOwnerHash(familyId, ownerMemberId, meta.contentHash);
-    if (existing) return c.json({ photo: photoView(existing), duplicate: true } satisfies UploadPhotoResult, 200);
+    if (existing) {
+      const link = await linkExisting(deps, linkRequest(existing.id));
+      return c.json({ photo: photoView(existing), duplicate: true, link } satisfies UploadPhotoResult, 200);
+    }
 
     const id = crypto.randomUUID();
     const storageKey = `families/${familyId}/photos/${id}.jpg`;
     await deps.photos.put(storageKey, file, { contentType: "image/jpeg" });
-    const row = {
+    const row: PhotoRow = {
       id,
       familyId,
       ownerMemberId,
@@ -64,16 +86,28 @@ export const photos = new Hono<AppEnv>()
       longitude: meta.longitude,
       createdAt: deps.now().getTime(),
     };
-    if (!(await deps.repos.photos.insertIfAbsent(row))) {
-      // 同時に同じ写真が届いた: 先に入った方を返し、こちらの保存は消す
+    // 写真の insert とむすびの insert は一つの batch（0048）
+    const req = linkRequest(id);
+    let inserted: boolean;
+    let link: PhotoLink | null = null;
+    if (req) {
+      const r = await deps.repos.musubi.linkByFamily(req, row);
+      inserted = r.photoInserted;
+      link = r.link;
+    } else {
+      inserted = await deps.repos.photos.insertIfAbsent(row);
+    }
+    if (!inserted) {
+      // 同時に同じ写真が届いた: 先に入った方を返し、こちらの保存は消す。つながりは先に入った方で作る
       await deps.photos.delete(storageKey);
       const winner = await deps.repos.photos.findByOwnerHash(familyId, ownerMemberId, meta.contentHash);
       if (!winner) return fail(c, "internal");
-      return c.json({ photo: photoView(winner), duplicate: true } satisfies UploadPhotoResult, 200);
+      const winnerLink = await linkExisting(deps, linkRequest(winner.id));
+      return c.json({ photo: photoView(winner), duplicate: true, link: winnerLink } satisfies UploadPhotoResult, 200);
     }
     // 写っている内容の説明（推測。家族には見せない）を、応答の後に作る。失敗しても登録は失敗させない
     deps.runInBackground(runPhotoGuesses(deps, familyId, { budgetMs: PHOTO_GUESS_BACKGROUND_BUDGET_MS }));
-    return c.json({ photo: photoView(row), duplicate: false } satisfies UploadPhotoResult, 201);
+    return c.json({ photo: photoView(row), duplicate: false, link } satisfies UploadPhotoResult, 201);
   })
 
   .get("/photos", async (c) => {
