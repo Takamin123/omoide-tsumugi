@@ -103,8 +103,11 @@ export type MemberLinkResult = { token: string };
  * POST /api/photos（multipart/form-data）
  *   file: 縮小した JPEG
  *   meta: JSON 文字列（photoMetaSchema）
- * → 201 { photo, duplicate: false } / 200 { photo, duplicate: true }（同じ持ち主・同じ content_hash）
+ * → 201 { photo, duplicate: false, link } / 200 { photo, duplicate: true, link }（同じ持ち主・同じ content_hash）
  * 持ち主は、この端末の人（cookie のリンクの人）
+ * meta.withPhotoId があれば「この写真に足す」（0048）: 写真の登録と、withPhotoId の写真との家族の手のむすび
+ * （created_by = family、両方 confirmed、決めた人 = この端末の人）への入れ込みを一つの batch で行う。
+ * withPhotoId がこの家族の写真でなければ 404 not_found で、写真を保存しない。重複の写真でもつながりは作る。
  */
 export const photoMetaSchema = z.object({
   // 持ち主は、この端末の人（cookie のリンクの人）。クライアントからは送らない。0036
@@ -118,6 +121,8 @@ export const photoMetaSchema = z.object({
   // ブラウザで小数第 2 位（約 1 km）に丸めた値。生の値は送らない。サーバーも丸めを確かめる
   latitude: z.number().min(-90).max(90).nullable(),
   longitude: z.number().min(-180).max(180).nullable(),
+  // 「この写真に足す」のつなぐ先の写真（0048）。省けば今までどおり棚に入れるだけ
+  withPhotoId: z.string().min(1).optional(),
 });
 export type PhotoMeta = z.infer<typeof photoMetaSchema>;
 
@@ -135,7 +140,19 @@ export type Photo = {
   place: string | null;
   imageUrl: string; // /api/photos/:id/image（合言葉を確かめてから返す。Cache-Control: private, no-store）
 };
-export type UploadPhotoResult = { photo: Photo; duplicate: boolean };
+/**
+ * 「この写真に足す」でつないだ結果（0048）。withPhotoId がなければ null。
+ * linked: 今回新しくつないだか（既に同じ家族のむすびにいたら false）。musubiId: 入れた家族のむすび（「はずす」に使う）
+ */
+export type PhotoLink = { musubiId: string; linked: boolean };
+export type UploadPhotoResult = { photo: Photo; duplicate: boolean; link: PhotoLink | null };
+
+/** 「この写真に足す」で一度に送れる枚数の上限（0048。クライアントで確かめる） */
+export const MAX_ADD_TO_PHOTO = 10;
+
+// DELETE /api/musubi/:musubiId/photos/:photoId → 204（「はずす」。0048）
+//   家族の手のむすび（created_by = family）の、この端末の人が決めた行だけ消せる。それ以外・ほかの家族・ないものは 404 not_found。
+//   写真そのものは消さない
 
 // GET /api/photos?ownerMemberId= → { photos: Photo[] }
 
@@ -192,7 +209,9 @@ export type QuotedFrom = { narrationId: string; speakerMemberId: string; text: s
 export type FeedNarration = Narration & { quotedFrom: QuotedFrom | null };
 
 // GET /api/narrations?photoId= → { narrations: Narration[] }
-// GET /api/feed → { items: { photo: Photo; narrations: FeedNarration[] }[] }（新しい語りのある写真から順）
+// GET /api/feed → { items: { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] }[] }
+//   addedPhotos: その写真と同じ家族の手のむすび（created_by = family）にいる、confirmed のほかの写真（0048）。古く足した順。
+//   機械の推測のむすび（guessed）は一切出さない（新しい語りのある写真から順）
 
 // ---- 入り口 ----
 
