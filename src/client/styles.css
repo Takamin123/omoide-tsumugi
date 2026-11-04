@@ -803,23 +803,23 @@ nav.top button {
 /*
  * 写真の帯。高さは画面の 1/3 程度まで。幅 375px・文字 150% でも、語り一つ（話者名＋本文 3 行＋「返事」）が
  * 帯とタブの間に見えるよう、写真の高さを (画面の高さ − 語り一つとタブと帯の枠の分) で抑える。
- * 矢印は写真の両脇に重ね、帯の下は何枚目かの一行だけにする（矢印の行の高さを語りの欄に回す。0034）
+ * 矢印の置き場所は二つ（0034 の 2026-11-05）:
+ * - 幅の狭い縦長のスマホ（下の @media。幅 395px 以下は高さ 800px 以上、430px 以下は 880px 以上、448px 以下は 920px 以上）: 写真は幅で縛られるので、矢印を何枚目かの行の両端に置き、
+ *   写真の左右は飾りが切れない分（--page-pad）だけ空けて、写真を帯の幅いっぱい近くまで広げる
+ * - それ以外（それより低いスマホ・タブレット・横向き）: 写真は高さで縛られるか、移すと行の高さの分だけ高さの上限が下がって、写真は広がらない（かえって小さくなる。640・667px・文字 150% では語り一つが入らなくなる）。矢印は写真の両脇に重ね、帯の下は何枚目かの一行だけにする
  */
 .album-band {
   --band-chrome: 4.375rem; /* 帯の上下の余白、何枚目かの一行、白い縁 */
   --band-reserve: 25.125rem; /* 帯の枠＋語り一つ＋節の頭＋タブ */
   --band-photo: max(3rem, min(calc(34dvh - var(--band-chrome)), calc(100dvh - var(--band-reserve))));
+  --band-pad-top: 1rem; /* 両脇の矢印の縦の位置にも使う */
+  position: relative;
   flex: none;
   background: var(--album-mat);
-  padding: 1rem 0 0.5rem;
+  padding: var(--band-pad-top) 0 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-
-/* 写真の帯と、その両脇に重ねる矢印の台 */
-.album-stage {
-  position: relative;
 }
 
 .album-strip {
@@ -901,7 +901,8 @@ nav.top button {
 
 .album-arrow {
   position: absolute;
-  top: 50%;
+  /* 写真の段（帯の上の余白の下、高さは写真＋白い縁）の縦の中央 */
+  top: calc(var(--band-pad-top) + (var(--band-photo) + 1rem) / 2);
   transform: translateY(-50%);
   width: var(--tap-min);
   height: var(--tap-min);
@@ -911,7 +912,6 @@ nav.top button {
   color: var(--album-on-mat);
 }
 
-/* 端では押せない。色を落とす（disabled で読み上げにも伝わる） */
 .album-arrow.prev {
   left: 0.25rem;
 }
@@ -920,6 +920,7 @@ nav.top button {
   right: 0.25rem;
 }
 
+/* 端では押せない。色を落とす（disabled で読み上げにも伝わる） */
 .album-arrow:disabled {
   opacity: 1;
   border-color: var(--album-off-mat);
@@ -940,6 +941,38 @@ nav.top button {
   font-size: var(--font-sub);
   color: var(--album-on-mat);
   line-height: 1.4;
+}
+
+/*
+ * 幅の狭い縦長のスマホ（幅 395px 以下は高さ 800px 以上、430px 以下は 880px 以上、448px 以下は 920px 以上）: 矢印を何枚目かの行の両端に移し、写真の左右の余白を --page-pad だけにする。
+ * 行は矢印の高さ（--tap-min）になるので、帯の上の余白を 1rem → 0.5rem、下を 0.5rem → 0.25rem に詰め、--band-chrome・--band-reserve を合わせる。
+ * 条件は、移したほうが横長（4:3）の写真が前より小さくならない所（文字 100%・130%・150% で、幅 320〜448px・高さ 660〜1000px の 1575 通りを測った）。幅が広いほど高い画面が要る。それより低いと、増えた帯の枠（+0.875rem）で
+ * 高さの上限が下がる分が、左右に広がる分を上回る（例: 393×740 で 242×182 → 223×168）。それより広いと写真は高さで縛られる
+ */
+@media (width <= 24.6875rem) and (height >= 50rem), (width <= 26.875rem) and (height >= 55rem), (width <= 28rem) and (height >= 57.5rem) {
+  .album-band {
+    --band-chrome: 5.25rem; /* 帯の上（0.5rem）と下（0.25rem）の余白、白い縁（1rem）、写真と行の間（0.25rem）、矢印と何枚目かの行（--tap-min） */
+    --band-reserve: 26rem;
+    padding: 0.5rem 0 0.25rem;
+  }
+  .album-slide {
+    /* 写真コーナー（白い縁から 0.25rem はみ出す）が切れない分だけ空ける */
+    padding: 0 var(--page-pad);
+  }
+  /* 何枚目かの行: 左端に左の矢印、中央に「n枚のうち m枚」、右端に右の矢印 */
+  .album-nav {
+    display: grid;
+    grid-template-columns: var(--tap-min) minmax(0, 1fr) var(--tap-min);
+    align-items: center;
+    padding: 0 0.25rem;
+  }
+  .album-arrow {
+    position: static;
+    transform: none;
+  }
+  .album-count {
+    padding: 0 0.5rem;
+  }
 }
 
 /* 語りの縦の欄。横には動かさない。節の位置（offsetTop）をこの欄から測るため relative にする */
@@ -1409,13 +1442,13 @@ nav.top button {
 }
 
 /*
- * 高さ 640px 前後のスマホ（らくらくスマホ）: 家族の画面と祖父母の画面の両方で、帯の上下の余白を詰めて語りの欄に回す。
+ * 高さ 640px 前後のスマホ（らくらくスマホ）: 家族の画面と祖父母の画面の両方で、帯の上下の余白を詰めて語りの欄に回す（矢印は写真の両脇のまま）。
  * 家族の画面は 640px・文字 150% で語り一つ（見出し＋話者名＋本文 3 行＋「返事」）がちょうど入る（余裕 0.4px）。祖父母の画面は語りの間も詰めて入れる（.elder .album-section .narration。0043 の結果）。
  * 写真の下限（3rem）と文字・ボタンの大きさは下げない。--band-chrome はわざと変えない（写真の高さは変えず、浮いた分を欄に回す）
  */
 @media (max-height: 41.5rem) {
   .album-band {
-    padding-top: 0.25rem;
+    --band-pad-top: 0.25rem;
     padding-bottom: 0.25rem;
   }
 }

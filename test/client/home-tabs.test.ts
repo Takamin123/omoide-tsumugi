@@ -124,17 +124,35 @@ describe("アルバム", () => {
     expect(html).toMatch(new RegExp(`aria-label="${words.home.albumPrev}">`));
     expect(html).toMatch(new RegExp(`aria-label="${words.home.albumNext}" disabled="">`));
   });
-  it("矢印は写真の帯と同じ台（album-stage）の中で両脇に重ね、矢印だけの行は置かない。何枚目かは帯の下の一行", () => {
+  it("矢印は何枚目かの行（album-nav）の両端に置く。左の矢印・「n枚のうち m枚」・右の矢印の順。矢印だけの行は置かない", () => {
     const html = renderAlbum();
-    expect(html).not.toContain("album-nav");
-    const stage = html.slice(html.indexOf('<div class="album-stage">'), html.indexOf('<p class="album-count"'));
-    expect(stage).toContain('class="album-strip"');
-    expect(stage).toContain('class="album-arrow prev"');
-    expect(stage).toContain('class="album-arrow next"');
+    expect(html).not.toContain("album-stage");
+    const nav = html.slice(html.indexOf('<div class="album-nav">'), html.indexOf("</section>"));
+    expect(nav.indexOf('class="album-arrow prev"')).toBeGreaterThan(-1);
+    expect(nav.indexOf('<p class="album-count"')).toBeGreaterThan(nav.indexOf('class="album-arrow prev"'));
+    expect(nav.indexOf('class="album-arrow next"')).toBeGreaterThan(nav.indexOf('<p class="album-count"'));
+    // 写真の帯は行より前で、行の中に写真は入らない
+    expect(html.indexOf('class="album-strip"')).toBeLessThan(html.indexOf('<div class="album-nav">'));
+    expect(nav).not.toContain("album-slide");
+    expect(html.match(/class="album-arrow /g)?.length).toBe(2);
+  });
+  it("帯の形: 幅の狭い縦長のスマホでは矢印を行の両端に、写真の左右は --page-pad だけ。それ以外は矢印を写真の両脇に重ねる（0034 の 2026-11-05）", () => {
     const css = fs.readFileSync(path.join(repoRoot, "src/client/styles.css"), "utf8") as string;
-    expect(css).toMatch(/\.album-arrow \{[^}]*position: absolute;[^}]*width: var\(--tap-min\);[^}]*height: var\(--tap-min\);/);
-    // 矢印の幅と隙間の分だけ写真の両脇を空ける（矢印が写真に重ならない）
+    // 既定（低いスマホ・タブレット・横向き）: 写真は高さで縛られるので、前の形のまま
+    expect(css).toMatch(/\.album-band \{[^}]*--band-chrome: 4\.375rem;[^}]*--band-reserve: 25\.125rem;/);
     expect(css).toMatch(/\.album-slide \{[^}]*padding: 0 calc\(var\(--tap-min\) \+ 0\.75rem\);/);
+    expect(css).toMatch(/\.album-arrow \{[^}]*position: absolute;[^}]*width: var\(--tap-min\);[^}]*height: var\(--tap-min\);/);
+    // 幅の狭い縦長のスマホ: 矢印を行に、写真を広げ、増えた行の高さを帯の枠と残す高さに足す
+    const at = css.indexOf("@media (width <= 24.6875rem) and (height >= 50rem), (width <= 26.875rem) and (height >= 55rem), (width <= 28rem) and (height >= 57.5rem) {");
+    expect(at).toBeGreaterThan(-1);
+    const narrow = css.slice(at);
+    const block = narrow.slice(0, narrow.indexOf("\n}\n"));
+    expect(block).toMatch(/\.album-band \{[^}]*--band-chrome: 5\.25rem;[^}]*--band-reserve: 26rem;[^}]*padding: 0\.5rem 0 0\.25rem;/);
+    expect(block).toMatch(/\.album-slide \{[^}]*padding: 0 var\(--page-pad\);/);
+    expect(block).toMatch(/\.album-nav \{[^}]*display: grid;[^}]*grid-template-columns: var\(--tap-min\) minmax\(0, 1fr\) var\(--tap-min\);/);
+    expect(block).toMatch(/\.album-arrow \{[^}]*position: static;/);
+    // 帯の枠が増えた分（4.375rem → 5.25rem）を、残す高さにも同じだけ足す
+    expect(5.25 - 4.375).toBeCloseTo(26 - 25.125);
   });
   it("一枚だけなら、どちらの矢印も押せない", () => {
     const html = renderAlbum({ items: items.slice(0, 1) });

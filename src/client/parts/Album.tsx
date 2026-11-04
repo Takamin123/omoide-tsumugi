@@ -159,59 +159,59 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, onPhotosCha
   return (
     <div className="album">
       <section className="album-band" aria-label={w.albumBandLabel} hidden={composing}>
-        {/* 矢印は写真の両脇の台紙の上に重ねる（矢印だけの行を置かず、語りの欄に縦を残す。0034） */}
-        <div className="album-stage">
-          <div
-            ref={bandRef}
-            className="album-strip"
-            onScroll={(e) => {
-              bandMovedAt.current = performance.now();
-              if (!gate.scrolled("band")) return;
-              const band = e.currentTarget;
-              const i = bandIndex(band.scrollLeft, band.clientWidth, itemsRef.current.length);
-              if (i !== indexRef.current) {
-                select(i);
-                moveText(i, true);
-              }
-            }}
-            onTouchStart={() => gate.touched("band")}
-            onTouchEnd={() => gate.released()}
-            onTouchCancel={() => gate.released()}
-            onWheel={() => gate.touched("band")}
-          >
-            {items.map((it, i) => (
-              <div key={it.photo.id} className="album-slide" aria-hidden={i !== index}>
-                <div className="album-print">
-                  <div className="album-corners">
-                    <ZoomablePhoto photo={it.photo} variant={variant} canOpen={bandSettled} tabIndex={i === index ? undefined : -1} />
-                    <span className="corner tl" aria-hidden="true" />
-                    <span className="corner tr" aria-hidden="true" />
-                    <span className="corner bl" aria-hidden="true" />
-                    <span className="corner br" aria-hidden="true" />
-                  </div>
+        {/* 幅の狭い縦長のスマホでは、矢印を何枚目かの行の両端に置き、写真を帯の幅いっぱい近くまで広げる。それ以外（低いスマホ・タブレット・横向き）は写真の両脇に重ねる（styles.css。0034） */}
+        <div
+          ref={bandRef}
+          className="album-strip"
+          onScroll={(e) => {
+            bandMovedAt.current = performance.now();
+            if (!gate.scrolled("band")) return;
+            const band = e.currentTarget;
+            const i = bandIndex(band.scrollLeft, band.clientWidth, itemsRef.current.length);
+            if (i !== indexRef.current) {
+              select(i);
+              moveText(i, true);
+            }
+          }}
+          onTouchStart={() => gate.touched("band")}
+          onTouchEnd={() => gate.released()}
+          onTouchCancel={() => gate.released()}
+          onWheel={() => gate.touched("band")}
+        >
+          {items.map((it, i) => (
+            <div key={it.photo.id} className="album-slide" aria-hidden={i !== index}>
+              <div className="album-print">
+                <div className="album-corners">
+                  <ZoomablePhoto photo={it.photo} variant={variant} canOpen={bandSettled} tabIndex={i === index ? undefined : -1} />
+                  <span className="corner tl" aria-hidden="true" />
+                  <span className="corner tr" aria-hidden="true" />
+                  <span className="corner bl" aria-hidden="true" />
+                  <span className="corner br" aria-hidden="true" />
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
+        <div className="album-nav">
           <button type="button" className="album-arrow prev" aria-label={w.albumPrev} disabled={!can.prev} onClick={() => go(index - 1)}>
             <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 5l-7 7 7 7" />
             </svg>
           </button>
+          <p className="album-count" aria-live="polite">
+            {w.albumPositionParts(index + 1, count).map((part, k) => (
+              <span key={k}>
+                {k > 0 && " "}
+                {part}
+              </span>
+            ))}
+          </p>
           <button type="button" className="album-arrow next" aria-label={w.albumNext} disabled={!can.next} onClick={() => go(index + 1)}>
             <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
-        <p className="album-count" aria-live="polite">
-          {w.albumPositionParts(index + 1, count).map((part, k) => (
-            <span key={k}>
-              {k > 0 && " "}
-              {part}
-            </span>
-          ))}
-        </p>
       </section>
       <div
         ref={textRef}
