@@ -6,6 +6,7 @@
 // 声を送った直後は「送りました」の下に「とりなおす」（画面に一つだけ。lib/retake.ts。0050）。前の声は録り直した声が送れたときに消すので、
 // 取り直しの間も今日の入り口は「答えた」のまま（段は流れのまま。録音中に欄が作り直されない）。
 // 裏から前に戻ったときは、日付が替わったか裏に 10 分以上いたら、入り口と一覧を静かに読み直す（lib/useResumeRefresh.ts。0051）。
+// 一覧に文字起こしを待つ声の語りがある間は、一覧だけを静かに読み直す（lib/transcriptFollow.ts。0052）。一覧の読み込みは feed 一つにまとめる。
 // 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, Member } from "../../shared/api";
@@ -19,6 +20,7 @@ import { ScreenContext, SentNoticeContext, type ScreenVariant } from "../lib/scr
 import { SENT_NOTICE_MS, useSender, type SentNarration } from "../lib/useSender";
 import { navigate } from "../lib/route";
 import { homeBusy, refreshQuietly, useResumeRefresh } from "../lib/useResumeRefresh";
+import { feedReader, keepsOpenReply, useTranscriptFollow } from "../lib/transcriptFollow";
 import { Album, type AlbumItem } from "../parts/Album";
 import { DemoBar, type DemoProps } from "../parts/DemoBar";
 import { EntranceView } from "../parts/EntranceView";
@@ -72,17 +74,20 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   /** 話している・書いている途中か（届いた時点でも確かめる。読み直しの最中に話し始めたら、その回の結果を捨てる） */
   const busyNow = useRef(false);
 
+  /** 一覧の読み込み（古い結果で新しい結果を上書きしない・読み込み中に乗る。0052） */
+  const [feedRead] = useState(() => feedReader(() => api.getFeed()));
   const loadFeed = useCallback(async (): Promise<AlbumItem[] | null> => {
     try {
-      const { items } = await api.getFeed();
-      setFeed(items);
+      const { value, n } = await feedRead.read();
+      if (!feedRead.accept(n)) return null;
+      setFeed(value.items);
       setFeedError(null);
-      return items;
+      return value.items;
     } catch (e) {
       setFeedError(e);
       return null;
     }
-  }, []);
+  }, [feedRead]);
 
   useEffect(() => {
     let alive = true;
@@ -122,7 +127,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
     const startedAt = Date.now();
     const current = () => round === loadRound.current && !busyNow.current;
     void refreshQuietly(
-      { entrance: () => api.todayEntrance(), feed: () => api.getFeed() },
+      { entrance: () => api.todayEntrance(), feed: () => feedRead.read() },
       {
         entrance: ({ entrance: next }) => {
           if (!current()) return;
@@ -137,16 +142,33 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
           setEntranceError(null);
           loadedAt.current = startedAt;
         },
-        feed: ({ items }) => {
+        feed: ({ value, n }) => {
           if (!current()) return;
-          setFeed(items);
+          if (!feedRead.accept(n)) return;
+          setFeed(value.items);
           setFeedError(null);
         },
       },
     ).finally(() => {
       refreshing.current = false;
     });
-  }, [clearRetake]);
+  }, [clearRetake, feedRead]);
+
+  // 文字起こしを待つ声の語りがある間の静かな読み直し（0052）。読めなかったら黙って前を残す。
+  // 話している・書いている途中でも止めない（語りは ID で描くので、欄・録音・取り直しは一覧の差し替えで壊れない）。
+  // ただし返事の欄を開いている語りが消えた一覧は当てない（欄が消えないように）
+  const openReplyNow = useRef<string | null>(null);
+  openReplyNow.current = openReplyId;
+  const followRead = useCallback(
+    () =>
+      feedRead.shared().then(({ value, n }) => {
+        if (!keepsOpenReply(value.items, openReplyNow.current) || !feedRead.accept(n)) return;
+        setFeed(value.items);
+        setFeedError(null);
+      }),
+    [feedRead],
+  );
+  useTranscriptFollow(feed, followRead);
 
   const nameOf = (id: string) => view.members.find((m) => m.id === id)?.calledAs ?? "";
   const w = words.screen[variant];
@@ -231,10 +253,13 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   let dock = null;
   if (tab === "today") {
     const todays = entrance && feed?.find((it) => it.photo.id === entrance.photo.id);
-    // もう答えたか（この端末の人の、今日の入り口への語りがある）。答えた後は段に置かず、問いかけの下に戻す
+    // もう答えたか（この端末の人の、今日の入り口への語りがある）。答えた後は段に置かず、問いかけの下に戻す。
+    // 段で答えている間は、一覧の読み直しで「答えた」に替えない（別の端末から答えた語りが届いても、書きかけ・録音中の段を消さない。0052）
     const answered =
       answeredHere ||
-      (!!entrance && !!todays?.narrations.some((n) => n.entranceId === entrance.id && n.speakerMemberId === me.id));
+      (!dockComposing &&
+        !!entrance &&
+        !!todays?.narrations.some((n) => n.entranceId === entrance.id && n.speakerMemberId === me.id));
     // ほかの入力欄（語りへの返事。ボタンを選ぶ前も含む）が開いている間は段を描かない。段の中で書いている間は段を残す（書きかけを消さない）
     const place = answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null));
     // 祖父母の画面では、今の話者の呼ばれ方を答えのボタンのすぐそばにも出す（0008）
