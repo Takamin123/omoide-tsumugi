@@ -171,12 +171,12 @@ async function normalized(familyId: string) {
 }
 
 describe("種そのもの", () => {
-  it("台本の 4 人・写真 12 枚・語り 12 本・固定の入り口 2 つ", () => {
+  it("台本の 4 人・写真 12 枚・語り 11 本・固定の入り口 4 つ（n12 は撮影で送る。2026-11-04）", () => {
     expect(SEED_MEMBERS.map((m) => `${m.calledAs}:${m.role}`)).toEqual(["じいちゃん:elder", "お母さん:family", "まさとおじさん:family", "ゆい:family"]);
     expect(SEED_PHOTOS).toHaveLength(12);
-    expect(SEED_NARRATIONS).toHaveLength(12);
-    expect(SEED_NARRATIONS.filter((n) => n.kind === "voice").map((n) => n.label)).toEqual(["n1", "n7", "n8", "n12"]);
-    expect(SEED_ENTRANCES.map((e) => e.label)).toEqual(["E1", "E2"]);
+    expect(SEED_NARRATIONS).toHaveLength(11);
+    expect(SEED_NARRATIONS.filter((n) => n.kind === "voice").map((n) => n.label)).toEqual(["n1", "n7", "n8"]);
+    expect(SEED_ENTRANCES.map((e) => e.label)).toEqual(["E1", "E2", "E3", "E4"]);
   });
 
   it("声の語りの整えた文字は、本物の Haiku の結果で、アプリと同じ検査を通る（モデルと版つき）", () => {
@@ -188,7 +188,7 @@ describe("種そのもの", () => {
       expect(c.cleanedPromptVersion).toMatch(/^clean_transcript\/v\d+$/);
     }
     // 文字の語りには整えた文字を作らない
-    expect(Object.keys(SEED_CLEANED).sort()).toEqual(["n1", "n12", "n7", "n8"]);
+    expect(Object.keys(SEED_CLEANED).sort()).toEqual(["n1", "n7", "n8"]);
   });
 
   it("入り口への答えは入り口と同じ写真、返事は同じ写真の語りへ。語りの日は入り口の日の中で入り口の後", () => {
@@ -383,7 +383,7 @@ describe("戻した後の状態", () => {
       familyId: f.familyId,
       asOfDate: AS_OF,
       deleted: { files: 3, rows: Object.fromEntries(DEMO_RESET_TABLES.map((n) => [n, 1])) },
-      inserted: { photos: 12, narrations: 12, entrances: 2, files: 16 },
+      inserted: { photos: 12, narrations: 11, entrances: 4, files: 15 },
     });
     // 返すのは ID と件数だけ（名前・本文・鍵を返さない）
     const text = JSON.stringify(body);
@@ -393,7 +393,7 @@ describe("戻した後の状態", () => {
 
     const d = await dumpFamily(f.familyId);
     expect(d.photos).toHaveLength(12);
-    expect(d.narrations).toHaveLength(12);
+    expect(d.narrations).toHaveLength(11);
     // 推測の表は空（photo_guess_requests は最後の毎朝の処理が作業の行を置くので、古い行が残っていないことだけを見る）
     for (const n of ["records", "record_extractions", "musubi", "musubi_photos", "musubi_guess_runs", "photo_guesses"]) expect(d[n], n).toEqual([]);
     const photoIds = new Set((d.photos as any[]).map((r) => r.id));
@@ -504,8 +504,8 @@ describe("戻した後の状態", () => {
     expect(await normalized(f.familyId)).toEqual(first);
     expect(await r2Keys(`families/${f.familyId}/`)).toHaveLength(keys1.length);
     // 二度目は、一度目に入れた行（と今日の入り口）を消す
-    expect(second.deleted.rows).toMatchObject({ photos: 12, narrations: 12, entrances: 6 });
-    expect(second.deleted.files).toBe(16);
+    expect(second.deleted.rows).toMatchObject({ photos: 12, narrations: 11, entrances: 8 });
+    expect(second.deleted.files).toBe(15);
   });
 
   // 画面の「〜あたり」は test/client/photo-facts.test.ts（入り口）と test/client/photo-viewer.test.ts（拡大の画面。同じ地名で）
@@ -570,9 +570,11 @@ describe("戻した後の状態", () => {
     expect((await reset(t, f.familyId)).status).toBe(200);
     const feed = (await (await t.app.request("/api/feed", { headers: { Cookie: f.cookie } })).json()) as any;
     const all = feed.items.flatMap((i: any) => i.narrations);
-    expect(all).toHaveLength(12);
+    expect(all).toHaveLength(11);
     const threads = all.filter((n: any) => n.quotedFrom).map((n: any) => n.quotedFrom.text);
-    expect(threads.sort()).toEqual(SEED_ENTRANCES.map((e) => e.quote.text).sort());
+    // 言葉の糸が付くのは答えのある入り口（E1・E2）だけ。E3・E4 はじいちゃんがまだ答えていない入り口
+    const answered = new Set(SEED_NARRATIONS.map((n) => n.entrance).filter(Boolean));
+    expect(threads.sort()).toEqual(SEED_ENTRANCES.filter((e) => answered.has(e.label)).map((e) => e.quote.text).sort());
   });
 });
 
@@ -602,7 +604,7 @@ describe("止める（何も変えない）", () => {
   });
 
   it("種の録音が一つでも欠けていれば 409 demo_seed_missing。写した分は消え、何も変わらない", async () => {
-    await putSeedAssets({ skipVoice: "n12" });
+    await putSeedAssets({ skipVoice: "n8" });
     const t = appWithR2();
     const f = await demoFamily(t);
     await dirty(f.familyId);
@@ -684,7 +686,7 @@ describe("守りと失敗の道", () => {
     expect(((await res.json()) as any).morning).toBeNull();
     const d = await dumpFamily(f.familyId);
     expect(d.photos).toHaveLength(12);
-    expect(d.narrations).toHaveLength(12);
+    expect(d.narrations).toHaveLength(11);
     const failed = logs.find((l) => l.event === "demo_reset" && l.status === "morning_failed");
     expect(failed).toMatchObject({ kind: "morning_all_failed" });
     expect(JSON.stringify(failed)).not.toContain("db down");

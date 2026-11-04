@@ -21,11 +21,5 @@ export const SEED_CLEANED: Record<string, NarrationCleaned> = {
     "uncertainSpans": [],
     "cleanedModel": "claude-haiku-5-5",
     "cleanedPromptVersion": "clean_transcript/v2"
-  },
-  "n12": {
-    "cleanedText": "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。",
-    "uncertainSpans": [],
-    "cleanedModel": "claude-haiku-5-5",
-    "cleanedPromptVersion": "clean_transcript/v2"
   }
 };

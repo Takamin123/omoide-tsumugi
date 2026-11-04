@@ -63,6 +63,6 @@ describe.skipIf(!apiKey)("デモの種: 声の語りの整形", () => {
     ].join("\n");
     fs.writeFileSync(file, body);
     console.log(`wrote ${path.relative(repoRoot, file)}`);
-    expect(Object.keys(out).sort()).toEqual(["n1", "n12", "n7", "n8"]);
+    expect(Object.keys(out).sort()).toEqual(["n1", "n7", "n8"]);
   });
 });

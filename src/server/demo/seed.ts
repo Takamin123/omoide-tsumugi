@@ -70,7 +70,6 @@ export const SEED_VOICE_DURATION_MS: Record<string, number | null> = {
   n1: 18240,
   n7: 12139,
   n8: 12308,
-  n12: 8746,
 };
 
 export const SEED_MEMBERS: readonly SeedMember[] = [
@@ -124,6 +123,26 @@ export const SEED_ENTRANCES: readonly SeedEntrance[] = [
     createdAt: "03:00",
     shownAt: "09:00",
     quote: { narration: "n3", text: "ばあちゃんが『ゆいが先に食べな』って、自分の分まで鍋に入れてくれた" },
+  },
+  // じいちゃんに出して、まだ答えていない入り口（人間の承認、2026-11-04）。7 日以内に出した写真は候補から外れるので、
+  // 撮影の朝にじいちゃんへ大きな木の写真（P8）が届く筋になる（出し比べ: P8 が 5/5。Claude の出力は差し替えない）
+  {
+    label: "E3",
+    member: "じいちゃん",
+    photo: "P5",
+    daysAgo: 3,
+    createdAt: "03:00",
+    shownAt: "09:10",
+    quote: { narration: "n4", text: "舟盛りが出てきたとき、じいちゃんが一番に『写真撮っとけ』って言った。" },
+  },
+  {
+    label: "E4",
+    member: "じいちゃん",
+    photo: "Y1",
+    daysAgo: 1,
+    createdAt: "03:00",
+    shownAt: "09:05",
+    quote: { narration: "n9", text: "父さんはもう田んぼには出ないけど、毎朝この道を歩いて、苗の伸び具合を見に来る。" },
   },
 ];
 
@@ -217,8 +236,8 @@ export const SEED_NARRATIONS: readonly SeedNarration[] = [
     photo: "Y1",
     speaker: "ゆい",
     kind: "text",
-    daysAgo: 1,
-    at: "07:45",
+    daysAgo: 2,
+    at: "21:00",
     replyTo: "n9",
     text: "夏休み、じいちゃんと一緒にこの道を歩きたい。",
   },
@@ -229,16 +248,6 @@ export const SEED_NARRATIONS: readonly SeedNarration[] = [
     kind: "text",
     daysAgo: 1,
     at: "12:30",
-    text: "二日目の朝、大きな木の前で父が長いこと手を合わせてた。何をお願いしたのか聞いたら、内緒って笑ってた。",
-  },
-  {
-    label: "n12",
-    photo: "P8",
-    speaker: "じいちゃん",
-    kind: "voice",
-    daysAgo: 1,
-    at: "16:10",
-    replyTo: "n11",
-    text: "あのときお願いしたのはな、みんなが元気で、また一緒に旅行できますように、って。今だから言うけど。",
+    text: "二日目の朝、大きな木の前で長いこと手を合わせてた父に、何をお願いしたのか聞いたら、内緒って笑ってた。",
   },
 ];

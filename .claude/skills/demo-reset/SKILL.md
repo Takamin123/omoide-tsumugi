@@ -40,7 +40,7 @@ argument-hint: "[local|preview|production] <デモの家族の ID>"
 
 ### 1. 素材を R2 に置く（初回と、素材を替えたとき）
 
-- 元のファイルは、リポジトリの**外**に置く: 写真は `~/omoide-demo-seed/prepared/`（向きを直し、長い辺 1600px、EXIF なし）、録音は `~/omoide-demo-seed/voice/`（n1・n7・n8・n12。m4a・mp3・wav のどれか）
+- 元のファイルは、リポジトリの**外**に置く: 写真は `~/omoide-demo-seed/prepared/`（向きを直し、長い辺 1600px、EXIF なし）、録音は `~/omoide-demo-seed/voice/`（n1・n7・n8。m4a・mp3・wav のどれか。n12 は種に入れず、撮影でデモの帯の「録音済みの音声を送る」から送る）
 - 写真のファイル名と R2 の鍵は `seed.ts` の SEED_PHOTOS の `file` に合わせる。写真を替えたら content_hash・幅・高さも seed.ts で直す
 - 置く先: 写真は `demo/seed/photos/<ファイル名>`、録音は `demo/seed/voice/<語りの印>`（拡張子なし）。**種類（--content-type）を必ず付ける**（写真は image/jpeg、録音は audio/mp4・audio/mpeg・audio/wav）。種類が合わないと demo_seed_missing で止まる
 
@@ -50,7 +50,7 @@ for f in ~/omoide-demo-seed/prepared/*.jpg; do
   npx wrangler r2 object put "omoide-tsumugi/demo/seed/photos/$(basename "$f")" --file "$f" --content-type image/jpeg --local
 done
 npx wrangler r2 object put omoide-tsumugi/demo/seed/voice/n1 --file ~/omoide-demo-seed/voice/n1.m4a --content-type audio/mp4 --local
-# n7・n8・n12 も同じ
+# n7・n8 も同じ
 
 # preview: バケットは omoide-tsumugi-preview、--env preview --remote
 # production: バケットは omoide-tsumugi、--remote
