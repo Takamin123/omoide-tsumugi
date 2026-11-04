@@ -209,6 +209,16 @@ export type Narration = {
 export type QuotedFrom = { narrationId: string; speakerMemberId: string; text: string | null };
 export type FeedNarration = Narration & { quotedFrom: QuotedFrom | null };
 
+/** 「とりなおす」でサーバーが声の語りを消せる、送ってからの時間（0050） */
+export const RETAKE_WINDOW_MS = 10 * 60_000;
+/** 「とりなおす」のボタンを出しておく時間。サーバーの期限より短くして、押した瞬間の期限切れを防ぐ（0050） */
+export const RETAKE_SHOW_MS = 5 * 60_000;
+
+// DELETE /api/narrations/:id → 204（「とりなおす」。0050）
+//   消せるのは、この端末の人が送った声の語りで、送って RETAKE_WINDOW_MS 以内、かつ返事・入り口の引用／入力・記録・記録の取り出し・
+//   むすびの根拠のどれにも使われていないものだけ。それ以外・ほかの家族・ないもの・文字の語りは、すべて 404 not_found（区別しない）。
+//   行を消してから録音のファイルを消す
+
 // GET /api/narrations?photoId= → { narrations: Narration[] }
 // GET /api/feed → { items: { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] }[] }
 //   addedPhotos: その写真と同じ家族の手のむすび（created_by = family）にいる、confirmed のほかの写真（0048）。古く足した順。
