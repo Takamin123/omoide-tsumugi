@@ -14,7 +14,7 @@ import { bytesToBase64, notConfiguredClaude } from "./claude";
 import { QUESTION_MAX_CHARS, charCount, exceedsChars, findTestingPhrase } from "./claude-checks";
 import { displayText, locateQuote, quoteSource } from "./clean-transcript";
 import { addDays } from "./clock";
-import { compareTaken, ensureFixedEntrance, type EnsureResult } from "./entrances";
+import { ENTRANCE_NO_REPEAT_DAYS, compareTaken, ensureFixedEntrance, shownSince, type EnsureResult } from "./entrances";
 import type {
   AppDeps,
   ClaudeCallResult,
@@ -212,6 +212,8 @@ export interface EntranceCandidate {
  * 3. 自分の写真で、まだ出していないもの（撮影日の古い順）
  * 4. 最後に出したのがいちばん古いもの
  * 前の ENTRANCE_RECENT_DAYS 日に出した写真は、0・1 以外では候補にしない。forDate 以降の入り口は数えない
+ * 前の ENTRANCE_NO_REPEAT_DAYS 日に出した写真は、0 以外では候補にしない（0057）。ただし家族の写真がそれしかないときは外さない。
+ * ほかに写真があって候補が 0 枚になるときは 0 枚のまま返し、固定の入り口（前の日の写真を避ける）に任せる
  * avoidPhotoIds（同じ家族で、今日すでにほかの人の入り口に出した写真）は 0〜4 から外す。
  * 外すと 0 枚になるなら外さない（元の並び）。重ねないのは「なるべく」（0042）
  */
@@ -256,6 +258,9 @@ export function pickEntranceCandidates(
     }
   }
   const recentFrom = addDays(forDate, -ENTRANCE_RECENT_DAYS);
+  const noRepeat = shownSince(past, addDays(forDate, -ENTRANCE_NO_REPEAT_DAYS), forDate);
+  // 家族の写真がすべて前の日に出したものなら、外さない（写真が 1 枚の家族でも入り口を作る）
+  if (photos.every((p) => noRepeat.has(p.id))) noRepeat.clear();
   const byTaken = [...photos].sort(compareTaken);
 
   const links = sameEventLinks(musubi, new Set(photos.map((p) => p.id)));
@@ -274,6 +279,8 @@ export function pickEntranceCandidates(
       g0.push(p);
       continue;
     }
+    // 前の日に出した写真は、g0 のほかは候補にしない（0057）
+    if (noRepeat.has(p.id)) continue;
     // 1a: 同じむすびの別の写真について、この人が最後に出した後に語っている
     if (told !== undefined && (!s || s.lastDate < recentFrom)) {
       let best: { confirmed: boolean; talkedAt: number } | null = null;

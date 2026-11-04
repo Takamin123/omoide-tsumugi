@@ -82,11 +82,12 @@ describe("pickEntranceCandidates: 0017 の順と、前の 7 日の除外", () =>
     const photos = [photo("recent", "x"), photo("recent-told", "x"), photo("eight-days", "x")];
     const past = [
       { photoId: "recent", forDate: "2026-10-27", createdAt: day("2026-10-27") },
-      { photoId: "recent-told", forDate: "2026-11-02", createdAt: day("2026-11-02") },
+      // 前の日に出した写真は 0057 で外れるので、2 日前に出したものにする
+      { photoId: "recent-told", forDate: "2026-11-01", createdAt: day("2026-11-01") },
       { photoId: "eight-days", forDate: "2026-10-26", createdAt: day("2026-10-26") },
     ];
     const narrations = [
-      { photoId: "recent-told", speakerMemberId: "x", createdAt: day("2026-11-02") + 1000 },
+      { photoId: "recent-told", speakerMemberId: "x", createdAt: day("2026-11-01") + 1000 },
       // 自分の語りは数えない
       { photoId: "recent", speakerMemberId: me, createdAt: day("2026-11-02") },
     ];
