@@ -9,6 +9,7 @@ import {
   isV3Entrance,
   jstDateTime,
   monthDay,
+  musubiOriginLabel,
   musubiStatusLabel,
   NARRATION_HEAD_CHARS,
   passedMusubi,
@@ -257,7 +258,7 @@ export function V3Guess({
       {passed.length === 0 && <p className="sub">渡したむすびはありません。</p>}
       {passed.map((it, i) =>
         it.musubi ? (
-          <ul className="musubi" key={`${i}-${it.id}`} aria-label={`むすび ${i + 1}`}>
+          <ul className="musubi" key={`${i}-${it.id}`} aria-label={`むすび ${i + 1}（${musubiOriginLabel(it.musubi.createdBy)}）`}>
             {it.musubi.photos.map((mp) => {
               const p = photoOf.get(mp.photoId);
               const no = numberOf.get(mp.photoId);

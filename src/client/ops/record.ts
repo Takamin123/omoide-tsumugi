@@ -245,6 +245,9 @@ export function passedMusubi(ids: readonly string[] | null, musubi: readonly Ops
   return (ids ?? []).map((id) => ({ id, musubi: byId.get(id) ?? null }));
 }
 
+/** むすびを作ったのは誰か（0048）。家族の手は「この写真に追加する」 */
+export const musubiOriginLabel = (c: OpsMusubi["createdBy"]): string => (c === "family" ? "家族がつないだ" : "機械の推測");
+
 export const musubiStatusLabel = (s: OpsMusubi["photos"][number]["status"]): string =>
   s === "confirmed" ? "家族が確かめた" : s === "rejected" ? "家族が外した" : "推測";
 
