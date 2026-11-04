@@ -177,6 +177,8 @@ describe("アルバム", () => {
       "1979年4月1日",
       "1987年8月1日",
       words.home.reply,
+      // 家族の画面の節の末尾のボタン（0048）
+      words.home.addToPhoto,
       ...words.home.albumPositionParts(1, 4),
       ...[1, 2, 3, 4].map((at) => words.home.albumOrdinal(at)),
     ]);

@@ -987,6 +987,118 @@ nav.top button {
   }
 }
 
+/*
+ * 「この写真に追加する」（0048。家族の画面だけ）。節の末尾、語りの後に区切りの線をはさんで置く（見出し＋語り一つの高さは変えない）。
+ * 追加した写真の列は見出しの小さい写真と同じ 48px 角・同じ見た目。間 8px で、入らなければ次の行へ（横に動かさない）
+ */
+.add-to-photo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tap-gap);
+  padding: 0.75rem 0.25rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.add-to-photo > p,
+.add-status > p {
+  margin: 0;
+}
+
+.add-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.add-status:empty {
+  display: none;
+}
+
+.add-progress {
+  width: 100%;
+  height: 1.5rem;
+}
+
+.added-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.added-photo {
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.added-photo .photo-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.added-photo .photo {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  background: var(--line);
+}
+
+/* 今回追加した写真は、その場に置かれるように現れる（位置・大きさ・透明度だけ） */
+.added-photo.fresh {
+  animation: added-photo-in 0.25s ease-out both;
+}
+
+@keyframes added-photo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ボタン（label）。「返事」と同じ重さの白い枠で左寄せ。押した瞬間に沈める */
+/* 幅 360px・文字 150% でも一行に収まるよう横の余白を詰める。入らないときは言葉の切れ目（\u200B）でだけ折る */
+.add-pick {
+  padding-inline: 0.5rem;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.add-pick[data-pressed] {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.add-pick:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 送っている間は押せない（文字を薄くせず、点線の枠で示す。マイクを待つ間と同じ見せ方） */
+.add-pick.disabled {
+  border-style: dashed;
+  color: var(--text-sub);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .added-photo.fresh {
+    animation: none;
+  }
+  .add-pick {
+    transition: none;
+  }
+}
+
 .album-tail {
   display: flex;
   flex-direction: column;

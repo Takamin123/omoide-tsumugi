@@ -1,6 +1,6 @@
 // 家族に見せる、アプリの固定の言葉。すべてここに置く（docs/implementation-policy.md 1）。
 // 短く、素っ気ないくらいに。相づち、励まし、感想、AI を前に出す言葉、試す言葉を入れない。
-import type { ErrorKind, TimeSlot } from "../shared/api";
+import { MAX_ADD_TO_PHOTO, type ErrorKind, type TimeSlot } from "../shared/api";
 
 /** 録音の長さ（lib/pure.ts の voiceLength が作る） */
 type VoiceLength = { minutes: number; seconds: number };
@@ -71,7 +71,8 @@ const homeWords = {
   send: "送る",
   cancel: "やめる",
   menuFamily: "家族のこと",
-  menuPhotos: "写真を足す",
+  /** 写真の棚へのまとめ登録（どの写真ともつながらない）。画面の見出しと同じ語（人間、2026-11-04） */
+  menuPhotos: "写真を家族に共有する",
   menuHome: "もどる",
   /** 読み上げだけの名前（見えない）。上のメニュー、下のタブ、アルバムの写真の帯 */
   menuLabel: "メニュー",
@@ -88,12 +89,24 @@ const homeWords = {
   /** アルバムの矢印。見た目は矢印だけ。画面の向きで言う（新しい順なので「前」「次」は使わない） */
   albumPrev: "左の写真へ",
   albumNext: "右の写真へ",
-  /** アルバムのいま何枚目か。写真を足すの「12枚のうち 5枚」と同じ形 */
+  /** アルバムのいま何枚目か。写真を共有する画面の「12枚のうち 5枚」と同じ形 */
   albumPosition: (at: number, total: number) => progressText(at, total),
   /** 同じ文を、折ってよい所（空白）で二つに分けたもの。画面ではこの間でだけ折る */
   albumPositionParts: (at: number, total: number) => progressText(at, total).split(" ") as [string, string],
   /** 語りの欄の見出しの何枚目か。帯の「4枚のうち 2枚」と同じ数え方（1 から、同じ並び）の短い形（0041） */
   albumOrdinal: (at: number) => `${at}枚目`,
+  // 「この写真に追加する」（アルバムの各写真の節の末尾。家族の画面だけ。0048。言葉は人間、2026-11-04）。
+  // 求める文、「つながりました」「同じ出来事」、お礼、！は出さない。数と進み具合は photos の語を使う
+  /** 写真の節の末尾のボタン（「返事」と同じ重さ）。幅が足りないときは言葉の切れ目（\u200B）でだけ折る */
+  addToPhoto: "この写真に\u200B追加する",
+  /** 追加した写真の列の読み上げの名前（見えない） */
+  addedPhotosLabel: "追加した写真",
+  /** 終わった後の数（今回この写真につないだ枚数） */
+  addedCount: (n: number) => `追加した写真 ${n}枚`,
+  /** 今回つないだ写真を外す */
+  removeAdded: "はずす",
+  /** 選んだ枚数が多すぎたとき（一枚も送らない） */
+  addLimit: `一度に追加できるのは ${MAX_ADD_TO_PHOTO}枚までです`,
 };
 
 export const words = {
@@ -190,13 +203,15 @@ export const words = {
 
   // 写真
   photos: {
-    title: "写真を足す",
+    title: homeWords.menuPhotos,
     pick: "写真を選ぶ",
     progress: (done: number, total: number) => progressText(done, total),
     added: (n: number) => `登録した写真 ${n}枚`,
     duplicate: (n: number) => `すでにある写真 ${n}枚`,
     unreadable: (n: number) => `読めなかった写真 ${n}枚`,
     failed: (n: number) => `送れなかった写真 ${n}枚`,
+    /** 登録した写真が 1 枚以上のとき、「登録した写真 n枚」の下に一行（入れた写真がすぐ見えない戸惑いを防ぐ。求める文にしない。人間、2026-11-04） */
+    delivery: "毎朝 1枚ずつ、家族の『今日』に届きます",
   },
 
   elder: elderWords,

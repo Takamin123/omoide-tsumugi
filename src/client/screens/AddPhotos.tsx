@@ -1,31 +1,11 @@
-// /photos: 写真の一括登録。一枚ずつ順に、EXIF → SHA-256 → 縮小 → 送る
+// /photos: 写真を家族に共有する（棚へのまとめ登録。どの写真ともつながらない）。一枚ずつ順に、EXIF → SHA-256 → 縮小 → 送る（lib/upload.ts）
 import { useState } from "react";
-import { api, ApiError } from "../lib/api";
 import { errorText } from "../lib/errors";
-import { preparePhoto, UnreadableImageError } from "../lib/photos";
 import { emptyTally, tallyOne, type UploadTally } from "../lib/pure";
 import { navigate } from "../lib/route";
+import { shelfOutcome, uploadOne } from "../lib/upload";
 import { ErrorLine } from "../parts/ErrorLine";
 import { words } from "../words";
-
-type Outcome = "added" | "duplicate" | "unreadable" | "failed";
-
-async function uploadOne(file: File): Promise<Outcome> {
-  let prepared;
-  try {
-    prepared = await preparePhoto(file);
-  } catch (e) {
-    if (e instanceof UnreadableImageError) return "unreadable";
-    return "failed";
-  }
-  try {
-    const res = await api.uploadPhoto(prepared.blob, prepared.meta);
-    return res.duplicate ? "duplicate" : "added";
-  } catch (e) {
-    if (e instanceof ApiError && e.kind === "unauthorized") throw e;
-    return "failed";
-  }
-}
 
 export function AddPhotos() {
   const [tally, setTally] = useState<UploadTally | null>(null);
@@ -41,7 +21,7 @@ export function AddPhotos() {
     setTally(t);
     try {
       for (const file of files) {
-        t = tallyOne(t, await uploadOne(file));
+        t = tallyOne(t, shelfOutcome(await uploadOne(file, undefined)));
         setTally(t);
       }
     } catch (e) {
@@ -80,7 +60,12 @@ export function AddPhotos() {
           <progress max={tally.total} value={tally.done} style={{ width: "100%", height: "1.5rem" }} />
           {!busy && (
             <>
-              {tally.added > 0 && <p className="sub">{w.added(tally.added)}</p>}
+              {tally.added > 0 && (
+                <>
+                  <p className="sub">{w.added(tally.added)}</p>
+                  <p className="sub">{w.delivery}</p>
+                </>
+              )}
               {tally.duplicate > 0 && <p className="sub">{w.duplicate(tally.duplicate)}</p>}
               {tally.unreadable > 0 && <p className="sub">{w.unreadable(tally.unreadable)}</p>}
               {tally.failed > 0 && <p className="sub">{w.failed(tally.failed)}</p>}
