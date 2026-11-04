@@ -226,9 +226,18 @@ export const RETAKE_SHOW_MS = 5 * 60_000;
 //   行を消してから録音のファイルを消す
 
 // GET /api/narrations?photoId= → { narrations: Narration[] }
-// GET /api/feed → { items: { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] }[] }
-//   addedPhotos: その写真と同じ家族の手のむすび（created_by = family）にいる、confirmed のほかの写真（0048）。古く足した順。
-//   機械の推測のむすび（guessed）は一切出さない（新しい語りのある写真から順）
+/**
+ * GET /api/feed → FeedResult（新しい語りのある写真から順）
+ *   addedPhotos: その写真と同じ家族の手のむすび（created_by = family）にいる、confirmed のほかの写真（0048）。古く足した順。
+ *   機械の推測のむすび（guessed）は一切出さない
+ *   repliesSeenAt: この端末の人が最後に「返事」のタブを開いた時刻（UTC のミリ秒。サーバーの時刻）。null はまだ一度も開いていない（すべて未読）。0058
+ *   「返事」のタブの一覧と未読の数は、クライアントが items と repliesSeenAt から src/shared/replies.ts で作る（サーバーは数を返さない）
+ */
+export type FeedItem = { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] };
+export type FeedResult = { items: FeedItem[]; repliesSeenAt: number | null };
+
+// POST /api/replies/seen → 204（本文なし。0058）
+//   この端末の人の repliesSeenAt を、サーバーの今の時刻にする（クライアントの時刻は受け取らない）。返事のタブを開いたときに呼ぶ
 
 // ---- 入り口 ----
 
