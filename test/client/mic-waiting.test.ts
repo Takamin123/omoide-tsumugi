@@ -14,7 +14,8 @@ vi.mock("../../src/client/parts/VoiceRecorder", () => ({
 const load = (name: string): Promise<any> => import(name);
 const { createElement: h } = await load("react");
 const { renderToStaticMarkup } = await load("react-dom/server");
-const { ReplyBox } = await load("../../src/client/parts/ReplyBox");
+const ReplyBoxModule = await load("../../src/client/parts/ReplyBox");
+const { ReplyBox } = ReplyBoxModule;
 const { Narrations } = await load("../../src/client/parts/Narrations");
 const { EntranceView } = await load("../../src/client/parts/EntranceView");
 const { ScreenContext } = await load("../../src/client/lib/screen");
@@ -193,5 +194,29 @@ describe("マイクの許可を待つ一回ごとの決まり（lib/mic-start.ts
     expect(src).toContain("if (mic.pending || rec.current) return;");
     expect(src).toMatch(/unmounted\.current = true;[\s\S]{0,120}mic\.cancel\(\);/);
     expect(src).toMatch(/function cancel\(\) \{\s*mic\.cancel\(\);/);
+  });
+});
+
+describe("段が替わったときの操作の位置（押したボタンが消えても、次の段の主なボタンへ移す）", () => {
+  const { focusFollows } = ReplyBoxModule;
+  const box = { contains: (el: unknown) => el === inside } as unknown as Element;
+  const body = { id: "body" } as unknown as Element;
+  const inside = { id: "inside" } as unknown as Element;
+  const outside = { id: "outside" } as unknown as Element;
+  it("位置が失われた（body・なし）か、欄の中なら移す。ほかの場所を触っているなら奪わない", () => {
+    expect(focusFollows(body, body, box)).toBe(true);
+    expect(focusFollows(null, body, box)).toBe(true);
+    expect(focusFollows(inside, body, box)).toBe(true);
+    expect(focusFollows(outside, body, box)).toBe(false);
+    expect(focusFollows(body, body, null)).toBe(false);
+  });
+  it("待つ間・録っている間・選ぶ段の主なボタンに、移す先の印（primaryRef）が付いている", () => {
+    const src = fs.readFileSync(path.join(repoRoot, "src/client/parts/ReplyBox.tsx"), "utf8");
+    expect(src).toContain(`<button ref={primaryRef} type="button" className="primary mic-waiting phrase-break" aria-disabled="true">`);
+    expect(src).toContain(`<button ref={primaryRef} type="button" className="primary stop" aria-pressed="true" onClick={rec.toggle}>`);
+    expect(src).toMatch(/ref=\{primaryRef\}\s+type="button"\s+className=\{rec\.recording \? "primary stop" : "primary"\}/);
+    expect(src.match(/ref=\{primaryRef\}/g)?.length).toBe(7);
+    // 送っている間も段に数える（祖父母の画面で「おわる」→ 送れた の後、「はなす」に戻る）
+    expect(src).toContain('`${mode}${failed ? "-failed" : busy ? "-busy" : ""}`');
   });
 });

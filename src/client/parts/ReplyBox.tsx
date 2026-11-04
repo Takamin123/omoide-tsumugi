@@ -4,8 +4,9 @@
 // 選んだ後にもう一度「話す」を押させない（二度押さないと録り始めないのは分かりにくい。人間、2026-11-04）。
 // マイクの許可を待っている間（押した後、録り始める前）は、録るボタンの場所を押せない形にして「マイクを準備しています」を出す（両画面。0008 の追記）。
 // 文字・声の形が開いている間は、画面に「入力中」を知らせる（下のタブを隠す）。
+// 段が替わる（押したボタンが消える）ときは、操作の位置を次の段の主なボタンへ移す（読み上げが新しい段を読む。消えたボタンで位置を失わない）。
 // 送ったら入力欄を閉じる。「送りました」は呼ぶ側が出す（今日の答えは Home、返事は Narrations）。
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
 import { useComposing } from "../lib/composing";
 import { errorText } from "../lib/errors";
@@ -55,6 +56,18 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
     onComposing?.(open);
     return () => onComposing?.(false);
   }, [open, onComposing]);
+
+  // 段が替わったら、操作の位置を次の段の主なボタンへ移す。移すのは、位置が失われた（押したボタンが消えた）か、この欄の中にあるときだけ（ほかの場所を触っている人から奪わない）
+  const boxRef = useRef<HTMLDivElement>(null);
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  // 送っている間も段に数える（押したボタンが送る間に押せなくなって位置が落ち、送り終えても段が替わらず戻らないのを防ぐ。祖父母の画面の「おわる」→ 送れた）
+  const step = rec.starting ? "starting" : rec.recording ? "recording" : `${mode}${failed ? "-failed" : busy ? "-busy" : ""}`;
+  const lastStep = useRef(step);
+  useEffect(() => {
+    if (lastStep.current === step) return;
+    lastStep.current = step;
+    if (focusFollows(document.activeElement, document.body, boxRef.current)) primaryRef.current?.focus();
+  }, [step]);
 
   const close = () => {
     setMicError(false);
@@ -108,7 +121,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
     // 「やめる」は両画面・今日の答えでも出す（許可の表示が決着しないまま残るブラウザで、抜け出す道をなくさない）
     body = (
       <>
-        <button type="button" className="primary mic-waiting phrase-break" aria-disabled="true">
+        <button ref={primaryRef} type="button" className="primary mic-waiting phrase-break" aria-disabled="true">
           {w.micWaiting}
         </button>
         <button type="button" className="aux" onClick={close}>
@@ -122,7 +135,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
       body = (
         <>
           {rec.elapsed !== null && <RecordingTime elapsed={rec.elapsed} />}
-          <button type="button" className="primary stop" aria-pressed="true" onClick={rec.toggle}>
+          <button ref={primaryRef} type="button" className="primary stop" aria-pressed="true" onClick={rec.toggle}>
             <StopIcon />
             {w.stop}
           </button>
@@ -136,7 +149,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
             <button type="button" onClick={close}>
               {w.cancel}
             </button>
-            <button type="button" className="primary" onClick={sender.retry}>
+            <button ref={primaryRef} type="button" className="primary" onClick={sender.retry}>
               {w.send}
             </button>
           </div>
@@ -148,6 +161,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
           {mic}
           <div className="grid2 answer-choice">
             <button
+              ref={primaryRef}
               type="button"
               aria-pressed="false"
               disabled={busy}
@@ -182,7 +196,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
           <button type="button" onClick={close}>
             {w.cancel}
           </button>
-          <button type="button" className="primary" onClick={sender.retry}>
+          <button ref={primaryRef} type="button" className="primary" onClick={sender.retry}>
             {w.send}
           </button>
         </div>
@@ -193,6 +207,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
         <div className="stack">
           {rec.elapsed !== null && <RecordingTime elapsed={rec.elapsed} />}
           <button
+            ref={primaryRef}
             type="button"
             className={rec.recording ? "primary stop" : "primary"}
             onClick={rec.toggle}
@@ -213,6 +228,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
       <>
         <div className="grid2 phrase-break">
           <button
+            ref={primaryRef}
             type="button"
             disabled={busy}
             onClick={() => {
@@ -236,11 +252,17 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   }
 
   return (
-    <div className={onCancel ? "stack reply-box" : "stack answer"}>
+    <div ref={boxRef} className={onCancel ? "stack reply-box" : "stack answer"}>
       {who && <p className="who answer-who">{who}</p>}
       {body}
     </div>
   );
+}
+
+/** 段が替わったときに操作の位置を移してよいか。位置が失われた（body か、なし）か、この欄の中にあるときだけ */
+export function focusFollows(active: Element | null, body: Element, box: Element | null): boolean {
+  if (!box) return false;
+  return active === null || active === body || box.contains(active);
 }
 
 function MicIcon() {
