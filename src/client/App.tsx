@@ -45,6 +45,16 @@ export function App() {
     }
   }, []);
 
+  /** 静かに読み直す: 失敗しても今の画面のまま（家族のことを開いたとき。0053） */
+  const refresh = useCallback(async () => {
+    try {
+      const view = await api.getFamily();
+      setLoad({ state: "ready", view });
+    } catch {
+      // 前の家族の様子を残す
+    }
+  }, []);
+
   const joinToken = tokenFromJoinPath(path);
   const isCheck = CheckPage !== null && path === "/check";
   const isOps = path === "/ops/record";
@@ -127,9 +137,9 @@ export function App() {
   if (kind === "elder") return <Elder key={key} view={view} me={meMember} demo={demo} />;
   let screen;
   if (kind === "family-setup") {
-    screen = <FamilySetup view={view} me={meMember} reload={reload} />;
+    screen = <FamilySetup view={view} me={meMember} reload={reload} refresh={refresh} />;
   } else if (kind === "photos") {
-    screen = <AddPhotos />;
+    screen = <AddPhotos me={meMember} />;
   } else {
     // 家族の画面は、下のタブと重ならないよう、デモの帯を各タブのスクロールの一番下に自分で置く
     return <Home key={key} view={view} me={meMember} demo={demo} />;

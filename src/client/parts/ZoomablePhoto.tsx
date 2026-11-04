@@ -18,11 +18,13 @@ type Props = {
   canOpen?: () => boolean;
   /** 押せるか（帯の見えていない写真は -1 にしてフォーカスを渡さない） */
   tabIndex?: number;
+  /** 小さい写真を画面に近づいてから読む（一覧。0053） */
+  lazy?: boolean;
 };
 
 type State = "closed" | "open" | "closing";
 
-export function ZoomablePhoto({ photo, focus, variant, canOpen, tabIndex }: Props) {
+export function ZoomablePhoto({ photo, focus, variant, canOpen, tabIndex, lazy }: Props) {
   const [state, setState] = useState<State>("closed");
   const buttonRef = useRef<HTMLButtonElement>(null);
   const pushed = useRef(false);
@@ -80,7 +82,7 @@ export function ZoomablePhoto({ photo, focus, variant, canOpen, tabIndex }: Prop
         onPointerLeave={() => setPressed(false)}
         onClick={open}
       >
-        <PhotoImage photo={photo} focus={focus} />
+        <PhotoImage photo={photo} focus={focus} lazy={lazy} />
       </button>
       {state !== "closed" &&
         createPortal(

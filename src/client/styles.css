@@ -1105,6 +1105,39 @@ nav.top button {
   background: var(--line);
 }
 
+/*
+ * 写真を家族に共有する画面の、自分が共有した写真（0053）。アルバムの小さい写真と同じ 48px 角で折り返す（幅 360px で横にはみ出さない）。
+ * 押すと拡大の画面（0040）
+ */
+.shared-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shared-photo {
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.shared-photo .photo-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.shared-photo .photo {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  background: var(--line);
+}
+
 /* 今回追加した写真は、その場に置かれるように現れる（位置・大きさ・透明度だけ） */
 .added-photo.fresh {
   animation: added-photo-in 0.25s ease-out both;

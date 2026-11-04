@@ -1,5 +1,5 @@
-// /family: 家族の一人ひとりを足す・直す、その人のリンクを作る（0036）、家族の番号
-import { useState } from "react";
+// /family: 家族の一人ひとりを足す・直す、その人のリンクを作る（0036）、家族の番号、一人ずつ共有した写真の数（0053）
+import { useEffect, useState } from "react";
 import type { FamilyView, Member } from "../../shared/api";
 import { navigate } from "../lib/route";
 import { useMemberEditor } from "../lib/useMemberEditor";
@@ -13,14 +13,20 @@ type Props = {
   view: FamilyView;
   me: Member;
   reload: () => Promise<void>;
+  /** 家族の様子を静かに読み直す（失敗しても今の画面のまま）。開いたときに呼び、共有した写真の数を新しくする（0053） */
+  refresh: () => Promise<void>;
 };
 
-export function FamilySetup({ view, me, reload }: Props) {
+export function FamilySetup({ view, me, reload, refresh }: Props) {
   const links = useMemberLinks(reload);
   const editor = useMemberEditor(reload);
   const w = words.family;
   const [idCopied, setIdCopied] = useState(false);
   const nameOf = (id: string | null) => view.members.find((m) => m.id === id)?.calledAs ?? null;
+  // 写真を共有した後にここへ来ても、数が古いままにならないように
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   async function copyFamilyId() {
     try {
@@ -56,6 +62,8 @@ export function FamilySetup({ view, me, reload }: Props) {
                   )}
                 </div>
                 {by && <div className="sub">{words.member.setUpBy(by)}</div>}
+                {/* 共有した写真の数。0 枚の人には出さない（催促に見せない。0053） */}
+                {m.photoCount > 0 && <div className="sub">{words.photos.shared(m.photoCount)}</div>}
                 {/* 直している間は、ほかの人の「直す」を出さない（入れかけの内容を消す道を作らない。0032） */}
                 {editor.editingId === null || editor.editingId === m.id ? (
                   <div className="stack" style={{ marginTop: "var(--tap-gap)" }}>

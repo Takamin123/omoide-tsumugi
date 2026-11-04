@@ -222,6 +222,8 @@ export interface PhotoRepository {
   insertIfAbsent(row: PhotoRow): Promise<boolean>;
   get(familyId: string, photoId: string): Promise<PhotoRow | null>;
   list(familyId: string, ownerMemberId?: string): Promise<PhotoRow[]>;
+  /** 家族の写真の数を持ち主ごとに（一つの集計。0053）。写真のない人は入らない */
+  countByOwner(familyId: string): Promise<Map<string, number>>;
 }
 
 export interface NarrationRepository {

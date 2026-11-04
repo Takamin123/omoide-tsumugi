@@ -255,7 +255,7 @@ describe("言葉（人間、2026-11-04）", () => {
     expect(words.home.menuPhotos).toBe("写真を家族に共有する");
     expect(words.photos.title).toBe("写真を家族に共有する");
     expect(words.photos.delivery).toBe("毎朝 1枚ずつ、家族の『今日』に届きます");
-    expect(renderToStaticMarkup(h(AddPhotos))).toContain("<h1>写真を家族に共有する</h1>");
+    expect(renderToStaticMarkup(h(AddPhotos, { me: { id: "m-mother" } }))).toContain("<h1>写真を家族に共有する</h1>");
     // 届き方の一行は、登録した写真が 1 枚以上のときだけ、「登録した写真 n枚」のすぐ下に
     expect(read("src/client/screens/AddPhotos.tsx")).toMatch(
       /\{tally\.added > 0 && \(\s*<>\s*<p className="sub">\{w\.added\(tally\.added\)\}<\/p>\s*<p className="sub">\{w\.delivery\}<\/p>/,

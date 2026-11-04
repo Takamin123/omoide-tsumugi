@@ -458,6 +458,15 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           : eq(photos.familyId, familyId);
         return (await db.select().from(photos).where(where).orderBy(asc(photos.createdAt), asc(photos.id)).all()) as PhotoRow[];
       },
+      async countByOwner(familyId) {
+        const rows = await db
+          .select({ ownerMemberId: photos.ownerMemberId, n: sql<number>`count(*)` })
+          .from(photos)
+          .where(eq(photos.familyId, familyId))
+          .groupBy(photos.ownerMemberId)
+          .all();
+        return new Map(rows.map((r) => [r.ownerMemberId, Number(r.n)]));
+      },
     },
 
     narrations: {

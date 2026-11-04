@@ -1,17 +1,22 @@
 // /photos: 写真を家族に共有する（棚へのまとめ登録。どの写真ともつながらない）。一枚ずつ順に、EXIF → SHA-256 → 縮小 → 送る（lib/upload.ts）
-import { useState } from "react";
+// 下に、自分が共有した写真の数の見出しと小さい写真の一覧（新しい順。押すと拡大の画面 0040）。送り終えたら読み直す。0 枚なら出さない（0053）
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Member, Photo } from "../../shared/api";
+import { api } from "../lib/api";
 import { errorText } from "../lib/errors";
 import { emptyTally, tallyOne, type UploadTally } from "../lib/pure";
 import { navigate } from "../lib/route";
 import { shelfOutcome, uploadOne } from "../lib/upload";
 import { ErrorLine } from "../parts/ErrorLine";
+import { ZoomablePhoto } from "../parts/ZoomablePhoto";
 import { words } from "../words";
 
-export function AddPhotos() {
+export function AddPhotos({ me }: { me: Member }) {
   const [tally, setTally] = useState<UploadTally | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const w = words.photos;
+  const mine = useMyPhotos(me.id);
 
   async function onPick(files: File[]) {
     if (files.length === 0) return;
@@ -28,6 +33,8 @@ export function AddPhotos() {
       setError(errorText(e));
     } finally {
       setBusy(false);
+      // 送り終えたら（途中で失敗しても）、共有した写真の数と一覧を読み直す
+      mine.reload();
     }
   }
 
@@ -74,6 +81,52 @@ export function AddPhotos() {
         </div>
       )}
       <ErrorLine text={error} />
+      <SharedPhotos photos={mine.photos} />
     </main>
+  );
+}
+
+/**
+ * 自分が共有した写真（GET /api/photos を持ち主で絞る）。新しい順（サーバーは登録の古い順で返す）。
+ * 読めなかったら前の一覧のまま（文を出さない）。後から届いた古い読み込みは捨てる
+ */
+function useMyPhotos(memberId: string) {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const seq = useRef(0);
+  const reload = useCallback(() => {
+    const n = ++seq.current;
+    api
+      .listPhotos(memberId)
+      .then((r) => {
+        if (n === seq.current) setPhotos(newestFirst(r.photos));
+      })
+      .catch(() => {});
+  }, [memberId]);
+  useEffect(() => {
+    reload();
+    return () => {
+      seq.current++;
+    };
+  }, [reload]);
+  return { photos, reload };
+}
+
+/** 登録の古い順の一覧を、新しい順に */
+export const newestFirst = (photos: readonly Photo[]): Photo[] => [...photos].reverse();
+
+/** 共有した写真の見出し（数）と小さい写真の一覧。0 枚なら何も出さない（0053） */
+export function SharedPhotos({ photos }: { photos: readonly Photo[] }) {
+  if (photos.length === 0) return null;
+  return (
+    <section className="stack">
+      <h2>{words.photos.shared(photos.length)}</h2>
+      <div className="shared-photos">
+        {photos.map((p) => (
+          <div key={p.id} className="shared-photo">
+            <ZoomablePhoto photo={p} variant="family" lazy />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

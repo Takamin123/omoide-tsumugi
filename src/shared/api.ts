@@ -58,11 +58,17 @@ export type Member = {
   hasLink: boolean;
 };
 
+/**
+ * 家族の一覧（FamilyView.members）の一人。photoCount: その人が共有した写真の数（photos の行の数。同じ写真は登録時に一つにまとめるので一枚一行）。
+ * 家族のこと（/family）のカードに出す。祖父母の画面の人にも同じ形で返す（数だけで、写真そのものではない）。0053
+ */
+export type FamilyMember = Member & { photoCount: number };
+
 export type FamilyView = {
   // clock は時計を持たない家族では今の日本時間から作る。
   // canAdvanceClock: デモの時計を進められるか（本番ではデモの家族だけ、手元・プレビューではどの家族も）
   family: { id: string; isDemo: boolean; clock: Clock; canAdvanceClock: boolean };
-  members: Member[];
+  members: FamilyMember[];
   /**
    * この端末の人（リンクが指す人）。null は「最初の人のリンク」で開いた端末で、まだ誰も入っていない家族。
    * このときできるのは GET /api/family と、最初の一人を入れる POST /api/members だけ（ほかは 403 forbidden）。0036
