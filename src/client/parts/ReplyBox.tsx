@@ -2,6 +2,7 @@
 // 家族の画面: 「声で話す」「文字で書く」。「声で話す」を押すとその場で録り始め、「終わる」で送る。文字なら欄と「送る」。
 // 祖父母の画面: 「はなす」「かく」。同じく「はなす」でその場で録り始め、「おわる」で送る（0008）。
 // 選んだ後にもう一度「話す」を押させない（二度押さないと録り始めないのは分かりにくい。人間、2026-11-04）。
+// マイクの許可を待っている間（押した後、録り始める前）は、録るボタンの場所を押せない形にして「マイクを準備しています」を出す（両画面。0008 の追記）。
 // 文字・声の形が開いている間は、画面に「入力中」を知らせる（下のタブを隠す）。
 // 送ったら入力欄を閉じる。「送りました」は呼ぶ側が出す（今日の答えは Home、返事は Narrations）。
 import { useEffect, useState } from "react";
@@ -48,7 +49,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   const busy = sender.state === "sending";
   const failed = sender.state === "failed";
   // 入力欄・録音が開いている間（祖父母の画面では、録っている間と、送れなかった声を持っている間）は、下のタブを描かない
-  const open = mode !== "choose" || rec.recording || (elder && failed);
+  const open = mode !== "choose" || rec.recording || rec.starting || (elder && failed);
   useComposing(open);
   useEffect(() => {
     onComposing?.(open);
@@ -101,6 +102,20 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   let body;
   if (mode === "text") {
     body = textForm;
+  } else if (rec.starting) {
+    // マイクの許可を待っている間。押せない（aria-disabled でフォーカスは残す。押しても useRecorder が無視する）。
+    // 祖父母の画面も「おわる」と同じ一つのボタンに替え、「かく」は出さない（待つ間に文字の欄へ移ると、録音が見えないまま始まりうる）。
+    // 「やめる」は両画面・今日の答えでも出す（許可の表示が決着しないまま残るブラウザで、抜け出す道をなくさない）
+    body = (
+      <>
+        <button type="button" className="primary mic-waiting phrase-break" aria-disabled="true">
+          {w.micWaiting}
+        </button>
+        <button type="button" className="aux" onClick={close}>
+          {w.cancel}
+        </button>
+      </>
+    );
   } else if (elder) {
     // 祖父母の画面: 選ぶ段の「はなす」で録り始める。録っている間は「おわる」だけ
     if (rec.recording) {

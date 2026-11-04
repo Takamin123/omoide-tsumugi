@@ -30,6 +30,10 @@ const elderWords = {
   /** 誰の声か、と長さ。呼ばれ方が分からなければ「声」だけ、長さが分からなければ秒を出さない */
   listenNote,
   stopVoice: "とめる",
+  /** 聞くボタンの読み上げの名前（見えない）。見える「きく」「とめる」を含める。ボタンの側なのでかな（0008。0045 の追記） */
+  listenName: (name: string | null) => ({ play: `${name ? `${name}の ` : ""}こえを きく`, stop: `${name ? `${name}の ` : ""}こえを とめる` }),
+  /** マイクの許可を待っている間、録るボタンの場所に出す（押せない。0008 の追記）。幅が足りないときは空白か言葉の切れ目（\u200B）でだけ折る */
+  micWaiting: "マイクを じゅんび\u200Bしています",
   /** 写真の拡大の画面を閉じる（0040） */
   close: "とじる",
   /** 問いかけの読み上げ（0019） */
@@ -55,6 +59,10 @@ const homeWords = {
   /** 誰の声か、と長さ。祖父母の画面と同じ文字列（0045） */
   listenNote,
   stopVoice: "止める",
+  /** 聞くボタンの読み上げの名前（見えない）。見える「聞く」「止める」を含める（0045 の追記） */
+  listenName: (name: string | null) => ({ play: `${name ? `${name}の` : ""}声を聞く`, stop: `${name ? `${name}の` : ""}声を止める` }),
+  /** マイクの許可を待っている間、録るボタンの場所に出す（押せない。0008 の追記）。幅が足りないときは言葉の切れ目（\u200B）でだけ折る */
+  micWaiting: "マイクを\u200B準備しています",
   /** 写真の拡大の画面を閉じる（0040） */
   close: "閉じる",
   /** 「声で話す」「文字で書く」。幅が足りないときは言葉の切れ目（\u200B）でだけ折る（.phrase-break。360px・文字 150% で二行になる） */
@@ -217,6 +225,8 @@ export const words = {
       /** 声の語りの話者名の行に出す「ばあばの声（13秒）」（0045） */
       listenNote: homeWords.listenNote,
       stopVoice: homeWords.stopVoice,
+      listenName: homeWords.listenName,
+      micWaiting: homeWords.micWaiting,
     },
     elder: {
       /** 選ぶ段の「はなす」は、押すとその場で録り始める（録るボタンを兼ねる） */
@@ -235,6 +245,8 @@ export const words = {
       /** 入り口の添える言葉と同じ注「ばあばの声（13秒）」（0045） */
       listenNote: elderWords.listenNote,
       stopVoice: elderWords.stopVoice,
+      listenName: elderWords.listenName,
+      micWaiting: elderWords.micWaiting,
     },
   },
 

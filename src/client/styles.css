@@ -351,6 +351,23 @@ textarea {
   padding-inline: 0.5rem;
 }
 
+/*
+ * マイクの許可を待っている間の、押せないボタン（0008 の追記）。押せる青をやめ、点線の枠で押せないことを見せる
+ * （色を薄くすると文字が読みにくくなるので、透明度は落とさない）。祖父母の画面の主な動作の大きな語（一行のまま）ではなく、
+ * ふつうの文字で言葉の切れ目で折る（幅 360px・文字 150% でも横にはみ出さず、語の途中で折れない）
+ */
+.primary.mic-waiting,
+.elder .answer .primary.mic-waiting,
+.elder .reply-box .primary.mic-waiting {
+  background: var(--surface);
+  color: var(--text-sub);
+  cursor: default;
+  border: 2px dashed var(--border);
+  font-size: var(--font-main);
+  white-space: normal;
+  padding-inline: 0.25rem;
+}
+
 /* 録るのを止めるボタン: 色に頼らず、太い輪郭と四角の印で分ける */
 .primary.stop {
   background: var(--surface);
