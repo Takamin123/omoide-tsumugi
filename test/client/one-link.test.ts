@@ -185,7 +185,13 @@ describe("人の ID を送らない（サーバーが端末の人に決める）
   });
   it("写真の meta に持ち主を入れない", () => {
     expect(read("src/client/lib/photos.ts")).not.toMatch(/ownerMemberId/);
-    expect(read("src/client/screens/AddPhotos.tsx")).not.toMatch(/ownerMemberId|me\.id/);
+    expect(read("src/client/lib/upload.ts")).not.toMatch(/ownerMemberId/);
+    // 写真を共有する画面が自分の ID を使うのは、共有した写真の一覧を読むときだけ（0053）。送るときには渡さない
+    const addPhotos = read("src/client/screens/AddPhotos.tsx");
+    expect(addPhotos).not.toMatch(/ownerMemberId/);
+    expect(addPhotos).toMatch(/uploadOne\(file, undefined\)/);
+    expect(addPhotos.match(/me\.id/g)).toEqual(["me.id"]);
+    expect(addPhotos).toContain("useMyPhotos(me.id)");
   });
   it("今日の入り口は人を指定せずに読む", () => {
     expect(read("src/client/lib/api.ts")).toContain('"/api/entrances/today"');

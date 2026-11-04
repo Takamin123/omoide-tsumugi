@@ -53,7 +53,11 @@ export const family = new Hono<AppEnv>()
     const deps = c.get("deps");
     const f = c.get("family");
     const me = c.get("member");
-    const [members, linked] = await Promise.all([deps.repos.members.list(f.id), deps.repos.members.listIdsWithActiveLink(f.id)]);
+    const [members, linked, photoCounts] = await Promise.all([
+      deps.repos.members.list(f.id),
+      deps.repos.members.listIdsWithActiveLink(f.id),
+      deps.repos.photos.countByOwner(f.id),
+    ]);
     const hasLink = new Set(linked);
     const view: FamilyView = {
       family: {
@@ -62,7 +66,7 @@ export const family = new Hono<AppEnv>()
         clock: familyClock(f, deps.now()),
         canAdvanceClock: canAdvanceClock(deps.config, f),
       },
-      members: members.map((m) => memberView(m, hasLink.has(m.id))),
+      members: members.map((m) => ({ ...memberView(m, hasLink.has(m.id)), photoCount: photoCounts.get(m.id) ?? 0 })),
       me: me ? memberView(me, hasLink.has(me.id)) : null,
     };
     return c.json(view);

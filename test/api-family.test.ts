@@ -1,6 +1,6 @@
 // 家族の場: 作る、合言葉で入る、家族の様子、一人ひとり。一人ずつのリンクは member-links.test.ts（0036）
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addMember, CREATE_TOKEN, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
+import { addMember, addPhoto, CREATE_TOKEN, createFamily, makeTestApp, startD1, type TestApp } from "./helpers";
 
 let d1: D1Database;
 let dispose: () => Promise<void>;
@@ -157,5 +157,73 @@ describe("一人ひとり", () => {
     expect(res.status).toBe(400);
     const text = await res.text();
     expect(text).toBe(JSON.stringify({ error: "invalid_request" }));
+  });
+});
+
+describe("GET /api/family: 一人ずつ共有した写真の数（0053）", () => {
+  type CountView = { members: { id: string; photoCount: number }[]; me: Record<string, unknown> | null };
+  const viewOf = async (cookie: string) =>
+    (await (await t.app.request("/api/family", { headers: { Cookie: cookie } })).json()) as CountView;
+  const countOf = (v: CountView, id: string) => v.members.find((m) => m.id === id)?.photoCount;
+
+  it("人ごとに数える。0 枚の人は 0。同じ写真を二度送っても一枚。ほかの家族の写真は数えない", async () => {
+    const a = await createFamily(t);
+    const mom = await addMember(t, a.cookie);
+    const son = await addMember(t, mom.cookie, { relation: "息子", calledAs: "けん" });
+    const grandma = await addMember(t, mom.cookie, { role: "elder", relation: "祖母", calledAs: "ばあば", setUpByMemberId: mom.id });
+    for (const n of [9001, 9002, 9003]) await addPhoto(t, mom.cookie, n);
+    await addPhoto(t, mom.cookie, 9001); // 同じ写真（重複）は一枚
+    await addPhoto(t, son.cookie, 9004);
+
+    // ほかの家族の人が、同じ写真と別の写真を入れても数えない
+    const b = await createFamily(t);
+    const other = await addMember(t, b.cookie);
+    await addPhoto(t, other.cookie, 9001);
+    await addPhoto(t, other.cookie, 9005);
+
+    const v = await viewOf(mom.cookie);
+    expect(countOf(v, mom.id)).toBe(3);
+    expect(countOf(v, son.id)).toBe(1);
+    expect(countOf(v, grandma.id)).toBe(0);
+    expect(v.members).toHaveLength(3);
+    expect(countOf(await viewOf(other.cookie), other.id)).toBe(2);
+  });
+
+  it("祖父母の画面の人にも同じ数を返す（数だけで写真そのものではない）。me には付けない", async () => {
+    const a = await createFamily(t);
+    const mom = await addMember(t, a.cookie);
+    const grandma = await addMember(t, mom.cookie, { role: "elder", relation: "祖母", calledAs: "ばあば", setUpByMemberId: mom.id });
+    await addPhoto(t, mom.cookie, 9101);
+    await addPhoto(t, mom.cookie, 9102);
+    const v = await viewOf(grandma.cookie);
+    expect(countOf(v, mom.id)).toBe(2);
+    expect(countOf(v, grandma.id)).toBe(0);
+    expect(v.me).not.toHaveProperty("photoCount");
+  });
+
+  it("同じ家族の二人が同じ写真を送ると、それぞれ一枚（持ち主ごとにまとめる）。数は /photos の自分の一覧の長さと同じ（qa）", async () => {
+    const a = await createFamily(t);
+    const mom = await addMember(t, a.cookie);
+    const son = await addMember(t, mom.cookie, { relation: "息子", calledAs: "けん" });
+    await addPhoto(t, mom.cookie, 9201);
+    await addPhoto(t, son.cookie, 9201);
+    await addPhoto(t, son.cookie, 9202);
+    // 「この写真に追加する」で入れた写真も、その人の共有した写真に数える（photos の行）
+    const base = await addPhoto(t, mom.cookie, 9203);
+    await addPhoto(t, son.cookie, 9204, { withPhotoId: base.id });
+    const v = await viewOf(son.cookie);
+    expect(countOf(v, mom.id)).toBe(2);
+    expect(countOf(v, son.id)).toBe(3);
+    for (const m of [mom, son]) {
+      const list = (await (await t.app.request(`/api/photos?ownerMemberId=${m.id}`, { headers: { Cookie: m.cookie } })).json()) as { photos: unknown[] };
+      expect(list.photos).toHaveLength(countOf(v, m.id)!);
+    }
+  });
+
+  it("まだ誰もいない家族（最初の人のリンク）では members は空で、写真の数は付かない（qa）", async () => {
+    const a = await createFamily(t);
+    const v = await viewOf(a.cookie);
+    expect(v.members).toEqual([]);
+    expect(v.me).toBeNull();
   });
 });
