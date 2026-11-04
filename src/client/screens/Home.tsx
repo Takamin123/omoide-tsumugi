@@ -1,7 +1,9 @@
-// 家族の画面（スマホ）と祖父母の画面（スマホとタブレット）: 下のタブ「今日」「アルバム」。開いたときは常に「今日」（最後に見たタブを端末に覚えない）。
+// 家族の画面（スマホ）と祖父母の画面（スマホとタブレット）: 下のタブ「今日」「アルバム」「返事」。開いたときは常に「今日」（最後に見たタブを端末に覚えない）。
 // 祖父母の画面も同じ形で、違うのは言葉と大きさだけ（variant。lib/screen.ts、styles.css の .home-shell.elder。0043）。
 // 今日: 上にメニュー（祖父母の画面では呼ばれ方だけ）、自分の今日の入り口、その下に入り口の写真の語りと返事。答える前は「声で」「文字で」を欄の外のタブのすぐ上の段に置く（0034）。
 // アルバム: 語りのある写真の帯と、写真ごとの語りの縦の欄（parts/Album.tsx）。上にメニューは置かない。
+// 返事: この人に届いたもの（自分の語りへの返事と、自分が入れた写真への語り）を写真ごとに（parts/Replies.tsx、lib/replies.ts。0058）。
+// タブのバッジはまだ見ていない数。開いた時点で見たことにし（サーバーにも知らせる）、開いている間に届いたものは次に開くまでバッジに残す。
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
 // 声を送った直後は「送りました」の下に「とりなおす」（画面に一つだけ。lib/retake.ts。0050）。前の声は録り直した声が送れたときに消すので、
 // 取り直しの間も今日の入り口は「答えた」のまま（段は流れのまま。録音中に欄が作り直されない）。
@@ -9,9 +11,10 @@
 // 一覧に文字起こしを待つ声の語りがある間は、一覧だけを静かに読み直す（lib/transcriptFollow.ts。0052）。一覧の読み込みは feed 一つにまとめる。
 // 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Entrance, FamilyView, Member } from "../../shared/api";
+import type { Entrance, FamilyView, FeedItem, FeedResult, Member } from "../../shared/api";
 import { api, ApiError } from "../lib/api";
 import { keepOrder } from "../lib/album";
+import { keepOrderNewFirst, latestIncomingAt, mergeSeenAt, replyGroups, unseenCount } from "../lib/replies";
 import { ComposingContext, ComposingSet } from "../lib/composing";
 import { errorText } from "../lib/errors";
 import { answerPlace } from "../lib/pure";
@@ -21,11 +24,12 @@ import { SENT_NOTICE_MS, useSender, type SentNarration } from "../lib/useSender"
 import { navigate } from "../lib/route";
 import { homeBusy, refreshQuietly, useResumeRefresh } from "../lib/useResumeRefresh";
 import { feedReader, keepsOpenReply, useTranscriptFollow } from "../lib/transcriptFollow";
-import { Album, type AlbumItem } from "../parts/Album";
+import { Album } from "../parts/Album";
 import { DemoBar, type DemoProps } from "../parts/DemoBar";
 import { EntranceView } from "../parts/EntranceView";
 import { ErrorLine } from "../parts/ErrorLine";
 import { Narrations } from "../parts/Narrations";
+import { Replies } from "../parts/Replies";
 import { ReplyBox } from "../parts/ReplyBox";
 import { TabBar, type HomeTab } from "../parts/TabBar";
 import { words } from "../words";
@@ -38,8 +42,10 @@ const NO_TARGET = { photoId: "", entranceId: null, replyToId: null };
 export function Home({ view, me, demo, variant = "family" }: Props) {
   const elder = variant === "elder";
   const [tab, setTab] = useState<HomeTab>("today");
+  const tabNow = useRef<HomeTab>(tab);
+  tabNow.current = tab;
   const [entrance, setEntrance] = useState<Entrance | null | undefined>(undefined);
-  const [feed, setFeed] = useState<AlbumItem[] | null>(null);
+  const [feed, setFeed] = useState<FeedItem[] | null>(null);
   /** 読み込めなかったときの例外。家族の画面は文に、祖父母の画面は祖父母の文と「もういちど」にする */
   const [entranceError, setEntranceError] = useState<unknown>(null);
   const [feedError, setFeedError] = useState<unknown>(null);
@@ -52,6 +58,15 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   /** アルバムで見ている写真。タブを行き来しても同じ写真に戻る */
   const [albumCurrent, setAlbumCurrent] = useState<string | null>(null);
   const [openReplyId, setOpenReplyId] = useState<string | null>(null);
+  /** 返事のタブを最後に開いた時刻（サーバーの記録。null はまだ開いていない。0058） */
+  const [serverSeenAt, setServerSeenAt] = useState<number | null>(null);
+  /**
+   * この画面で返事のタブを開いた時点の見た時刻（そのとき手元にあった届いたものの一番新しい時刻）。
+   * サーバーの記録が届くまでの間もバッジを消しておく。開いている間に届いたものはこれより新しいので、次に開くまでバッジに残る
+   */
+  const [localSeenAt, setLocalSeenAt] = useState<number | null>(null);
+  /** 返事のタブを開いたときの並び（写真の ID）。開いている間に読み直しても並び替えない */
+  const [repliesOrder, setRepliesOrder] = useState<string[] | null>(null);
   /** 下の段の文字の欄・録音が開いているか（ほかの入力欄と分ける） */
   const [dockComposing, setDockComposing] = useState(false);
   /** 今日の入り口に、この画面で答えを送った（一覧の読み直しを待たずに段を閉じる） */
@@ -76,18 +91,23 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
 
   /** 一覧の読み込み（古い結果で新しい結果を上書きしない・読み込み中に乗る。0052） */
   const [feedRead] = useState(() => feedReader(() => api.getFeed()));
-  const loadFeed = useCallback(async (): Promise<AlbumItem[] | null> => {
+  /** 届いた一覧を当てる（返事のタブを開いた時刻も一緒に） */
+  const takeFeed = useCallback((value: FeedResult) => {
+    setFeed(value.items);
+    setServerSeenAt(value.repliesSeenAt ?? null);
+    setFeedError(null);
+  }, []);
+  const loadFeed = useCallback(async (): Promise<FeedItem[] | null> => {
     try {
       const { value, n } = await feedRead.read();
       if (!feedRead.accept(n)) return null;
-      setFeed(value.items);
-      setFeedError(null);
+      takeFeed(value);
       return value.items;
     } catch (e) {
       setFeedError(e);
       return null;
     }
-  }, [feedRead]);
+  }, [feedRead, takeFeed]);
 
   useEffect(() => {
     let alive = true;
@@ -145,14 +165,13 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
         feed: ({ value, n }) => {
           if (!current()) return;
           if (!feedRead.accept(n)) return;
-          setFeed(value.items);
-          setFeedError(null);
+          takeFeed(value);
         },
       },
     ).finally(() => {
       refreshing.current = false;
     });
-  }, [clearRetake, feedRead]);
+  }, [clearRetake, feedRead, takeFeed]);
 
   // 文字起こしを待つ声の語りがある間の静かな読み直し（0052）。読めなかったら黙って前を残す。
   // 話している・書いている途中でも止めない（語りは ID で描くので、欄・録音・取り直しは一覧の差し替えで壊れない）。
@@ -163,18 +182,35 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
     () =>
       feedRead.shared().then(({ value, n }) => {
         if (!keepsOpenReply(value.items, openReplyNow.current) || !feedRead.accept(n)) return;
-        setFeed(value.items);
-        setFeedError(null);
+        takeFeed(value);
       }),
-    [feedRead],
+    [feedRead, takeFeed],
   );
   useTranscriptFollow(feed, followRead);
 
   const nameOf = (id: string) => view.members.find((m) => m.id === id)?.calledAs ?? "";
   const w = words.screen[variant];
 
+  /** 返事のタブを開いた: 並びを決め、見たことにする（手元のバッジはすぐ消す。サーバーへの知らせは失敗しても黙る。0058） */
+  const openReplies = (items: FeedItem[]) => {
+    setRepliesOrder(replyGroups(items, me.id).map((g) => g.item.photo.id));
+    const latest = latestIncomingAt(items, me.id);
+    if (latest !== null) setLocalSeenAt((at) => Math.max(at ?? 0, latest));
+  };
+
   const changeTab = (t: HomeTab) => {
     setOpenReplyId(null);
+    if (t === "replies") {
+      if (feed) openReplies(feed);
+      else setRepliesOrder(null);
+      // 見たことをサーバーに知らせてから読み直す（読み直しで届いたものはサーバーでも見たことになっている）。知らせが失敗しても読み直す。
+      // 届いたときに、まだ返事のタブにいれば、届いた一覧を開いた時点のものにする
+      void api
+        .markRepliesSeen()
+        .catch(() => {})
+        .then(() => loadFeed())
+        .then((items) => items && tabNow.current === "replies" && openReplies(items));
+    }
     // アルバムは開いたときに /api/feed を読み直し、その順に並べる（ほかの家族の新しい語りを上に出す）。
     // 届くまでは手元の一覧の順で出す
     if (t === "album") {
@@ -188,6 +224,17 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   useEffect(() => {
     if (tab === "album" && feed && !albumOrder) setAlbumOrder(feed.map((it) => it.photo.id));
   }, [tab, feed, albumOrder]);
+  // 返事のタブも同じ（開いたときに一覧がまだなければ、届いたときを開いた時点にする）
+  useEffect(() => {
+    if (tab === "replies" && feed && !repliesOrder) openReplies(feed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openReplies は me.id だけに依る
+  }, [tab, feed, repliesOrder]);
+
+  /** 届いたもの・まだ見ていない数（返事のタブ。0058） */
+  const unseen = useMemo(
+    () => (feed ? unseenCount(feed, me.id, mergeSeenAt(serverSeenAt, localSeenAt)) : 0),
+    [feed, me.id, serverSeenAt, localSeenAt],
+  );
 
   const { offer: offerRetake } = retake;
   const onAnswered = useCallback(
@@ -322,6 +369,22 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
         {demoBar}
       </div>
     );
+  } else if (tab === "replies") {
+    const groups = feed ? replyGroups(feed, me.id) : [];
+    body = (
+      <>
+        {feedError && <div className="album-error">{errorView(feedError)}</div>}
+        <Replies
+          groups={repliesOrder ? keepOrderNewFirst(repliesOrder, groups, (g) => g.item.photo.id) : groups}
+          nameOf={nameOf}
+          openReplyId={openReplyId}
+          onOpenReply={setOpenReplyId}
+          onSent={() => void loadFeed()}
+          loading={!feed}
+          footer={demoBar}
+        />
+      </>
+    );
   } else {
     const items = feed ? (albumOrder ? keepOrder(albumOrder, feed, (it) => it.photo.id) : feed) : [];
     body = (
@@ -349,7 +412,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
         <div className={elder ? "home-shell elder" : "home-shell"}>
           {body}
           {dock}
-          <TabBar tab={tab} onChange={changeTab} composing={composing} />
+          <TabBar tab={tab} onChange={changeTab} composing={composing} unseen={unseen} />
         </div>
       </ComposingContext.Provider>
       </RetakeContext.Provider>

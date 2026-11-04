@@ -772,10 +772,14 @@ nav.top button {
   gap: 0.875rem;
 }
 
+/*
+ * タブは 3 つ（今日・アルバム・返事。0058）。幅に余裕があれば等分、足りなければ語の長さに合わせて分ける
+ * （幅 360px・文字 150% で等分すると「アルバム」が一行に入らない）。語の中で折らない
+ */
 .tabs {
   flex: none;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(max-content, 1fr));
   background: var(--surface);
   border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -790,6 +794,48 @@ nav.top button {
   font-size: var(--font-aux);
   font-weight: normal;
   box-shadow: inset 0 4px 0 transparent;
+  padding: 0.5rem 0.25rem;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+/*
+ * 返事のタブのまだ見ていない数（0058）。見た目だけ（読み上げは隠した文）。新しい色を足さず、主な動作の青に白の数字（約 8:1）。
+ * 数は補助の文字の大きさ（16px 以上）。出たとき・数が変わったときだけ小さく弾む（操作に応える範囲の短い動き。動きを減らす設定では動かさない）
+ */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0 0.15em; /* 横の余白は小さく（「99+」でも幅 360px・文字 150% でタブが一行に入るように） */
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: var(--font-sub);
+  font-weight: bold;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  animation: tab-badge-in 0.25s ease-out;
+}
+
+@keyframes tab-badge-in {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-badge {
+    animation: none;
+  }
+}
+
+/* タブの境目の細い線（幅が足りず語の長さで分けたとき、隣の語と続けて読まれないように。飾り） */
+.tabs .tab + .tab {
+  border-left: 1px solid var(--line);
 }
 
 /* 今のタブ: 色だけでなく、太さと上の線でも示す */
@@ -798,6 +844,50 @@ nav.top button {
   font-weight: bold;
   box-shadow: inset 0 4px 0 var(--accent);
 }
+
+/* ---- 返事のタブ（0058） ---- */
+
+/* 写真ごとの節。節の間は区切りの線 */
+.replies-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.replies-group + .replies-group {
+  border-top: 2px solid var(--line);
+  padding-top: 1.5rem;
+}
+
+/* 節の頭: 小さめの写真（押すと拡大）と、写真の記録（撮影日・場所）。幅が足りなければ記録は写真の下へ */
+.replies-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+}
+
+.replies-photo {
+  flex: none;
+  width: min(55%, 16rem);
+}
+
+.replies-photo .photo-button {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* 縦長の写真や大きい文字でも、画面の高さの 3 割ほどに抑え、下の語りが見えるようにする（はみ出す分は切る。押せば全体が見える） */
+.replies-photo .photo {
+  max-height: min(12rem, 30dvh);
+  object-fit: cover;
+}
+
+.replies-head .photo-facts {
+  flex: 1 1 7rem;
+  flex-direction: column;
+}
+
 
 /* ---- アルバム ---- */
 

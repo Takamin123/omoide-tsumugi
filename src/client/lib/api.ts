@@ -7,7 +7,7 @@ import {
   type Entrance,
   type ErrorKind,
   type FamilyView,
-  type FeedNarration,
+  type FeedResult,
   type Member,
   type MemberInput,
   type Narration,
@@ -104,7 +104,11 @@ export const api = {
   },
   /** 送った直後の声の語りを消す（「とりなおす」。0050）。消せなければ 404。自動で送り直さない */
   deleteNarration: (id: string) => call<void>(`/api/narrations/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  getFeed: () => call<{ items: { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] }[] }>("/api/feed"),
+  /** repliesSeenAt: この端末の人が返事のタブを最後に開いた時刻（null はまだ開いていない。0058） */
+  getFeed: () =>
+    call<FeedResult>("/api/feed"),
+  /** 返事のタブを開いた（0058）。失敗しても画面には出さない */
+  markRepliesSeen: () => call<void>("/api/replies/seen", { method: "POST" }),
   /** この端末の人の今日の入り口 */
   todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
 
