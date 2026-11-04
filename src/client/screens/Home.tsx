@@ -201,7 +201,8 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
           )}
 
           {entrance === undefined && <p>{words.loading}</p>}
-          {/* 入り口がないときは何も出さない（催促の文を出さない。祖父母には写真を足す手段がなく、行き止まりの文になる。0010） */}
+          {/* 入り口がない（家族の写真がまだ一枚もない）ときは一行だけ。家族には入れ方を、祖父母には待てばよいことを言う（0010 の追記） */}
+          {entrance === null && !entranceError && <p className={elder ? undefined : "sub"}>{w.noEntrance}</p>}
           {entrance && (
             <section className="stack">
               <EntranceView entrance={entrance} members={view.members} variant={variant} />

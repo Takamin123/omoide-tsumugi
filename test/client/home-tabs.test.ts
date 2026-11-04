@@ -407,3 +407,19 @@ describe("言葉の糸（アルバムの答えの語りの「元の言葉」。0
     expect(css).toMatch(/\.thread span \{[^}]*text-decoration: underline;/);
   });
 });
+
+describe("「今日」に写真がないとき（0010 の追記）", () => {
+  const src = fs.readFileSync(path.join(repoRoot, "src/client/screens/Home.tsx"), "utf8");
+  it("入り口が null（写真が一枚もない）で、読み込みの失敗でないときだけ一行出す", () => {
+    expect(src).toContain("{entrance === null && !entranceError && <p");
+    expect(src).toContain("{w.noEntrance}</p>}");
+  });
+  it("家族には入れ方を、上のメニューと同じ名前で言う", () => {
+    expect(words.screen.family.noEntrance).toContain(`「${words.home.menuPhotos}」`);
+  });
+  it("祖父母には入れ方を言わない（入れる手段がない）。催促や「！」を出さない", () => {
+    const t = words.screen.elder.noEntrance;
+    expect(t).not.toContain(words.home.menuPhotos);
+    expect(t).not.toMatch(/[！!]|ください/);
+  });
+});

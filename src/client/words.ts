@@ -251,6 +251,8 @@ export const words = {
       micWaiting: homeWords.micWaiting,
       retake: homeWords.retake,
       retakeFailed,
+      /** 「今日」に出す写真がないとき（家族の写真が一枚もない）。上のメニューから入れられる（人間の決定 2026-11-04。0010 の追記） */
+      noEntrance: "まだ写真がありません。「写真を家族に共有する」から写真を入れると、ここに届きます",
     },
     elder: {
       /** 選ぶ段の「はなす」は、押すとその場で録り始める（録るボタンを兼ねる） */
@@ -273,6 +275,8 @@ export const words = {
       micWaiting: elderWords.micWaiting,
       retake: elderWords.retake,
       retakeFailed,
+      /** 祖父母には写真を入れる手段がないので、待てばよいことだけを言う（催促しない。0010 の追記） */
+      noEntrance: "まだ写真が届いていません。家族が写真を入れると、ここに出ます",
     },
   },
 
