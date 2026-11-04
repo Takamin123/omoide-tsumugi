@@ -1,0 +1,1 @@
+ALTER TABLE `members` ADD `replies_seen_at` integer;

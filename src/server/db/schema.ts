@@ -50,6 +50,8 @@ export const members = sqliteTable(
     dialectRegion: text("dialect_region"),
     setUpByMemberId: text("set_up_by_member_id"),
     createdAt: integer("created_at").notNull(),
+    // 最後に「返事」のタブを開いた時刻（サーバーの時刻）。null はまだ一度も開いていない。0058
+    repliesSeenAt: integer("replies_seen_at"),
   },
   (t) => [index("members_family").on(t.familyId)],
 );

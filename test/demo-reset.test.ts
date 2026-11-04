@@ -141,6 +141,8 @@ async function dirty(familyId: string) {
       .bind(familyId, `${p}-key`),
     // 時計は進めた後
     d1.prepare("UPDATE families SET clock_date = '2026-11-05', clock_slot = 'night' WHERE id = ?").bind(familyId),
+    // 「返事」のタブを開いた後（0058）
+    d1.prepare("UPDATE members SET replies_seen_at = 4102444800000 WHERE family_id = ?").bind(familyId),
   ]);
   for (const k of Object.values(keys)) await bucket.put(k, new Uint8Array([1, 2, 3]));
   return keys;
@@ -353,14 +355,15 @@ describe("デモの家族の外に触れない", () => {
     expect(await snap()).toEqual(before);
   });
 
-  it("人（members）とリンク（invite_links）と家族の行（時計のほか）は、前後で同じ", async () => {
+  it("人（members。返事を見た時刻のほか）とリンク（invite_links）と家族の行（時計のほか）は、前後で同じ。返事を見た時刻は null に戻る（0058）", async () => {
     const t = appWithR2();
     const f = await demoFamily(t);
     await dirty(f.familyId);
     const before = await dumpFamily(f.familyId);
+    expect(before.members!.every((m: any) => m.replies_seen_at === 4102444800000)).toBe(true);
     expect((await reset(t, f.familyId)).status).toBe(200);
     const after = await dumpFamily(f.familyId);
-    expect(after.members).toEqual(before.members);
+    expect(after.members).toEqual(before.members!.map((m: any) => ({ ...m, replies_seen_at: null })));
     expect(after.invite_links).toEqual(before.invite_links);
     const strip = (r: any) => ({ ...r, clock_date: null, clock_slot: null });
     expect(after.families!.map(strip)).toEqual(before.families!.map(strip));

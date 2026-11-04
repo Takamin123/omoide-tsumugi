@@ -214,6 +214,10 @@ export interface MemberRepository {
   replaceLink(familyId: string, memberId: string, link: NewInviteLink, now: number): Promise<void>;
   /** 有効なリンクを持つ人の ID */
   listIdsWithActiveLink(familyId: string): Promise<string[]>;
+  /** 最後に「返事」のタブを開いた時刻（0058）。null はまだ一度も開いていない、またはその家族にいない */
+  getRepliesSeenAt(familyId: string, memberId: string): Promise<number | null>;
+  /** 「返事」のタブを開いた時刻を now にする（0058）。その家族にいなければ false で、何も変えない */
+  markRepliesSeen(familyId: string, memberId: string, now: number): Promise<boolean>;
 }
 
 export interface PhotoRepository {

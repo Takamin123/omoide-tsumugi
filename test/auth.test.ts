@@ -50,6 +50,7 @@ describe("合言葉の確認", () => {
       "POST /api/members/:id/link",
       "POST /api/narrations",
       "POST /api/photos",
+      "POST /api/replies/seen", // 返事のタブを開いた（0058）。合言葉を確かめる
       "POST /api/session",
     ]);
   });

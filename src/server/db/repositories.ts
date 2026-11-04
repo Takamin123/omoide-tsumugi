@@ -379,6 +379,7 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
                 dialectRegion: v(row.dialectRegion, "dialectRegion"),
                 setUpByMemberId: v(row.setUpByMemberId, "setUpByMemberId"),
                 createdAt: v(row.createdAt, "createdAt"),
+                repliesSeenAt: v<number | null>(null, "repliesSeenAt"),
               })
               .from(families)
               .where(
@@ -426,6 +427,21 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           .where(and(eq(inviteLinks.familyId, familyId), isNull(inviteLinks.revokedAt), isNotNull(inviteLinks.memberId)))
           .all();
         return rows.flatMap((r) => (r.memberId ? [r.memberId] : []));
+      },
+      async getRepliesSeenAt(familyId, memberId) {
+        const r = await db
+          .select({ at: members.repliesSeenAt })
+          .from(members)
+          .where(and(eq(members.familyId, familyId), eq(members.id, memberId)))
+          .get();
+        return r?.at ?? null;
+      },
+      async markRepliesSeen(familyId, memberId, now) {
+        const res = await db
+          .update(members)
+          .set({ repliesSeenAt: now })
+          .where(and(eq(members.familyId, familyId), eq(members.id, memberId)));
+        return changes(res) > 0;
       },
     },
 
@@ -1190,8 +1206,10 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           ),
         ];
         const setClock = db.update(families).set({ clockDate: clock.date, clockSlot: clock.slot }).where(eq(families.id, familyId));
+        // 「返事」のタブを見た時刻も戻す（種の返事がすべて未読になる）。members に書く唯一の例外（0038 追記、0058）
+        const resetRepliesSeen = db.update(members).set({ repliesSeenAt: null }).where(eq(members.familyId, familyId));
         const [first, ...rest] = deletes;
-        await runBatch([first!, ...rest, ...inserts, setClock]);
+        await runBatch([first!, ...rest, ...inserts, setClock, resetRepliesSeen]);
       },
     },
   };

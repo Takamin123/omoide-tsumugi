@@ -1,6 +1,6 @@
 // 語り。声は保存先へ流し、受け取ったことを先に返してから背景で文字起こしする。
 import { Hono } from "hono";
-import { narrationMetaSchema, RETAKE_WINDOW_MS, type FeedNarration } from "../../shared/api";
+import { narrationMetaSchema, RETAKE_WINDOW_MS, type FeedItem, type FeedNarration, type FeedResult } from "../../shared/api";
 import { AUDIO_TYPE_PATTERN } from "../../shared/check";
 import { familyToday } from "../core/clock";
 import { addedPhotoIds } from "../core/family-links";
@@ -164,10 +164,12 @@ export const narrations = new Hono<AppEnv>()
   .get("/feed", async (c) => {
     const deps = c.get("deps");
     const familyId = c.get("family").id;
-    const [all, photoRows, members, musubi] = await Promise.all([
+    const meId = currentMember(c).id;
+    const [all, photoRows, members, repliesSeenAt, musubi] = await Promise.all([
       deps.repos.narrations.listAll(familyId),
       deps.repos.photos.list(familyId),
       deps.repos.members.list(familyId),
+      deps.repos.members.getRepliesSeenAt(familyId, meId),
       // むすびが読めなくてもアルバムは開く（追加した写真が出ないだけ）。種類だけをログに残す
       deps.repos.musubi.listByFamily(familyId).catch((err: unknown) => {
         console.log(
@@ -199,7 +201,7 @@ export const narrations = new Hono<AppEnv>()
     // 家族の手のむすびの confirmed の写真だけ（推測は出さない。0044・0048）
     const added = addedPhotoIds(musubi, new Set(photoById.keys()));
     const latest = (ns: NarrationRow[]) => ns.reduce((m, n) => Math.max(m, n.createdAt), 0);
-    const items = [...byPhoto.entries()]
+    const items: FeedItem[] = [...byPhoto.entries()]
       .filter(([photoId]) => photoById.has(photoId))
       .sort(([, a], [, b]) => latest(b) - latest(a))
       .map(([photoId, ns]) => ({
@@ -207,5 +209,15 @@ export const narrations = new Hono<AppEnv>()
         narrations: ns.map(feedView),
         addedPhotos: (added.get(photoId) ?? []).map((id) => photoView(photoById.get(id)!)),
       }));
-    return c.json({ items });
+    return c.json({ items, repliesSeenAt } satisfies FeedResult);
+  })
+
+  // 「返事」のタブを開いた（0058）。この端末の人の見た時刻を、サーバーの今の時刻にする。本文は受け取らない
+  .post("/replies/seen", async (c) => {
+    const deps = c.get("deps");
+    const familyId = c.get("family").id;
+    const memberId = currentMember(c).id;
+    if (!(await deps.repos.members.markRepliesSeen(familyId, memberId, deps.now().getTime()))) return fail(c, "not_found");
+    console.log(JSON.stringify({ event: "replies_seen", familyId, memberId }));
+    return c.body(null, 204);
   });
