@@ -112,14 +112,17 @@ export const ops = new Hono<AppEnv>()
     const family = await viewableFamily(deps, familyId);
     if (!family) return fail(c, "not_found");
 
-    const [members, photos, entrances, narrations, guesses] = await Promise.all([
+    const [members, photos, entrances, narrations, guesses, musubi] = await Promise.all([
       repos.members.list(familyId),
       repos.photos.list(familyId),
       repos.opsRecords.listEntrances(familyId),
       repos.narrations.listAll(familyId),
       repos.photoGuesses.listByFamily(familyId),
+      repos.musubi.listByFamily(familyId),
     ]);
     const byId = new Map(narrations.map((n) => [n.id, n]));
+    // むすびは、入り口 v3 で Claude に渡したものだけ。推測の理由と根拠の記録は返さない（画面で使わない）
+    const passedMusubi = new Set(entrances.flatMap((e) => e.inputMusubiIds ?? []));
     const record: OpsFamilyRecord = {
       family: { id: family.id, isDemo: family.isDemo, createdAt: family.createdAt },
       members: members.map((m) => ({ id: m.id, role: m.role, relation: m.relation, calledAs: m.calledAs })),
@@ -143,6 +146,9 @@ export const ops = new Hono<AppEnv>()
         promptVersion: g.promptVersion,
         createdAt: g.createdAt,
       })),
+      musubi: musubi
+        .filter((m) => passedMusubi.has(m.id))
+        .map((m) => ({ id: m.id, photos: m.photos.map((p) => ({ photoId: p.photoId, status: p.status })) })),
     };
     c.header("Cache-Control", "private, no-store");
     console.log(
@@ -152,6 +158,7 @@ export const ops = new Hono<AppEnv>()
         entrances: record.entrances.length,
         narrations: record.narrations.length,
         photoGuesses: record.photoGuesses.length,
+        musubi: record.musubi.length,
       }),
     );
     return c.json(record);

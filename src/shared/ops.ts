@@ -87,6 +87,13 @@ export type OpsPhotoGuess = {
   createdAt: number;
 };
 
+/** むすび（同じ出来事の推測。0044）。入り口 v3 で Claude に渡したもの（どれかの入り口の inputMusubiIds にあるもの）だけを返す（0046） */
+export type OpsMusubi = {
+  id: string;
+  /** むすびの写真と、その写真の状態（guessed: 推測のまま、confirmed: 家族が確かめた、rejected: 家族が外した） */
+  photos: { photoId: string; status: "guessed" | "confirmed" | "rejected" }[];
+};
+
 /** GET /api/ops/families/:familyId/record */
 export type OpsFamilyRecord = {
   family: { id: string; isDemo: boolean; createdAt: number };
@@ -95,4 +102,5 @@ export type OpsFamilyRecord = {
   entrances: OpsEntrance[];
   narrations: OpsNarration[];
   photoGuesses: OpsPhotoGuess[];
+  musubi: OpsMusubi[];
 };

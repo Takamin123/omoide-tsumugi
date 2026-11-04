@@ -118,6 +118,10 @@ const opsCss = `
 .ops .entrance-photo { margin: 0; flex: 0 1 12.5rem; max-width: 100%; display: flex; flex-direction: column; gap: 0.375rem; }
 .ops .entrance .shown { flex: 1 1 13.75rem; min-width: 0; }
 .ops .reply { display: flex; flex-direction: column; gap: 0.375rem; }
+.ops .v3 { display: flex; flex-direction: column; gap: 0.375rem; border-top: 1px solid var(--rule); padding-top: 0.5rem; }
+.ops .musubi { list-style: none; margin: 0; padding: 0.25rem 0 0.25rem 0.625rem; border-left: 3px solid var(--guess); display: flex; flex-direction: column; gap: 0.25rem; }
+.ops .musubi-photo { display: flex; gap: 0.625rem; align-items: center; text-decoration: none; color: var(--ink); min-height: 2.75rem; }
+.ops .musubi-photo .thumb { width: 3rem; flex: none; font-size: 0; }
 
 .ops .photo { position: relative; overflow: hidden; width: 100%; background: #C8D1D8; display: flex; align-items: center; justify-content: center; text-align: center; }
 .ops .photo img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
