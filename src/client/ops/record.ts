@@ -1,5 +1,5 @@
 // 開発用（運営）の記録の画面（/ops/record）の、画面に頼らない部分。鍵の持ち方、印の範囲の切り分け、見る軸の URL と並べ方。
-import type { OpsEntrance, OpsFamilyRecord, OpsNarration, OpsPhoto } from "../../shared/ops";
+import type { OpsEntrance, OpsFamilyRecord, OpsMusubi, OpsNarration, OpsPhoto } from "../../shared/ops";
 
 /** 運営の鍵を持つ sessionStorage の名前。そのタブを閉じれば消える。localStorage には置かない */
 export const OPS_KEY_STORAGE = "omoide_ops_key";
@@ -220,6 +220,33 @@ export function photoEvents(record: Pick<OpsFamilyRecord, "entrances" | "narrati
     return a.type === b.type ? 0 : a.type === "entrance" ? -1 : 1;
   });
 }
+
+// ---- 入り口 v3 の推測（0046） ----
+
+/** 入り口 v3 の列があるか。v2 と固定の入り口は両方 null */
+export const isV3Entrance = (e: OpsEntrance): boolean => e.guessed.receiverPresent !== null || e.guessed.inputMusubiIds !== null;
+
+/** 受け取る人がその場にいたか（Claude の推測）。null（v2・固定）は null */
+export function presentLabel(v: OpsEntrance["guessed"]["receiverPresent"]): string | null {
+  if (v === null) return null;
+  return v === "yes" ? "いた" : v === "no" ? "いなかった" : "分からない";
+}
+
+/** 写真の番号（写真で見る、の一覧の並び。1 から） */
+export function photoNumbers(photos: readonly OpsPhoto[]): Map<string, number> {
+  return new Map(photos.map((p, i) => [p.id, i + 1]));
+}
+
+export type PassedMusubi = { id: string; musubi: OpsMusubi | null };
+
+/** 入り口に渡したむすびの ID を、同じ記録のむすびと結ぶ。記録にない ID は musubi が null */
+export function passedMusubi(ids: readonly string[] | null, musubi: readonly OpsMusubi[]): PassedMusubi[] {
+  const byId = new Map(musubi.map((m) => [m.id, m]));
+  return (ids ?? []).map((id) => ({ id, musubi: byId.get(id) ?? null }));
+}
+
+export const musubiStatusLabel = (s: OpsMusubi["photos"][number]["status"]): string =>
+  s === "confirmed" ? "家族が確かめた" : s === "rejected" ? "家族が外した" : "推測";
 
 // ---- 書き方 ----
 

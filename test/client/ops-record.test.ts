@@ -359,3 +359,129 @@ describe("書き方", () => {
     expect(shortId("b91383a1-70dd-49f5-a52e-90e1c970766c")).toBe("b913…766c");
   });
 });
+
+describe("入り口 v3 の推測（0046）", async () => {
+  const { createElement: h } = await load("react");
+  const { renderToStaticMarkup } = await load("react-dom/server");
+  const { V3Guess } = await load("../../src/client/ops/DateView");
+  const { isV3Entrance, musubiStatusLabel, passedMusubi, photoNumbers, presentLabel } = await load("../../src/client/ops/record");
+
+  const photo = (id: string) => ({ id, ownerMemberId: "m1", width: 4, height: 3, takenAt: null, createdAt: 1, imageUrl: `/x/${id}` });
+  const record = {
+    photos: [photo("p1"), photo("p2"), photo("p3")],
+    musubi: [
+      {
+        id: "mu1",
+        photos: [
+          { photoId: "p1", status: "guessed" },
+          { photoId: "p3", status: "confirmed" },
+        ],
+      },
+    ],
+  };
+  const names = { who: (id: string | null) => (id === "m1" ? "架空のたろう" : "（不明）"), role: () => "家族" };
+  const entrance = (guessed: Record<string, unknown>) => ({
+    id: "e1",
+    forDate: "2026-11-05",
+    memberId: "m2",
+    kind: "claude",
+    photoId: "p1",
+    shownAt: null,
+    createdAt: 1,
+    told: { quote: null },
+    guessed: {
+      focus: null,
+      question: "q",
+      reason: "r",
+      model: "m",
+      promptVersion: "entrance/v3",
+      inputNarrationIds: [],
+      inputTokens: 1,
+      outputTokens: 1,
+      inputMusubiIds: null,
+      receiverPresent: null,
+      ...guessed,
+    },
+  });
+  const render = (e: unknown): string =>
+    renderToStaticMarkup(h(V3Guess, { e, record, names, photoHref: (id: string) => `/ops/record?photo=${id}`, goPhoto: () => {} }));
+
+  it("その場にいたかを日本語で。v2（列が null）は v3 ではない", () => {
+    expect(presentLabel("yes")).toBe("いた");
+    expect(presentLabel("no")).toBe("いなかった");
+    expect(presentLabel("unknown")).toBe("分からない");
+    expect(presentLabel(null)).toBeNull();
+    expect(isV3Entrance(entrance({}))).toBe(false);
+    expect(isV3Entrance(entrance({ receiverPresent: "no" }))).toBe(true);
+    expect(isV3Entrance(entrance({ inputMusubiIds: [] }))).toBe(true);
+  });
+
+  it("写真の番号は一覧の並び（1 から）。むすびの ID を記録のむすびと結び、ないものは null", () => {
+    expect([...photoNumbers(record.photos)]).toEqual([
+      ["p1", 1],
+      ["p2", 2],
+      ["p3", 3],
+    ]);
+    expect(passedMusubi(["mu1", "gone"], record.musubi)).toEqual([
+      { id: "mu1", musubi: record.musubi[0] },
+      { id: "gone", musubi: null },
+    ]);
+    expect(passedMusubi(null, record.musubi)).toEqual([]);
+    expect(musubiStatusLabel("guessed")).toBe("推測");
+    expect(musubiStatusLabel("confirmed")).toBe("家族が確かめた");
+  });
+
+  it("v2 の入り口では何も出さない", () => {
+    expect(render(entrance({}))).toBe("");
+  });
+
+  it("v3 の入り口では、その場にいたかと、むすびの写真を何枚目かで出す。ID・「分析」「判定」は出さない", () => {
+    const html = render(entrance({ receiverPresent: "no", inputMusubiIds: ["mu1"] }));
+    expect(html).toContain("いなかった");
+    expect(html).toContain("1 枚目（この入り口の写真）");
+    expect(html).toContain("3 枚目");
+    expect(html).not.toContain("2 枚目");
+    expect(html).toContain("家族が確かめた");
+    expect(html).toContain('href="/ops/record?photo=p3"');
+    expect(html).not.toContain("mu1");
+    for (const w of ["分析", "解析", "判定", "認識", "確信"]) expect(html).not.toContain(w);
+  });
+
+  it("外した写真は「家族が外した」。一覧にない写真は「見つからない写真」と短い ID だけで、リンクを作らない", () => {
+    expect(musubiStatusLabel("rejected")).toBe("家族が外した");
+    const rec = {
+      photos: record.photos,
+      musubi: [
+        {
+          id: "mu2",
+          photos: [
+            { photoId: "p2", status: "rejected" },
+            { photoId: "b91383a1-70dd-49f5-a52e-90e1c970766c", status: "guessed" },
+          ],
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      h(V3Guess, {
+        e: entrance({ receiverPresent: "no", inputMusubiIds: ["mu2"] }),
+        record: rec,
+        names,
+        photoHref: (id: string) => `/ops/record?photo=${id}`,
+        goPhoto: () => {},
+      }),
+    );
+    expect(html).toContain("2 枚目");
+    expect(html).toContain("家族が外した");
+    expect(html).not.toContain("（この入り口の写真）");
+    expect(html).toContain("見つからない写真");
+    expect(html).toContain("b913…766c");
+    expect(html).not.toContain("photo=b91383a1");
+  });
+
+  it("渡したむすびがない・見つからないときは、その旨を出す", () => {
+    expect(render(entrance({ receiverPresent: "unknown", inputMusubiIds: [] }))).toContain("渡したむすびはありません");
+    const html = render(entrance({ receiverPresent: "yes", inputMusubiIds: ["mu-gone-123456789"] }));
+    expect(html).toContain("いた");
+    expect(html).toContain("見つからないむすび");
+  });
+});

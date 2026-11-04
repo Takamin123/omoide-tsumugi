@@ -6,10 +6,17 @@ import {
   entrancesOn,
   headSegments,
   inputNarrations,
+  isV3Entrance,
   jstDateTime,
   monthDay,
+  musubiStatusLabel,
   NARRATION_HEAD_CHARS,
+  passedMusubi,
+  photoNumbers,
+  presentLabel,
   repliesTo,
+  shortId,
+  takenDate,
   type InputNarration,
 } from "./record";
 
@@ -60,6 +67,7 @@ export function DateView({
           narrationHref={narrationHref}
           photoHref={photoHref}
           goPhoto={goPhoto}
+          record={record}
         />
       ))}
     </>
@@ -86,6 +94,7 @@ function EntranceRow({
   narrationHref,
   photoHref,
   goPhoto,
+  record,
 }: {
   e: OpsEntrance;
   photo: OpsPhoto | null;
@@ -97,6 +106,7 @@ function EntranceRow({
   narrationHref: NarrationHref;
   photoHref: (photoId: string) => string;
   goPhoto: (photoId: string) => void;
+  record: Pick<OpsFamilyRecord, "photos" | "musubi">;
 }) {
   const g = e.guessed;
   const q = e.told.quote;
@@ -183,6 +193,7 @@ function EntranceRow({
                   ["どこから見せたか", g.focus ? `左 ${pct(g.focus.x)}、上 ${pct(g.focus.y)}、幅 ${pct(g.focus.w)}、高さ ${pct(g.focus.h)}` : "全体"],
                 ]}
               />
+              <V3Guess e={e} record={record} names={names} photoHref={photoHref} goPhoto={goPhoto} />
             </details>
           )}
         </div>
@@ -212,6 +223,77 @@ function EntranceRow({
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/**
+ * 入り口 v3 の推測（0046）: 受け取る人がその場にいたか、同じ出来事として Claude に渡したむすびの写真（プロンプトの版は上の表に出ている）。
+ * 写真は「写真で見る」の一覧と同じ番号（何枚目）と小さな写真で出す。v2 と固定の入り口では何も出さない
+ */
+export function V3Guess({
+  e,
+  record,
+  names,
+  photoHref,
+  goPhoto,
+}: {
+  e: OpsEntrance;
+  record: Pick<OpsFamilyRecord, "photos" | "musubi">;
+  names: Names;
+  photoHref: (photoId: string) => string;
+  goPhoto: (photoId: string) => void;
+}) {
+  if (!isV3Entrance(e)) return null;
+  const g = e.guessed;
+  const numberOf = photoNumbers(record.photos);
+  const photoOf = new Map(record.photos.map((p) => [p.id, p]));
+  const passed = passedMusubi(g.inputMusubiIds, record.musubi);
+  return (
+    <div className="v3">
+      <Facts
+        rows={[
+          ["受け取る人がその場にいたか", presentLabel(g.receiverPresent) ?? "残っていません"],
+        ]}
+      />
+      <p className="guessed-head">同じ出来事として渡したむすび</p>
+      {passed.length === 0 && <p className="sub">渡したむすびはありません。</p>}
+      {passed.map((it, i) =>
+        it.musubi ? (
+          <ul className="musubi" key={`${i}-${it.id}`} aria-label={`むすび ${i + 1}`}>
+            {it.musubi.photos.map((mp) => {
+              const p = photoOf.get(mp.photoId);
+              const no = numberOf.get(mp.photoId);
+              if (!p || no === undefined) {
+                return (
+                  <li key={mp.photoId}>
+                    <span className="sub">見つからない写真</span> <span className="ids">{shortId(mp.photoId)}</span>
+                  </li>
+                );
+              }
+              return (
+                <li key={mp.photoId}>
+                  <a className="musubi-photo" href={photoHref(p.id)} onClick={onPlainClick(() => goPhoto(p.id))}>
+                    <OpsPhotoImage photo={p} frames={[]} alt="" className="thumb" />
+                    <span className="photo-list-text">
+                      <span className="photo-list-name">
+                        {no} 枚目{p.id === e.photoId ? "（この入り口の写真）" : ""}
+                      </span>
+                      <span className="sub">
+                        {names.who(p.ownerMemberId)}の写真{p.takenAt ? `、${takenDate(p.takenAt)}` : ""}、{musubiStatusLabel(mp.status)}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="sub" key={`${i}-${it.id}`}>
+            見つからないむすび <span className="ids">{shortId(it.id)}</span>
+          </p>
+        ),
+      )}
+    </div>
+  );
+}
 
 /**
  * 材料にした語り。マウスを乗せると開き、クリック・タップで開いたままにする（もう一度で閉じる）。

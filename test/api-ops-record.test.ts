@@ -411,6 +411,111 @@ describe("運営の記録: 中身", () => {
     expect(r.photos.map((p) => p.id)).toEqual([a.photo.id]);
   });
 
+  it("入り口 v3 の推測: receiverPresent と渡したむすびの ID を返し、むすびは渡したものだけを写真と状態つきで返す（推測の理由は返さない）", async () => {
+    const t = makeTestApp(d1);
+    const { f, elder, child, photo, entranceId } = await seed(t);
+    const other = await addPhoto(t, child.cookie, 2);
+    const third = await addPhoto(t, child.cookie, 3);
+    const MUSUBI_REASON = "架空のむすびの理由_MU_5d0";
+    const passedId = `mu-pass-${f.familyId}`;
+    const unusedId = `mu-unused-${f.familyId}`;
+    for (const id of [passedId, unusedId]) {
+      await d1
+        .prepare("INSERT INTO musubi (id, family_id, created_by, guessed_reason, guessed_evidence_record_ids, model, prompt_version, created_at) VALUES (?, ?, 'guessed', ?, '[]', 'm', 'musubi_guess/v1', 1)")
+        .bind(id, f.familyId, MUSUBI_REASON)
+        .run();
+    }
+    for (const [mid, pid] of [[passedId, photo.id], [passedId, other.id], [unusedId, other.id], [unusedId, third.id]] as const) {
+      await d1.prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, created_at) VALUES (?, ?, ?, 'guessed', 1)").bind(mid, pid, f.familyId).run();
+    }
+    await d1
+      .prepare("UPDATE entrances SET input_musubi_ids = ?, receiver_present = 'no', prompt_version = 'entrance/v3' WHERE id = ?")
+      .bind(JSON.stringify([passedId]), entranceId)
+      .run();
+
+    const r = (await (await t.app.request(recordUrl(f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    const e = r.entrances.find((x) => x.id === entranceId)!;
+    expect(e.memberId).toBe(elder.id);
+    expect(e.guessed).toMatchObject({ inputMusubiIds: [passedId], receiverPresent: "no", promptVersion: "entrance/v3" });
+    expect(r.musubi).toEqual([
+      {
+        id: passedId,
+        photos: expect.arrayContaining([
+          { photoId: photo.id, status: "guessed" },
+          { photoId: other.id, status: "guessed" },
+        ]),
+      },
+    ]);
+    expect(r.musubi[0]!.photos).toHaveLength(2);
+    expect(JSON.stringify(r)).not.toContain(MUSUBI_REASON);
+  });
+
+  it("ほかの家族のむすびの ID が入り口に入っていても、その家族のむすびは返さない。家族が決めた状態（確かめた・外した）はそのまま返す", async () => {
+    const t = makeTestApp(d1);
+    const a = await seed(t);
+    const b = await seed(t);
+    const OTHER_REASON = "架空のほかの家族の理由_MU_c71";
+    const ownId = `mu-own-${a.f.familyId}`;
+    const otherId = `mu-other-${b.f.familyId}`;
+    const insertMusubi = (id: string, familyId: string, reason: string) =>
+      d1
+        .prepare("INSERT INTO musubi (id, family_id, created_by, guessed_reason, guessed_evidence_record_ids, model, prompt_version, created_at) VALUES (?, ?, 'guessed', ?, '[]', 'm', 'musubi_guess/v1', 1)")
+        .bind(id, familyId, reason)
+        .run();
+    await insertMusubi(ownId, a.f.familyId, "架空");
+    await insertMusubi(otherId, b.f.familyId, OTHER_REASON);
+    const aOther = await addPhoto(t, a.child.cookie, 7);
+    await d1
+      .prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, decided_by_member_id, decided_at, created_at) VALUES (?, ?, ?, 'confirmed', ?, 5, 1)")
+      .bind(ownId, a.photo.id, a.f.familyId, a.child.id)
+      .run();
+    await d1
+      .prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, decided_by_member_id, decided_at, created_at) VALUES (?, ?, ?, 'rejected', ?, 5, 1)")
+      .bind(ownId, aOther.id, a.f.familyId, a.child.id)
+      .run();
+    await d1
+      .prepare("INSERT INTO musubi_photos (musubi_id, photo_id, family_id, status, created_at) VALUES (?, ?, ?, 'guessed', 1)")
+      .bind(otherId, b.photo.id, b.f.familyId)
+      .run();
+    // a の入り口に、a のむすびと b のむすびの ID の両方が入っている（ありえないはずの形でも漏らさない）
+    await d1
+      .prepare("UPDATE entrances SET input_musubi_ids = ?, receiver_present = 'unknown' WHERE id = ?")
+      .bind(JSON.stringify([ownId, otherId]), a.entranceId)
+      .run();
+
+    const ra = (await (await t.app.request(recordUrl(a.f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    expect(ra.musubi.map((m) => m.id)).toEqual([ownId]);
+    expect(ra.musubi[0]!.photos).toEqual(
+      expect.arrayContaining([
+        { photoId: a.photo.id, status: "confirmed" },
+        { photoId: aOther.id, status: "rejected" },
+      ]),
+    );
+    expect(ra.musubi[0]!.photos).toHaveLength(2);
+    // 決めた人と時刻は返さない（画面で使わない）
+    expect(JSON.stringify(ra.musubi)).not.toContain(a.child.id);
+    expect(JSON.stringify(ra)).not.toContain(OTHER_REASON);
+    expect(JSON.stringify(ra)).not.toContain(b.photo.id);
+    // b の家族は、どの入り口にも渡していないので空
+    const rb = (await (await t.app.request(recordUrl(b.f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    expect(rb.musubi).toEqual([]);
+  });
+
+  it("むすびは、家族の合言葉の入り口には出ない（運営の鍵なしの記録は 401）", async () => {
+    const t = makeTestApp(d1);
+    const { f, child } = await seed(t);
+    const res = await t.app.request(recordUrl(f.familyId), { headers: { Cookie: child.cookie } });
+    expect(res.status).toBe(401);
+    expect(await res.text()).not.toContain("musubi");
+  });
+
+  it("v2 の入り口しかない家族では、むすびは空", async () => {
+    const t = makeTestApp(d1);
+    const { f } = await seed(t);
+    const r = (await (await t.app.request(recordUrl(f.familyId), { headers: bearer() })).json()) as OpsFamilyRecord;
+    expect(r.musubi).toEqual([]);
+  });
+
   it("理由と写真の説明は、家族向けの入り口（合言葉）には出ない", async () => {
     const t = makeTestApp(d1);
     const { elder, child, photo } = await seed(t);

@@ -32,11 +32,12 @@
 - 「〜でしたか」の機械検査は作らない（出し比べで数える）
 
 ### 保存
-- entrances に `input_musubi_ids`（JSON の配列）と `receiver_present` を ADD COLUMN（CHECK なし。マイグレーション `0006_entrance_v3`）。v2 と固定の入り口では null。運営と開発だけが見る（運営の記録の API の `guessed` に足した。画面の表示はまだ足していない）。家族向けの API に出ないことをテストで固定
+- entrances に `input_musubi_ids`（JSON の配列）と `receiver_present` を ADD COLUMN（CHECK なし。マイグレーション `0006_entrance_v3`）。v2 と固定の入り口では null。運営と開発だけが見る（運営の記録の API の `guessed` に足した。画面では入り口ごとに、その場にいたか（いた・いなかった・分からない）と、渡したむすびの写真を「写真で見る」の一覧と同じ何枚目と小さな写真で出す。API はそのため、どれかの入り口に渡したむすびだけを写真と状態つきで返す（推測の理由・根拠は返さない））。家族向けの API に出ないことをテストで固定
 
 ### 切り替え
 - `ENTRANCE_VERSION`（entrance-claude.ts の定数）で切り替える。既定は `"v2"`。v2 のときはむすびも記録も読まず、入力・検査・保存は今までと同じ
 - 出し比べは `EVAL_PROMPT=v3` で v3 を名指しで呼ぶ。`EVAL_MUSUBI=0` で v3 のプロンプトのまま、むすびの入力と g1a を外す
+- むすびと記録の読み出しが落ちたときは、`{ event: "entrance_same_event_read_failed", traceId, familyId, memberId, forDate, read: "musubi" | "records", errorType }` を残す（errorType は Error の名前だけ。メッセージは出さない）。morning_done の fallbacks の same_event_unavailable と処理の ID で突き合わせる
 - **マイグレーション 0006 は、このコードを動かす前に当てる必要がある。** スキーマに列が入ったので、v2 のままでも entrances を読む問い合わせが新しい列を読む（drizzle は表の全部の列を指定する）。0006 のない D1 でこのコードを動かすと、入り口の読み書きが壊れる。だから、このブランチは親の試し（〜11/10）が終わるまで develop に入れない（試しの間に develop の直しを main にそのまま入れることがあるため）。入れるときは、`/d1-migrate` で本番とプレビューに 0006 を当ててからデプロイする
 - 切り替え（`ENTRANCE_VERSION = "v3"`）は 11/10 の後、この記録の出し比べの結果と一緒に一つのコミットで
 

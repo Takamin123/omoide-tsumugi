@@ -1,7 +1,7 @@
 // 入り口 v3（0046）の境界: g1a と g0・g1・7 日の除外・avoid の組み合わせ、同じ組が二つのむすびにあるとき、
 // 受け取る人の語りが Y を出した時刻とちょうど同じとき、つながりの検査の表記ゆれ、既定が v3 であることと、名指しの v2 がむすびと記録を読まないこと、
 // v3 で検査に落ちたときに新しい列を残さないこと。Claude は偽物。データは架空
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { notConfiguredClaude } from "../src/server/core/claude";
 import {
   buildEntranceInput,
@@ -299,6 +299,91 @@ describe("毎朝の処理: 版の既定と、v3 の全か無か（0046）", () =
       expect(row).toEqual({ kind: "fixed", prompt_version: null, receiver_present: null, input_musubi_ids: null });
     });
   }
+
+  it("読み出しが落ちたら、どちらの読み出しかとエラーの名前だけをログに残す（メッセージ・本文は出さない）", async () => {
+    const s = await setup("この日のことを、聞かせてください");
+    class D1LikeError extends Error {
+      override name = "D1LikeError";
+    }
+    const boom = () => Promise.reject(new D1LikeError("架空の失敗_MSG_4e2"));
+    const odd = () => Promise.reject(Object.assign(new Error("架空の失敗_MSG_8a1"), { name: "名前 に 空白" }));
+    const deps: AppDeps = {
+      ...s.t.deps,
+      repos: {
+        ...s.t.deps.repos,
+        musubi: { ...s.t.deps.repos.musubi, listByFamily: boom },
+        records: { ...s.t.deps.repos.records, listByFamily: odd },
+      },
+    };
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const r = await ensureMorningEntrance(deps, { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), {
+        useClaude: true,
+        traceId: "trace-x",
+      });
+      expect(r).toMatchObject({ via: "fixed", fallback: "same_event_unavailable" });
+      const lines = spy.mock.calls.map((c) => String(c[0]));
+      const parse = (l: string): Record<string, unknown> | null => {
+        try {
+          return JSON.parse(l) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      };
+      const failed = lines.map(parse).filter((l) => l?.event === "entrance_same_event_read_failed");
+      expect(failed).toHaveLength(2);
+      const base = { traceId: "trace-x", familyId: s.familyId, memberId: s.elder.id, forDate: "2026-11-03" };
+      expect(failed).toContainEqual({ event: "entrance_same_event_read_failed", ...base, read: "musubi", errorType: "D1LikeError" });
+      // 識別子の形でない名前は出さない
+      expect(failed).toContainEqual({ event: "entrance_same_event_read_failed", ...base, read: "records", errorType: "Error" });
+      const all = lines.join("\n");
+      expect(all).not.toContain("架空の失敗");
+      expect(all).not.toContain("名前 に 空白");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("片方だけ落ちたらログは 1 行。Error でないものが投げられたら、その typeof だけを残す", async () => {
+    const s = await setup("この日のことを、聞かせてください");
+    const deps: AppDeps = {
+      ...s.t.deps,
+      repos: { ...s.t.deps.repos, records: { ...s.t.deps.repos.records, listByFamily: () => Promise.reject("架空の文字列_MSG_b19") } },
+    };
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const r = await ensureMorningEntrance(deps, { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true });
+      expect(r).toMatchObject({ via: "fixed", fallback: "same_event_unavailable" });
+      const lines = spy.mock.calls.map((c) => String(c[0]));
+      const failed = lines
+        .map((l) => {
+          try {
+            return JSON.parse(l) as Record<string, unknown>;
+          } catch {
+            return null;
+          }
+        })
+        .filter((l) => l?.event === "entrance_same_event_read_failed");
+      expect(failed).toEqual([
+        { event: "entrance_same_event_read_failed", traceId: null, familyId: s.familyId, memberId: s.elder.id, forDate: "2026-11-03", read: "records", errorType: "string" },
+      ]);
+      expect(lines.join("\n")).not.toContain("架空の文字列");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("名指しの v2 は読み出しをしないので、読み出しの失敗のログも出さない", async () => {
+    const s = await setup("この日のことを、聞かせてください");
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await ensureMorningEntrance(withoutMusubiReads(s.t.deps), { id: s.familyId }, { id: s.elder.id }, "2026-11-03", NOW.getTime(), { useClaude: true, version: "v2" });
+      const lines = spy.mock.calls.map((c) => String(c[0]));
+      expect(lines.some((l) => l.includes("entrance_same_event_read_failed"))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
   it("名指しの v2 は、むすびと記録を読まずに Claude の入り口を作り、新しい列は null", async () => {
     const s = await setup("この日のことを、聞かせてください");

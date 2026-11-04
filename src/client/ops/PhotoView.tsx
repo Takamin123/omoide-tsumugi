@@ -1,6 +1,6 @@
 // 開発用（運営）の記録の画面: 写真で見る（案 B）。一枚の写真について、入り口になったことと語られたことを時系列で並べる。
 import type { OpsEntrance, OpsFamilyRecord, OpsNarration, OpsPhoto } from "../../shared/ops";
-import { onPlainClick, type Names } from "./DateView";
+import { onPlainClick, V3Guess, type Names } from "./DateView";
 import { CleanedNote, Facts, OpsPhotoImage, TranscriptText } from "./parts";
 import {
   jstDateTime,
@@ -32,7 +32,7 @@ export function PhotoView({
     <div className="photo-axis">
       <nav className="photo-list" aria-label="写真の一覧">
         <h2>写真 {record.photos.length} 枚</h2>
-        {record.photos.map((p) => {
+        {record.photos.map((p, i) => {
           const u = usage.get(p.id);
           const count =
             !u || u.entrances + u.narrations === 0 ? "まだ使っていません" : `入り口 ${u.entrances}、語り ${u.narrations}`;
@@ -46,7 +46,7 @@ export function PhotoView({
               <OpsPhotoImage photo={p} frames={[]} alt="" className="thumb" />
               <span className="photo-list-text">
                 <span className="photo-list-name">
-                  {names.who(p.ownerMemberId)}の写真{p.takenAt ? `、${takenDate(p.takenAt)}` : ""}
+                  {i + 1} 枚目、{names.who(p.ownerMemberId)}の写真{p.takenAt ? `、${takenDate(p.takenAt)}` : ""}
                 </span>
                 <span className="sub">{count}</span>
               </span>
@@ -54,12 +54,28 @@ export function PhotoView({
           );
         })}
       </nav>
-      {photo ? <PhotoHistory record={record} photo={photo} names={names} /> : <p className="sub">写真はまだありません。</p>}
+      {photo ? (
+        <PhotoHistory record={record} photo={photo} names={names} photoHref={photoHref} goPhoto={goPhoto} />
+      ) : (
+        <p className="sub">写真はまだありません。</p>
+      )}
     </div>
   );
 }
 
-function PhotoHistory({ record, photo, names }: { record: OpsFamilyRecord; photo: OpsPhoto; names: Names }) {
+function PhotoHistory({
+  record,
+  photo,
+  names,
+  photoHref,
+  goPhoto,
+}: {
+  record: OpsFamilyRecord;
+  photo: OpsPhoto;
+  names: Names;
+  photoHref: (photoId: string) => string;
+  goPhoto: (photoId: string) => void;
+}) {
   const events = photoEvents(record, photo.id);
   const guesses = record.photoGuesses.filter((g) => g.photoId === photo.id);
   // 枠が重なると名札も重なるので、枠には番号だけを付け、名札（日付と人）は写真の下に一覧で出す
@@ -120,7 +136,16 @@ function PhotoHistory({ record, photo, names }: { record: OpsFamilyRecord; photo
         <ol>
           {events.map((ev) =>
             ev.type === "entrance" ? (
-              <EntranceEvent key={ev.entrance.id} e={ev.entrance} names={names} byId={byId} frameNo={frameNo.get(ev.entrance.id) ?? null} />
+              <EntranceEvent
+                key={ev.entrance.id}
+                e={ev.entrance}
+                names={names}
+                byId={byId}
+                frameNo={frameNo.get(ev.entrance.id) ?? null}
+                record={record}
+                photoHref={photoHref}
+                goPhoto={goPhoto}
+              />
             ) : (
               <NarrationEvent key={ev.narration.id} n={ev.narration} names={names} />
             ),
@@ -155,11 +180,17 @@ function EntranceEvent({
   names,
   byId,
   frameNo,
+  record,
+  photoHref,
+  goPhoto,
 }: {
   e: OpsEntrance;
   names: Names;
   byId: ReadonlyMap<string, OpsNarration>;
   frameNo: number | null;
+  record: Pick<OpsFamilyRecord, "photos" | "musubi">;
+  photoHref: (photoId: string) => string;
+  goPhoto: (photoId: string) => void;
 }) {
   const g = e.guessed;
   const q = e.told.quote;
@@ -203,6 +234,7 @@ function EntranceEvent({
                   ["プロンプトの版", g.promptVersion],
                 ]}
               />
+              <V3Guess e={e} record={record} names={names} photoHref={photoHref} goPhoto={goPhoto} />
             </div>
           )}
         </div>

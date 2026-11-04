@@ -601,6 +601,12 @@ async function loadImage(deps: Pick<AppDeps, "photos">, photo: PhotoRow): Promis
   return { type: "image", mediaType, base64 };
 }
 
+/** ログに出すエラーの種類。Error の名前だけ（メッセージは出さない）。名前が識別子の形でなければ "Error"、Error でなければ typeof */
+function errorName(err: unknown): string {
+  if (!(err instanceof Error)) return typeof err;
+  return /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(err.name) ? err.name : "Error";
+}
+
 /** Claude の入り口が作れなかった理由（ログに出す種類） */
 export type EntranceClaudeFailure = ClaudeFailure | "no_candidates" | "no_images" | "past_deadline" | "same_event_unavailable";
 
@@ -623,13 +629,26 @@ export async function makeClaudeEntrance(
   const none = (reason: EntranceClaudeFailure): MakeClaudeEntranceResult => ({ ok: false, reason, inputTokens: 0, outputTokens: 0 });
   // むすびと記録は v3 だけが使う（v2 では読まない）。読めなければ v3 の検査ができないので Claude を呼ばず、固定の入り口に倒す
   // （むすびの読み出しが落ちても毎朝の処理は続け、全員に入り口を出す。0044）
+  // 落ちたときは、どちらの読み出しか（musubi / records）とエラーの名前だけを残す（メッセージは入力値を含みうるので出さない）。
+  // morning_done の fallbacks の same_event_unavailable と、処理の ID で突き合わせる
   let sameEventReadFailed = false;
-  const readForV3 = <T>(read: () => Promise<T[]>): Promise<T[]> =>
+  const readForV3 = <T>(which: "musubi" | "records", read: () => Promise<T[]>): Promise<T[]> =>
     v3
       ? Promise.resolve()
           .then(read)
-          .catch(() => {
+          .catch((err: unknown) => {
             sameEventReadFailed = true;
+            console.log(
+              JSON.stringify({
+                event: "entrance_same_event_read_failed",
+                traceId: traceId ?? null,
+                familyId: family.id,
+                memberId: member.id,
+                forDate,
+                read: which,
+                errorType: errorName(err),
+              }),
+            );
             return [];
           })
       : Promise.resolve([]);
@@ -640,8 +659,8 @@ export async function makeClaudeEntrance(
     repos.members.list(family.id),
     repos.photoGuesses.listByFamily(family.id),
     repos.entrances.listByDate(family.id, forDate),
-    readForV3(() => repos.musubi.listByFamily(family.id)),
-    readForV3(() => repos.records.listByFamily(family.id)),
+    readForV3("musubi", () => repos.musubi.listByFamily(family.id)),
+    readForV3("records", () => repos.records.listByFamily(family.id)),
   ]);
   if (sameEventReadFailed) return none("same_event_unavailable");
   // 今日すでにほかの人の入り口に出した写真（毎朝の処理は一人ずつ順なので、先に作った人の分。0042）
