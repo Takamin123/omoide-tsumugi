@@ -12,7 +12,7 @@ const { ZoomablePhoto } = await load("../../src/client/parts/ZoomablePhoto");
 const { words } = await load("../../src/client/words");
 
 const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), "utf8") as string;
-const photo = { id: "p-1", ownerMemberId: "m-1", width: 1600, height: 1200, takenAt: null, hasLocation: false, imageUrl: "/api/photos/p-1/image" };
+const photo = { id: "p-1", ownerMemberId: "m-1", width: 1600, height: 1200, takenAt: null, hasLocation: false, place: null, imageUrl: "/api/photos/p-1/image" };
 
 describe("lib/zoom.ts", () => {
   it("containBox: 縦横比を保って枠に全体を入れ、真ん中に置く", () => {
@@ -47,9 +47,9 @@ describe("lib/zoom.ts", () => {
 });
 
 describe("拡大の画面の描き方", () => {
-  const render = (closeLabel: string) =>
+  const render = (closeLabel: string, p: Record<string, unknown> = photo) =>
     renderToStaticMarkup(
-      h(PhotoViewer, { photo, origin: () => null, closing: false, onRequestClose: () => {}, onClosed: () => {}, closeLabel, label: words.photoView.label }),
+      h(PhotoViewer, { photo: p, origin: () => null, closing: false, onRequestClose: () => {}, onClosed: () => {}, closeLabel, label: words.photoView.label }),
     ) as string;
   it("写真だけの画面。ボタンは「とじる」（祖父母）／「閉じる」（家族）の一つだけ", () => {
     expect(words.elder.close).toBe("とじる");
@@ -60,6 +60,29 @@ describe("拡大の画面の描き方", () => {
     expect(html).toContain(`aria-label="${words.photoView.label}"`);
     expect(html.match(/<button/g)).toHaveLength(1);
     expect(html).toMatch(/<button[^>]*class="primary viewer-close"[^>]*>とじる<\/button>/);
+  });
+  it("写真の記録（撮影日、場所）を、入り口と同じ形で閉じるボタンの上に出す。写真の枠には重ねない（両画面。0040 の追記、0047）", () => {
+    // デモの家族の山形の写真と同じ地名（架空の公開の代表点。0038）
+    const withFacts = { ...photo, takenAt: "2026-06-25T11:30:00", hasLocation: true, place: "山形県大石田町" };
+    for (const label of [words.elder.close, words.home.close]) {
+      const html = render(label, withFacts);
+      expect(html).toContain('<p class="photo-facts viewer-facts"><span>2026年6月25日</span><span>山形県大石田町あたり</span></p>');
+      const at = (s: string) => html.indexOf(s);
+      expect(at('class="viewer-stage"')).toBeLessThan(at('class="viewer-foot"'));
+      expect(at('class="viewer-foot"')).toBeLessThan(at("photo-facts"));
+      expect(at("photo-facts")).toBeLessThan(at("viewer-close"));
+      // 押せるのは閉じるボタンだけのまま。前置き・印は付けない
+      expect(html.match(/<button/g)).toHaveLength(1);
+      expect(html).not.toMatch(/撮影日|場所：|場所:/);
+    }
+    expect(render(words.home.close, { ...photo, hasLocation: true, place: "三重県伊勢市" })).toContain(
+      '<p class="photo-facts viewer-facts"><span>三重県伊勢市あたり</span></p>',
+    );
+  });
+  it("記録がなければ行を出さない（「なし」は出さない）", () => {
+    const html = render(words.home.close);
+    expect(html).not.toContain("photo-facts");
+    expect(html).not.toContain("なし");
   });
   it("同じ画像の URL を使い、寄せ（object-position）を付けずに全体を出す", () => {
     const html = render(words.home.close);

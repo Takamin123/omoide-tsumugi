@@ -1097,6 +1097,15 @@ nav.top button {
   padding: 0.75rem var(--page-pad) calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
+/*
+ * 写真の記録（撮影日、場所）。入り口の .photo-facts と同じ字・大きさ・順・折り方で、色だけ黒地用に。
+ * 閉じるボタンの上に置き、写真には重ねない（広げる・ずらすに巻き込まれず、写真を隠さない。0040 の追記）
+ */
+.viewer-facts {
+  color: var(--album-on-mat);
+  margin-bottom: 0.5rem;
+}
+
 /* 横いっぱい。家族の画面でも、祖父母の画面の主な動作と同じ大きさの文字 */
 .viewer-close {
   font-size: var(--font-elder-action);
@@ -1106,6 +1115,9 @@ nav.top button {
 @media (orientation: landscape) and (max-height: 32rem) {
   .viewer-foot {
     padding: 0.25rem var(--page-pad) calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  .viewer-facts {
+    margin-bottom: 0.25rem;
   }
   .viewer-close {
     min-height: max(64px, var(--tap-min));

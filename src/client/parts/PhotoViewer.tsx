@@ -3,9 +3,11 @@
 // 指で広げる・二度押しで広げる・広げたまま指でずらす。画面全体（ボタンや文字）は広げない。
 // 開くときは押した写真の位置から広がり、閉じると元の位置へ縮んで戻る（transform と opacity だけ、0.25 秒）。
 // 動きを減らす設定では動かさない。
+// 写真の記録（撮影日・場所。0047）は、入り口と同じ形（.photo-facts）で閉じるボタンの上に置く。写真には重ねない（0040 の追記）。
 // 今は一枚だけを見せる。むすびで何枚かをめくるときは、photo を並びに替え、stage の横の操作を足す。
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Photo } from "../../shared/api";
+import { formatPlace, formatTakenDate } from "../lib/pure";
 import {
   clampView,
   containBox,
@@ -246,6 +248,9 @@ export function PhotoViewer({ photo, origin, closing, onRequestClose, onClosed, 
         transition: animate && !gesturing && phase !== "start" ? `transform ${VIEWER_MOTION_MS}ms ease` : "none",
       }
     : { visibility: "hidden" as const };
+  // 写真の記録。なければ行を出さない（「なし」は出さない。0047）
+  const taken = formatTakenDate(photo.takenAt);
+  const place = formatPlace(photo.place);
   const fade = { opacity: shown ? 1 : 0, transition: animate ? `opacity ${VIEWER_MOTION_MS}ms ease` : "none" };
 
   return (
@@ -262,6 +267,12 @@ export function PhotoViewer({ photo, origin, closing, onRequestClose, onClosed, 
         <img className="viewer-photo" src={photo.imageUrl} width={photo.width} height={photo.height} alt="" draggable={false} style={style} />
       </div>
       <div className="viewer-foot" style={fade}>
+        {(taken || place) && (
+          <p className="photo-facts viewer-facts">
+            {taken && <span>{taken}</span>}
+            {place && <span>{place}</span>}
+          </p>
+        )}
         <button ref={closeRef} type="button" className="primary viewer-close" onClick={onRequestClose} disabled={phase === "closing"}>
           {closeLabel}
         </button>

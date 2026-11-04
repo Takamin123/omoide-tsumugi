@@ -10,6 +10,7 @@ import { buildSeedRows, matchSeedMembers } from "../src/server/core/demo-reset";
 import { DEMO_RESET_TABLES, type ClaudeClient, type MemberRow } from "../src/server/core/ports";
 import { SEED_CLEANED } from "../src/server/demo/seed-cleaned";
 import { SEED_ENTRANCES, SEED_MEMBERS, SEED_NARRATIONS, SEED_PHOTOS, seedPhotoKey, seedVoiceKey } from "../src/server/demo/seed";
+import { placeName } from "../src/server/core/place";
 import * as schema from "../src/server/db/schema";
 import { createR2PhotoStore } from "../src/server/platform/cloudflare/r2-photo-store";
 import { demoResetKeyMisconfig } from "../src/server/routes/auth";
@@ -224,6 +225,17 @@ describe("種そのもの", () => {
       d.setUTCDate(d.getUTCDate() - n.daysAgo);
       return d.toISOString().slice(0, 10);
     }));
+  });
+
+  it("場所は架空の公開の代表点（小数第 2 位）: 伊勢・二見の旅は三重県伊勢市、山形の家の近くは山形県大石田町（0047）", () => {
+    for (const p of SEED_PHOTOS) {
+      expect(Math.round(p.latitude * 100) / 100, p.label).toBe(p.latitude);
+      expect(Math.round(p.longitude * 100) / 100, p.label).toBe(p.longitude);
+      expect(placeName(p.latitude, p.longitude), p.label).toBe(p.label.startsWith("P") ? "三重県伊勢市" : "山形県大石田町");
+    }
+    const people = new Map(SEED_MEMBERS.map((m, i) => [m.calledAs, { id: `m${i}`, calledAs: m.calledAs, role: m.role } as MemberRow]));
+    const rows = buildSeedRows("11111111-0000-4000-8000-000000000001", AS_OF, people);
+    expect(rows.photos.map((p) => [p.row.latitude, p.row.longitude])).toEqual(SEED_PHOTOS.map((p) => [p.latitude, p.longitude]));
   });
 
   it("消す表と残す表で、schema.ts の表をすべて覆う。消す順は外部キーの子が先", () => {
@@ -494,6 +506,62 @@ describe("戻した後の状態", () => {
     // 二度目は、一度目に入れた行（と今日の入り口）を消す
     expect(second.deleted.rows).toMatchObject({ photos: 12, narrations: 12, entrances: 6 });
     expect(second.deleted.files).toBe(16);
+  });
+
+  // 画面の「〜あたり」は test/client/photo-facts.test.ts（入り口）と test/client/photo-viewer.test.ts（拡大の画面。同じ地名で）
+  it("戻した写真の場所は「三重県伊勢市」9 枚と「山形県大石田町」3 枚の文字だけ。緯度経度は返さない（0047）", async () => {
+    const t = appWithR2();
+    const f = await demoFamily(t);
+    expect((await reset(t, f.familyId)).status).toBe(200);
+    const body = await (await t.app.request("/api/photos", { headers: { Cookie: f.cookie } })).text();
+    expect(body).not.toMatch(/latitude|longitude|34\.49|136\.71|38\.59|140\.37/);
+    const places = (JSON.parse(body) as { photos: { place: string | null }[] }).photos.map((p) => p.place);
+    expect(places).toHaveLength(12);
+    expect(places.filter((s) => s === "三重県伊勢市")).toHaveLength(9);
+    expect(places.filter((s) => s === "山形県大石田町")).toHaveLength(3);
+  });
+
+  it("（qa）初期化の最後の毎朝の処理で、Claude に渡す入力にも、ログにも、地名と緯度経度が出ない（0047）", async () => {
+    const t = appWithR2();
+    const f = await demoFamily(t);
+    const fake = fakeClaude({
+      replies: Array.from({ length: SEED_PHOTOS.length }, () => ({ kind: "json" as const, value: { description: "屋外。大人が二人並んで立っている。" }, model: "claude-haiku-5-5" })),
+    });
+    const inputs: string[] = [];
+    const purposes = new Set<string>();
+    const claude: ClaudeClient = {
+      call: async (req) => {
+        purposes.add(req.prompt.purpose);
+        inputs.push(JSON.stringify(req.prompt));
+        if (req.prompt.purpose === "photo_guess") return fake.claude.call(req);
+        return notConfiguredClaude.call(req);
+      },
+      createBatch: (req) => {
+        inputs.push(JSON.stringify({ prompt: req.prompt, items: req.items }));
+        return fake.claude.createBatch(req);
+      },
+      getBatch: (id, traceId) => fake.claude.getBatch(id, traceId),
+      getBatchResults: (req) => fake.claude.getBatchResults(req),
+    };
+    t.deps.claude = claude;
+    const logs: string[] = [];
+    const spies = (["log", "warn", "error", "info", "debug"] as const).map((k) =>
+      vi.spyOn(console, k).mockImplementation((...a: unknown[]) => void logs.push(a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" "))),
+    );
+    let res: Response;
+    try {
+      res = await reset(t, f.familyId);
+    } finally {
+      for (const s of spies) s.mockRestore();
+    }
+    expect(res.status).toBe(200);
+    // 写真の説明と入り口づくりの両方が、実際に Claude を呼ぶところまで進んだ
+    expect(purposes.has("photo_guess")).toBe(true);
+    expect(purposes.has("entrance")).toBe(true);
+    const forbidden = /伊勢市|大石田|三重県|山形県大石田|34\.49|136\.71|38\.59|140\.37|latitude|longitude/;
+    for (const s of [...inputs, ...fake.requests.map((r) => JSON.stringify(r.body))]) expect(s).not.toMatch(forbidden);
+    expect(logs.length).toBeGreaterThan(0);
+    for (const line of logs) expect(line).not.toMatch(forbidden);
   });
 
   it("アルバムに語りが並び、入り口への答えに元の言葉（言葉の糸）が付く", async () => {

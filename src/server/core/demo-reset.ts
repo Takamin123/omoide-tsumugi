@@ -81,8 +81,9 @@ export function buildSeedRows(familyId: string, asOfDate: string, people: Map<Se
         width: p.width,
         height: p.height,
         takenAt: p.takenAt,
-        latitude: null,
-        longitude: null,
+        // 架空の位置（台本の筋に合う市区町村の公開の代表点。実際の撮影場所ではない。seed.ts）
+        latitude: p.latitude,
+        longitude: p.longitude,
         // 並びを決めるため、一枚ごとに 1 秒ずらす
         createdAt: jstMs(registered, SEED_PHOTO_REGISTERED.at) + i * 1000,
       },
