@@ -3,14 +3,17 @@
 // アルバムでは、入り口への答えの語りに「言葉の糸」（答えた入り口に添えた家族の言葉）を出し、押すと元の語りへ移る（0035）。今日のタブには出さない。
 // 声は話者名の行を「ばあばの声（13秒）」にし、[聞く][返事]（祖父母は [きく][へんじ]）を一行に並べる（0045）。
 // 文字起こしが pending / failed の声は再生だけ（案内の文は出さない。0008、0028）。
+// 声で返事を送った直後は、「送りました」の下に「とりなおす」（0050）。消えたら返事の欄を開いてすぐ録り始める。
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Narration, QuotedFrom } from "../../shared/api";
 import { voiceLength } from "../lib/pure";
+import { useRetake } from "../lib/retake";
 import { useScreen, useSentNotice } from "../lib/screen";
 import { SENT_NOTICE_MS } from "../lib/useSender";
 import { words } from "../words";
 import { PlayVoice } from "./PlayVoice";
 import { ReplyBox } from "./ReplyBox";
+import { Retake } from "./Retake";
 
 /** /api/feed の語りは「元の言葉」を持つ。ほかの経路の語りは持たない */
 type NarrationWithSource = Narration & { quotedFrom?: QuotedFrom | null };
@@ -78,7 +81,12 @@ function NarrationView({
   /** 返事を送った後、「送りました」を出す。家族の画面はしばらく。祖父母の画面は次に答える・返事するボタンを押すまで（画面に一つだけ。0043） */
   const [sentHere, setSent] = useState(false);
   const notice = useSentNotice();
-  const sent = notice ? notice.at === narration.id : sentHere;
+  const retake = useRetake();
+  // 家族の画面: 声の返事の「送りました」は、「取り直す」と一緒に残す（4 秒で消さない。0050）
+  const sent = notice ? notice.at === narration.id : sentHere || retake?.slot?.at === narration.id;
+  /** 「とりなおす」で消えた後に開く返事の欄は、すぐ録り始める */
+  const [autoStart, setAutoStart] = useState(false);
+  const replyRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   const { w } = useScreen();
@@ -101,26 +109,34 @@ function NarrationView({
       {replying ? (
         <ReplyBox
           target={{ photoId: narration.photoId, entranceId: null, replyToId: narration.id }}
-          onSent={() => {
+          autoStart={autoStart}
+          onSent={(s) => {
             onReplying(false);
+            setAutoStart(false);
             clearTimeout(timer.current);
+            retake?.offer(narration.id, s);
             if (notice) notice.show(narration.id);
-            else {
+            else if (s.kind === "text") {
               setSent(true);
               timer.current = setTimeout(() => setSent(false), SENT_NOTICE_MS);
-            }
+            } else setSent(false);
             onSent();
           }}
-          onCancel={() => onReplying(false)}
+          onCancel={() => {
+            setAutoStart(false);
+            onReplying(false);
+          }}
         />
       ) : (
         <div className="row">
           {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen} stopLabel={w.stopVoice} name={w.listenName(speaker || null)} />}
           <button
+            ref={replyRef}
             type="button"
             className="aux"
             onClick={() => {
               notice?.clear();
+              retake?.clear();
               onReplying(true);
             }}
           >
@@ -129,6 +145,20 @@ function NarrationView({
         </div>
       )}
       <div aria-live="polite">{sent && <p className="done">{w.sent}</p>}</div>
+      {!replying && (
+        <Retake
+          at={narration.id}
+          focusAfter={replyRef}
+          onRetaken={(current) => {
+            onSent();
+            if (!current) return;
+            notice?.clear();
+            setSent(false);
+            setAutoStart(true);
+            onReplying(true);
+          }}
+        />
+      )}
       {children}
     </div>
   );

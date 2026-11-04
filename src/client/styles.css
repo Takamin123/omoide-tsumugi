@@ -605,6 +605,16 @@ main.home {
   text-align: center;
 }
 
+/* 「とりなおす」で消せなかったときの一文（0050）。ボタンのあった場所に、ボタンと同じ高さで（下の「はなす」を動かさない） */
+.retake-failed {
+  margin: 0;
+  min-height: var(--tap-min);
+}
+
+.elder .retake-failed {
+  text-align: center;
+}
+
 /* 今日の答えのボタンのすぐ上の、今の話者の呼ばれ方（0008） */
 .answer-who {
   text-align: center;

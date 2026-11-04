@@ -81,6 +81,22 @@ describe("useSender", () => {
     expect(metas[0].requestId).not.toBe(metas[1].requestId);
   });
 
+  it("送れた語りの { id, kind, at } を onSent に渡し、手元に持つ（「とりなおす」。0050）", async () => {
+    stubFetch([202]);
+    const onSent = vi.fn();
+    const s = useSender(target, onSent);
+    const before = Date.now();
+    s.sendVoice(new Blob([new Uint8Array([1])], { type: "audio/webm" }), 2_000);
+    await flush();
+    const sent = onSent.mock.calls[0]![0];
+    expect(sent).toMatchObject({ id: "n-1", kind: "voice" });
+    expect(sent.at).toBeGreaterThanOrEqual(before);
+    expect(states[2]).toEqual(sent);
+    s.sendText("文字");
+    await flush();
+    expect(onSent.mock.calls[1]![0]).toMatchObject({ id: "n-1", kind: "text" });
+  });
+
   it("送れた後の retry は何もしない", async () => {
     const metas = stubFetch([202]);
     const s = useSender(target);

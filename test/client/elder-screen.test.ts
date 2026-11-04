@@ -86,7 +86,7 @@ describe("祖父母の答え方: 「はなす」「かく」", () => {
   });
   it("祖父母の「はなす」は押すとその場で録り始める（選ぶボタンと録るボタンを兼ねる。0008 の二度押しのまま）", () => {
     const src = read("src/client/parts/ReplyBox.tsx");
-    expect(src).toMatch(/notice\?\.clear\(\);\s*rec\.toggle\(\);/);
+    expect(src).toMatch(/clearNotices\(\);\s*rec\.toggle\(\);/);
   });
   it("家族の「声で話す」も押すとその場で録り始める（選んだ後にもう一度「話す」を押させない。人間、2026-11-04）", () => {
     const src = read("src/client/parts/ReplyBox.tsx");

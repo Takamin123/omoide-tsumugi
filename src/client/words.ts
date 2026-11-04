@@ -10,6 +10,9 @@ const voiceLengthText = ({ minutes, seconds }: VoiceLength) => (minutes > 0 ? `$
 /** 誰の声か、と長さ「ばあばの声（13秒）」。祖父母の画面と家族の画面で同じ文字列（0028、0045） */
 const listenNote = (name: string | null, len: VoiceLength | null) => `${name ? `${name}の` : ""}声${len ? `（${voiceLengthText(len)}）` : ""}`;
 
+/** 「とりなおす」で消せなかったとき。祖父母の画面も同じ文（漢字まじり。人間、2026-11-04。0050） */
+const retakeFailed = "取り直せませんでした。前の声は残っています";
+
 /** 「12枚のうち 5枚」 */
 const progressText = (at: number, total: number) => `${total}枚のうち ${at}枚`;
 
@@ -34,6 +37,8 @@ const elderWords = {
   listenName: (name: string | null) => ({ play: `${name ? `${name}の ` : ""}こえを きく`, stop: `${name ? `${name}の ` : ""}こえを とめる` }),
   /** マイクの許可を待っている間、録るボタンの場所に出す（押せない。0008 の追記）。幅が足りないときは空白か言葉の切れ目（\u200B）でだけ折る */
   micWaiting: "マイクを じゅんび\u200Bしています",
+  /** 送った直後の声の語りを取り直す（0050） */
+  retake: "とりなおす",
   /** 写真の拡大の画面を閉じる（0040） */
   close: "とじる",
   /** 問いかけの読み上げ（0019） */
@@ -63,6 +68,8 @@ const homeWords = {
   listenName: (name: string | null) => ({ play: `${name ? `${name}の` : ""}声を聞く`, stop: `${name ? `${name}の` : ""}声を止める` }),
   /** マイクの許可を待っている間、録るボタンの場所に出す（押せない。0008 の追記）。幅が足りないときは言葉の切れ目（\u200B）でだけ折る */
   micWaiting: "マイクを\u200B準備しています",
+  /** 送った直後の声の語りを取り直す（0050） */
+  retake: "取り直す",
   /** 写真の拡大の画面を閉じる（0040） */
   close: "閉じる",
   /** 「声で話す」「文字で書く」。幅が足りないときは言葉の切れ目（\u200B）でだけ折る（.phrase-break。360px・文字 150% で二行になる） */
@@ -242,6 +249,8 @@ export const words = {
       stopVoice: homeWords.stopVoice,
       listenName: homeWords.listenName,
       micWaiting: homeWords.micWaiting,
+      retake: homeWords.retake,
+      retakeFailed,
     },
     elder: {
       /** 選ぶ段の「はなす」は、押すとその場で録り始める（録るボタンを兼ねる） */
@@ -262,6 +271,8 @@ export const words = {
       stopVoice: elderWords.stopVoice,
       listenName: elderWords.listenName,
       micWaiting: elderWords.micWaiting,
+      retake: elderWords.retake,
+      retakeFailed,
     },
   },
 

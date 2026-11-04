@@ -9,12 +9,16 @@ type Payload = ({ kind: "voice"; blob: Blob; durationMs: number | null } | { kin
 /** 「おくりました」を出しておく時間 */
 export const SENT_NOTICE_MS = 4_000;
 
+/** 送れた語り。at は送れたと分かった手元の時刻（「とりなおす」を出す時間を数える。0050） */
+export type SentNarration = { id: string; kind: "voice" | "text"; at: number };
+
 /** 送る状態と操作（今日の答えは Home が持ち、ReplyBox とデモの帯で共有する） */
 export type Sender = ReturnType<typeof useSender>;
 
-export function useSender(target: VoiceTarget, onSent?: () => void) {
+export function useSender(target: VoiceTarget, onSent?: (sent: SentNarration) => void) {
   const [state, setState] = useState<SendState>("idle");
   const [error, setError] = useState<unknown>(null);
+  const [last, setLast] = useState<SentNarration | null>(null);
   const pending = useRef<Payload | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -25,12 +29,16 @@ export function useSender(target: VoiceTarget, onSent?: () => void) {
       clearTimeout(timer.current);
       setState("sending");
       try {
-        if (payload.kind === "voice") await sendVoice(payload.blob, target, payload.requestId, payload.durationMs);
-        else await sendText(payload.text, target, payload.requestId);
+        const narration =
+          payload.kind === "voice"
+            ? await sendVoice(payload.blob, target, payload.requestId, payload.durationMs)
+            : await sendText(payload.text, target, payload.requestId);
         pending.current = null;
+        const sent: SentNarration = { id: narration.id, kind: payload.kind, at: Date.now() };
+        setLast(sent);
         setState("sent");
         timer.current = setTimeout(() => setState((s) => (s === "sent" ? "idle" : s)), SENT_NOTICE_MS);
-        onSent?.();
+        onSent?.(sent);
       } catch (e) {
         setError(e);
         setState("failed");
@@ -43,6 +51,8 @@ export function useSender(target: VoiceTarget, onSent?: () => void) {
     state,
     /** 送れなかったときの例外（文にするのは errorText） */
     error,
+    /** 最後に送れた語り（「とりなおす」で消す先。0050） */
+    last,
     /**
      * 声を送る。durationMs はマイクで測った長さ。録音済みファイル（省いたとき）はブラウザに読ませて測る。
      * 測る間も「送っている」にして、二度押しで二つ送らないようにする

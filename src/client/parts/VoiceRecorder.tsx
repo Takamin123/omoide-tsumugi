@@ -11,10 +11,12 @@ type RecorderOptions = {
   onMicError: () => void;
   /** 録音が始まったとき（マイクが使えると分かったとき） */
   onStarted?: () => void;
+  /** 止めたが、ごく短い（または空の）録音で送らなかったとき */
+  onDiscarded?: () => void;
 };
 
 /** 録音の状態と操作。並べ方は呼ぶ側（ReplyBox）が決める */
-export function useRecorder({ onBlob, onMicError, onStarted }: RecorderOptions) {
+export function useRecorder({ onBlob, onMicError, onStarted, onDiscarded }: RecorderOptions) {
   const rec = useRef<Recording | null>(null);
   /** マイクの許可を待つ試み。待っている間の二度押しを無視し、やめた試みの結果は捨てる（lib/mic-start.ts） */
   const [mic] = useState(() => createMicStart(startRecording));
@@ -64,8 +66,10 @@ export function useRecorder({ onBlob, onMicError, onStarted }: RecorderOptions) 
     try {
       const { blob, durationMs } = await r.stop();
       if (durationMs >= MIN_RECORDING_MS) onBlob(blob, durationMs);
+      else onDiscarded?.();
     } catch {
       // 空の録音は送らない
+      onDiscarded?.();
     }
   }
 

@@ -6,12 +6,16 @@
 // 文字・声の形が開いている間は、画面に「入力中」を知らせる（下のタブを隠す）。
 // 段が替わる（押したボタンが消える）ときは、操作の位置を次の段の主なボタンへ移す（読み上げが新しい段を読む。消えたボタンで位置を失わない）。
 // 送ったら入力欄を閉じる。「送りました」は呼ぶ側が出す（今日の答えは Home、返事は Narrations）。
+// 今日の答えの「とりなおす」（0050）は、この欄の先頭（「送りました」のすぐ下）に出し、消えたらこの欄でそのまま録り始める（段を作り直さない）。
+// 返事の「とりなおす」は Narrations が出し、消えたら返事の欄を autoStart で開く。
 import { useEffect, useRef, useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
 import { useComposing } from "../lib/composing";
 import { errorText } from "../lib/errors";
 import { useScreen, useSentNotice } from "../lib/screen";
-import { useSender, type Sender } from "../lib/useSender";
+import { useRetake } from "../lib/retake";
+import { useSender, type Sender, type SentNarration } from "../lib/useSender";
+import { Retake } from "./Retake";
 import { RecordingTime, useRecorder } from "./VoiceRecorder";
 
 type Props = {
@@ -19,18 +23,26 @@ type Props = {
   /** 送る状態を呼ぶ側が持つとき（今日の答え。デモの帯の録音済みファイルと共有する）。送った後の知らせは、その sender の onSent が受ける */
   sender?: Sender;
   /** 自分で送る状態を持つとき、送った後に呼ぶ */
-  onSent?: () => void;
+  onSent?: (sent: SentNarration) => void;
   onCancel?: () => void;
   /** 文字の欄・録音を開いた・閉じたを知らせる（今日の入り口の段が、自分の入力の間は残るため。0034） */
   onComposing?: (on: boolean) => void;
   /** 祖父母の画面の今日の答えで、ボタンのすぐ上に出す今の話者の呼ばれ方（0008） */
   who?: string;
+  /**
+   * 今日の答えの「とりなおす」（0050）。at はボタンの場所。消えたら onStart（current: ほかの操作をしていなければ、この欄で録り始める）。
+   * 取り直しの録音を送らずに終えたら（短すぎて捨てた・やめた）onEnd
+   */
+  retake?: { at: string; onStart: (current: boolean) => void; onEnd: () => void };
+  /** 開いたらすぐ録り始める（返事の「とりなおす」で消えた後。0050） */
+  autoStart?: boolean;
 };
 
-export function ReplyBox({ target, sender: external, onSent, onCancel, onComposing, who }: Props) {
+export function ReplyBox({ target, sender: external, onSent, onCancel, onComposing, who, retake, autoStart }: Props) {
   const { elder, w } = useScreen();
   const notice = useSentNotice();
-  const [mode, setMode] = useState<"choose" | "text" | "voice">("choose");
+  const retakeSlot = useRetake();
+  const [mode, setMode] = useState<"choose" | "text" | "voice">(autoStart && !elder ? "voice" : "choose");
   const [text, setText] = useState("");
   const [micError, setMicError] = useState(false);
   const own = useSender(target, onSent);
@@ -39,7 +51,18 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
     onBlob: sender.sendVoice,
     onStarted: () => setMicError(false),
     onMicError: () => setMicError(true),
+    onDiscarded: () => retake?.onEnd(),
   });
+  // 返事の「とりなおす」: 開いたらすぐ録り始める（家族の画面は声の段で開く）
+  useEffect(() => {
+    if (autoStart) rec.toggle();
+    // 開いたときだけ（StrictMode の二度目は、一度目の待ちを useRecorder が捨てるので録音は一つ）
+  }, []);
+  /** 次の操作（はなす・かく）を押したら、「送りました」と「とりなおす」を消す */
+  const clearNotices = () => {
+    notice?.clear();
+    retakeSlot?.clear();
+  };
   // 送ったら欄を閉じる
   useEffect(() => {
     if (sender.state === "sent") {
@@ -72,6 +95,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   const close = () => {
     setMicError(false);
     rec.cancel();
+    retake?.onEnd();
     // 送れなかったものを持ったまま閉じない（後で「送る」を押して、閉じた欄の中身が送られないように）
     if (failed) sender.discard();
     if (onCancel) onCancel();
@@ -166,7 +190,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
               aria-pressed="false"
               disabled={busy}
               onClick={() => {
-                notice?.clear();
+                clearNotices();
                 rec.toggle();
               }}
             >
@@ -177,7 +201,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
               type="button"
               disabled={busy}
               onClick={() => {
-                notice?.clear();
+                clearNotices();
                 setMode("text");
               }}
             >
@@ -232,7 +256,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
             type="button"
             disabled={busy}
             onClick={() => {
-              notice?.clear();
+              clearNotices();
               setMicError(false);
               setMode("voice");
               // 送れなかった声があるときは録り始めず、今までどおり「送る」で送り直す段に移る（録音が見えないまま始まらないように）
@@ -241,7 +265,13 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
           >
             {w.byVoice}
           </button>
-          <button type="button" onClick={() => setMode("text")}>
+          <button
+            type="button"
+            onClick={() => {
+              clearNotices();
+              setMode("text");
+            }}
+          >
             {w.byText}
           </button>
         </div>
@@ -253,6 +283,19 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
 
   return (
     <div ref={boxRef} className={onCancel ? "stack reply-box" : "stack answer"}>
+      {retake && mode === "choose" && !rec.recording && !rec.starting && (
+        <Retake
+          at={retake.at}
+          focusAfter={primaryRef}
+          onRetaken={(current) => {
+            retake.onStart(current);
+            if (!current) return;
+            setMicError(false);
+            if (!elder) setMode("voice");
+            rec.toggle();
+          }}
+        />
+      )}
       {who && <p className="who answer-who">{who}</p>}
       {body}
     </div>

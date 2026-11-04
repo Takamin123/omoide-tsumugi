@@ -102,6 +102,8 @@ export const api = {
     if (audio) form.append("audio", audio, audioFileName(audio.type));
     return call<{ narration: Narration }>("/api/narrations", { method: "POST", body: form });
   },
+  /** 送った直後の声の語りを消す（「とりなおす」。0050）。消せなければ 404。自動で送り直さない */
+  deleteNarration: (id: string) => call<void>(`/api/narrations/${encodeURIComponent(id)}`, { method: "DELETE" }),
   getFeed: () => call<{ items: { photo: Photo; narrations: FeedNarration[]; addedPhotos: Photo[] }[] }>("/api/feed"),
   /** この端末の人の今日の入り口 */
   todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
