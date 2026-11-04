@@ -28,9 +28,11 @@ type Props = {
   onSent: () => void;
   /** 渡したときだけ「言葉の糸」を出す（アルバム）。押すと元の語りの ID を渡す */
   onJump?: (narrationId: string) => void;
+  /** 偽なら「返事」と返事の「とりなおす」を出さない（聞くだけ。写真を家族に共有する画面で言葉を添えるとき。0054） */
+  canReply?: boolean;
 };
 
-export function Narrations({ narrations, nameOf, openReplyId, onOpenReply, onSent, onJump }: Props) {
+export function Narrations({ narrations, nameOf, openReplyId, onOpenReply, onSent, onJump, canReply = true }: Props) {
   const ids = new Set(narrations.map((n) => n.id));
   // 返事は、返した先の語りの下に並べる。先が一覧にないものは上の段に出す
   const roots = narrations.filter((n) => !n.replyToId || !ids.has(n.replyToId));
@@ -48,7 +50,8 @@ export function Narrations({ narrations, nameOf, openReplyId, onOpenReply, onSen
       }
       onJump={onJump}
       reply={depth > 0}
-      replying={openReplyId === n.id}
+      canReply={canReply}
+      replying={canReply && openReplyId === n.id}
       onReplying={(on) => onOpenReply(on ? n.id : null)}
       onSent={onSent}
     >
@@ -64,6 +67,7 @@ function NarrationView({
   thread,
   onJump,
   reply,
+  canReply,
   replying,
   onReplying,
   onSent,
@@ -74,6 +78,7 @@ function NarrationView({
   thread: { label: string; to: string } | null;
   onJump?: (narrationId: string) => void;
   reply: boolean;
+  canReply: boolean;
   replying: boolean;
   onReplying: (on: boolean) => void;
   onSent: () => void;
@@ -131,24 +136,26 @@ function NarrationView({
             onReplying(false);
           }}
         />
-      ) : (
+      ) : canReply || narration.audioUrl ? (
         <div className="row">
           {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen} stopLabel={w.stopVoice} name={w.listenName(speaker || null)} />}
-          <button
-            type="button"
-            className="aux"
-            onClick={() => {
-              notice?.clear();
-              retake?.clear();
-              onReplying(true);
-            }}
-          >
-            {w.reply}
-          </button>
+          {canReply && (
+            <button
+              type="button"
+              className="aux"
+              onClick={() => {
+                notice?.clear();
+                retake?.clear();
+                onReplying(true);
+              }}
+            >
+              {w.reply}
+            </button>
+          )}
         </div>
-      )}
+      ) : null}
       <div aria-live="polite">{sent && <p className="done">{w.sent}</p>}</div>
-      {!replying && (
+      {canReply && !replying && (
         <Retake
           at={narration.id}
           onRetake={() => {

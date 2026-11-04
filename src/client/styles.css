@@ -1107,7 +1107,7 @@ nav.top button {
 
 /*
  * 写真を家族に共有する画面の、自分が共有した写真（0053）。アルバムの小さい写真と同じ 48px 角で折り返す（幅 360px で横にはみ出さない）。
- * 押すと拡大の画面（0040）
+ * 押すとその写真を選ぶ（0054）。選んだ写真は太い枠（aria-current）。言葉の付いた写真は右下に吹き出しの印（白い丸に線。色だけに頼らない）
  */
 .shared-photos {
   display: flex;
@@ -1121,21 +1121,85 @@ nav.top button {
   height: 48px;
 }
 
-.shared-photo .photo-button {
+.shared-pick {
+  position: relative;
+  display: block;
   width: 48px;
   height: 48px;
   min-width: 48px;
   min-height: 48px;
+  padding: 0;
+  border: none;
   border-radius: 6px;
-  overflow: hidden;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
 
-.shared-photo .photo {
+.shared-pick:active {
+  transform: scale(0.94);
+  opacity: 0.85;
+}
+
+.shared-pick .photo {
   width: 100%;
   height: 100%;
   max-height: none;
   object-fit: cover;
+  border-radius: 6px;
   background: var(--line);
+}
+
+/* 選んだ写真。枠の太さで示す（写真の外に重ね、並びを動かさない） */
+.shared-pick[aria-current="true"] {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shared-pick:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.words-mark {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--text-sub);
+  color: var(--text);
+}
+
+/* 選んだ写真に言葉を添える欄（0054）。選んだときに、その場に置かれるように現れる（位置と透明度だけ） */
+.add-words {
+  scroll-margin-top: var(--page-pad);
+  animation: add-words-in 0.25s ease-out both;
+}
+
+@keyframes add-words-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shared-pick {
+    transition: none;
+  }
+  .add-words {
+    animation: none;
+  }
 }
 
 /* 今回追加した写真は、その場に置かれるように現れる（位置・大きさ・透明度だけ） */

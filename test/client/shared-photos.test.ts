@@ -1,4 +1,5 @@
-// 自分が共有した写真の数と一覧（写真を家族に共有する画面）、家族のことのカードの数（0053）。DOM なし。
+// 自分が共有した写真の数と一覧（写真を家族に共有する画面）、家族のことのカードの数（0053）。
+// 一覧から選んだ写真に、入れた本人が前もって言葉を添える（0054）。DOM なし。
 // 部品は react-dom/server で文字列にして確かめ、読み直しの配線はソースの形で確かめる。
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
@@ -7,9 +8,11 @@ import { fs, path, repoRoot } from "../node";
 const load = (name: string): Promise<any> => import(name);
 const { createElement: h } = await load("react");
 const { renderToStaticMarkup } = await load("react-dom/server");
-const { AddPhotos, SharedPhotos, newestFirst } = await load("../../src/client/screens/AddPhotos");
+const { AddPhotos, AddWords, SharedPhotos, newestFirst, toldByPhoto } = await load("../../src/client/screens/AddPhotos");
 const { FamilySetup } = await load("../../src/client/screens/FamilySetup");
 const { words } = await load("../../src/client/words");
+const { Narrations } = await load("../../src/client/parts/Narrations");
+const { RetakeContext } = await load("../../src/client/lib/retake");
 
 const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), "utf8") as string;
 const photo = (id: string) => ({ id, ownerMemberId: "m-mother", width: 1600, height: 1200, takenAt: null, hasLocation: false, place: null, imageUrl: `/api/photos/${id}/image` });
@@ -23,11 +26,12 @@ describe("言葉", () => {
 });
 
 describe("写真を家族に共有する画面: 共有した写真", () => {
-  it("見出しに数を一行、その下に小さい写真を並べる。押すと拡大の画面（0040）、読み込みは lazy", () => {
+  it("見出しに数を一行、その下に小さい写真を並べる。押すと選ぶ（拡大は選んだ大きめの写真から。0054）、読み込みは lazy", () => {
     const html = renderToStaticMarkup(h(SharedPhotos, { photos: [photo("p-3"), photo("p-2"), photo("p-1")] })) as string;
     expect(html).toContain(`<h2>${words.photos.shared(3)}</h2>`);
     expect(html.match(/class="shared-photo"/g)).toHaveLength(3);
-    expect(html.match(new RegExp(`aria-label="${words.photoView.open}"`, "g"))).toHaveLength(3);
+    expect(html.match(/<button type="button" class="shared-pick"/g)).toHaveLength(3);
+    expect(html).not.toContain(words.photoView.open);
     expect(html.match(/<img [^>]*loading="lazy"/g)).toHaveLength(3);
     // 渡した順（新しい順）のまま並べる
     expect([...html.matchAll(/\/api\/photos\/(p-\d)\/image/g)].map((m) => m[1])).toEqual(["p-3", "p-2", "p-1"]);
@@ -48,7 +52,7 @@ describe("写真を家族に共有する画面: 共有した写真", () => {
     const src = read("src/client/screens/AddPhotos.tsx");
     expect(src).toMatch(/api\s*\.listPhotos\(memberId\)/);
     expect(src).toMatch(/\} finally \{\s*setBusy\(false\);[\s\S]*?mine\.reload\(\);\s*\}/);
-    expect(src).toContain("<SharedPhotos photos={mine.photos} />");
+    expect(src).toContain("<SharedPhotos photos={mine.photos} told={told.byPhoto}");
   });
   it("読めなかったら前の一覧のまま（文を出さない）。後から届いた古い読み込みは捨てる（qa）", () => {
     const src = read("src/client/screens/AddPhotos.tsx");
@@ -69,7 +73,134 @@ describe("写真を家族に共有する画面: 共有した写真", () => {
     const css = read("src/client/styles.css");
     expect(css).toMatch(/\n\.shared-photos \{[^}]*flex-wrap: wrap;/);
     expect(css).toMatch(/\n\.shared-photo \{[^}]*width: 48px;[^}]*height: 48px;/);
-    expect(css).toMatch(/\n\.shared-photo \.photo-button \{[^}]*min-width: 48px;[^}]*min-height: 48px;/);
+    expect(css).toMatch(/\n\.shared-pick \{[^}]*min-width: 48px;[^}]*min-height: 48px;/);
+  });
+});
+
+describe("自分の写真に言葉を添える（0054）", () => {
+  const told = (narrations: Record<string, unknown>[] = [{}]) => narrations;
+  const narration = (id: string, photoId: string, speakerMemberId: string, text: string) => ({
+    id, photoId, speakerMemberId, kind: "text", text, audioUrl: null, durationMs: null, entranceId: null, replyToId: null, createdAt: "2026-11-04T00:00:00Z", transcriptStatus: "done", quotedFrom: null,
+  });
+
+  it("言葉: 見出し「言葉を添える」、読み上げの名前「n枚目」「n枚目（言葉あり）」。！・催促なし", () => {
+    expect(words.photos.addWords).toBe("言葉を添える");
+    expect(words.photos.sharedOne(1, false)).toBe("1枚目");
+    expect(words.photos.sharedOne(3, true)).toBe("3枚目（言葉あり）");
+    const all = [words.photos.addWords, words.photos.sharedOne(2, true), words.photos.sharedOne(2, false)].join("\n");
+    expect(all).not.toMatch(/[！!]|まだ|ください|添えていない/);
+  });
+
+  it("印は言葉の有無で替わる: 語りのある写真だけに吹き出しの印と「（言葉あり）」。選んだ写真は aria-current", () => {
+    const photos = [photo("p-3"), photo("p-2"), photo("p-1")];
+    const html = renderToStaticMarkup(h(SharedPhotos, { photos, told: new Map([["p-2", told()]]), selectedId: "p-1" })) as string;
+    const button = (id: string) => html.match(new RegExp(`<button [^>]*>(?:(?!</button>).)*?/api/photos/${id}/image(?:(?!</button>).)*?</button>`))?.[0] ?? "";
+    expect(button("p-2")).toContain(`aria-label="${words.photos.sharedOne(2, true)}"`);
+    expect(button("p-2")).toContain('class="words-mark" aria-hidden="true"');
+    expect(button("p-3")).toContain(`aria-label="${words.photos.sharedOne(1, false)}"`);
+    expect(button("p-3")).not.toContain("words-mark");
+    expect(button("p-1")).not.toContain("words-mark");
+    expect(button("p-1")).toContain('aria-current="true"');
+    expect(html.match(/aria-current/g)).toHaveLength(1);
+    // 同じ一覧でも、語りが付けば印が替わる
+    const after = renderToStaticMarkup(h(SharedPhotos, { photos, told: new Map([["p-2", told()], ["p-3", told()]]) })) as string;
+    expect(after.match(/class="words-mark"/g)).toHaveLength(2);
+    expect(after).toContain(`aria-label="${words.photos.sharedOne(1, true)}"`);
+  });
+
+  it("印の元: feed の並びから写真の ID → 語り（語りが空の写真は入れない）", () => {
+    const m = toldByPhoto([
+      { photo: photo("p-1"), narrations: [narration("n-1", "p-1", "m-mother", "架空の言葉")] },
+      { photo: photo("p-2"), narrations: [] },
+    ]);
+    expect([...m.keys()]).toEqual(["p-1"]);
+  });
+
+  it("選ぶと一覧の下に欄を出す: 大きめの写真（押すと拡大）→ 語り（聞くだけ。返事は出さない）→ 見出し → 声で話す・文字で書く", () => {
+    const html = renderToStaticMarkup(
+      h(AddWords, {
+        photo: photo("p-1"),
+        narrations: [narration("n-1", "p-1", "m-son", "架空の弟の言葉")],
+        nameOf: (id: string) => (id === "m-son" ? "けん" : ""),
+        onSent: () => {},
+      }),
+    ) as string;
+    const order = [words.photoView.open, "けん", "架空の弟の言葉", `<h3>${words.photos.addWords}</h3>`, words.home.byVoice, words.home.byText].map((t) => html.indexOf(t));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(html).not.toContain(`>${words.home.reply}<`);
+    // 語りがなければ語りの欄はなく、見出しと答えの欄だけ
+    const empty = renderToStaticMarkup(h(AddWords, { photo: photo("p-1"), narrations: [], nameOf: () => "", onSent: () => {} })) as string;
+    expect(empty).not.toContain('class="narration');
+    expect(empty).toContain(`<h3>${words.photos.addWords}</h3>`);
+  });
+
+  it("選んでいない（最初の描画）ときは欄を出さない", () => {
+    const html = renderToStaticMarkup(h(AddPhotos, { me: { id: "m-mother" }, members: [] })) as string;
+    expect(html).not.toContain(words.photos.addWords);
+  });
+
+  it("送る先はこの写真だけ（entranceId・replyToId とも null）。とりなおすの場所は写真の ID", () => {
+    const src = read("src/client/screens/AddPhotos.tsx");
+    expect(src).toMatch(/\{ photoId: photo\.id, entranceId: null, replyToId: null \}/);
+    expect(src).toMatch(/<ReplyBox\s+target=\{target\}\s+onSent=\{onAdded\}[\s\S]*?retakeAt=\{photo\.id\}/);
+    expect(src).toMatch(/<RetakeContext\.Provider value=\{retake\}>/);
+  });
+
+  it("送れたら（録り直しなら前の語りを消し終えてから）語りを読み直す。印と語りはその読み直しで替わる", () => {
+    const src = read("src/client/screens/AddPhotos.tsx");
+    expect(src).toMatch(/const replaced = offer\(photo\.id, sent\);[\s\S]*?void replaced\.then\(onSent\);/);
+    expect(src).toMatch(/onSent=\{told\.reload\}/);
+    expect(src).toMatch(/narrations=\{told\.byPhoto\.get\(selected\.id\) \?\? \[\]\}/);
+    const hook = src.slice(src.indexOf("function useToldPhotos"), src.indexOf("export const toldByPhoto"));
+    expect(hook).toMatch(/\.getFeed\(\)/);
+    expect(hook).toMatch(/if \(n === seq\.current\) setByPhoto\(toldByPhoto\(r\.items\)\)/);
+    expect(hook).toMatch(/\.catch\(\(\) => \{\}\)/);
+  });
+
+  it("祖父母の画面には出さない（Elder は AddWords も言葉を添える欄も使わない）", () => {
+    for (const f of fs.readdirSync(path.join(repoRoot, "src/client/screens")) as string[]) {
+      if (!/^Elder/.test(f)) continue;
+      expect(read(`src/client/screens/${f}`)).not.toMatch(/AddWords|words\.photos\.addWords/);
+    }
+  });
+});
+
+describe("語りの canReply（0054。qa）", () => {
+  const noop = () => {};
+  const slot = { at: "n-1", id: "n-1", sentAt: Date.now(), failed: false, retaking: false, replacing: false };
+  const withSlot = (el: any) =>
+    renderToStaticMarkup(h(RetakeContext.Provider, { value: { slot, offer: async () => {}, start: noop, end: noop, clear: noop } }, el)) as string;
+  const voice = { id: "n-1", speakerMemberId: "m-grandma", photoId: "p-1", entranceId: null, replyToId: null, kind: "voice", text: "架空の声の文", transcriptStatus: "done", audioUrl: "/api/narrations/n-1/audio", durationMs: 3000, createdAt: 1, quotedFrom: null };
+  const text = { ...voice, id: "n-2", kind: "text", text: "架空の文字の文", audioUrl: null, durationMs: null };
+  const props = { narrations: [voice, text], nameOf: () => "ばあば", openReplyId: null, onOpenReply: noop, onSent: noop };
+
+  it("既定（渡さない）は今のまま: 「返事」と返事の「とりなおす」が出て、開いた返事の欄も出る", () => {
+    const html = withSlot(h(Narrations, props));
+    expect(html.match(new RegExp(`>${words.home.reply}<`, "g"))).toHaveLength(2);
+    expect(html).toContain('class="retake"');
+    expect(withSlot(h(Narrations, { ...props, openReplyId: "n-1" }))).toContain(words.home.byVoice);
+  });
+  it("偽: 「返事」「とりなおす」、開いた返事の欄を出さない。声は聞ける。文字だけの語りは空の行を描かない", () => {
+    const html = withSlot(h(Narrations, { ...props, openReplyId: "n-1", canReply: false }));
+    expect(html).not.toContain(`>${words.home.reply}<`);
+    expect(html).not.toContain('class="retake"');
+    expect(html).not.toContain(words.home.byVoice);
+    expect(html).not.toContain("<textarea");
+    expect(html).toContain(`>${words.home.listen}</button>`);
+    expect(html.match(/<div class="row">/g)).toHaveLength(1);
+    expect(html).toContain("架空の文字の文");
+  });
+});
+
+describe("配線と動き（0054。qa）", () => {
+  it("App から家族の一覧を渡す（語りの話し手の呼ばれ方）", () => {
+    expect(read("src/client/App.tsx")).toContain("<AddPhotos me={meMember} members={view.members} />");
+  });
+  it("欄の現れ方は動きを減らす設定で止める", () => {
+    const css = read("src/client/styles.css");
+    expect(css).toMatch(/\.add-words \{[^}]*animation: add-words-in/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[^@]*\.add-words \{\s*animation: none;/);
   });
 });
 

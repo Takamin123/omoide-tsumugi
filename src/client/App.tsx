@@ -139,7 +139,7 @@ export function App() {
   if (kind === "family-setup") {
     screen = <FamilySetup view={view} me={meMember} reload={reload} refresh={refresh} />;
   } else if (kind === "photos") {
-    screen = <AddPhotos me={meMember} />;
+    screen = <AddPhotos me={meMember} members={view.members} />;
   } else {
     // 家族の画面は、下のタブと重ならないよう、デモの帯を各タブのスクロールの一番下に自分で置く
     return <Home key={key} view={view} me={meMember} demo={demo} />;
