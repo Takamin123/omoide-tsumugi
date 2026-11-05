@@ -21,7 +21,7 @@ export function pendingVoiceIds(items: FeedLike | null): string[] {
 
 /**
  * 待ちの読み直しの結果を当ててよいか。返事の欄を開いている語りが一覧から消えていたら当てない
- * （ほかの家族が「とりなおす」で前の声を消した直後など。書きかけ・録音中の返事の欄を消さない。閉じた後の読み直しで消える）
+ * （ほかの家族が「録り直す」で前の声を消した直後など。書きかけ・録音中の返事の欄を消さない。閉じた後の読み直しで消える）
  */
 export function keepsOpenReply(items: FeedLike, openReplyId: string | null): boolean {
   return openReplyId === null || items.some((it) => it.narrations.some((n) => n.id === openReplyId));

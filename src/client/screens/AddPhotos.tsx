@@ -217,7 +217,7 @@ function WordsMark() {
 
 /**
  * 選んだ写真に言葉を添える（0054）。大きめの写真（押すと拡大）→ 付いている語り（聞くだけ。返事はアルバムで）→ 見出しと答えの欄。
- * 答えの欄は今日の答え・返事と同じ部品（声で話す・文字で書く・とりなおす）。送る先はこの写真だけ（入り口にも語りにもつながない）
+ * 答えの欄は今日の答え・返事と同じ部品（声で話す・文字で書く・録り直す）。送る先はこの写真だけ（入り口にも語りにもつながない）
  */
 export function AddWords({
   photo,
@@ -247,7 +247,7 @@ export function AddWords({
       clearTimeout(timer.current);
       // 録り直した声なら、前の語りを消し終えてから読み直す（先に読むと消す前の一覧が後から届きうる）
       const replaced = offer(photo.id, sent);
-      // 文字は「送りました」をしばらく。声は「とりなおす」と一緒に残す（0050）
+      // 文字は「送りました」をしばらく。声は「録り直す」と一緒に残す（0050）
       if (sent.kind === "text") {
         setSentNotice(true);
         timer.current = setTimeout(() => setSentNotice(false), SENT_NOTICE_MS);

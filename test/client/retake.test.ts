@@ -1,4 +1,4 @@
-// 「とりなおす」のクライアント（0050）。部品は react-dom/server で文字列にして確かめる（DOM なし）。
+// 「録り直す」のクライアント（0050）。部品は react-dom/server で文字列にして確かめる（DOM なし）。
 // 押した後の流れ（押したらすぐ録り直す。録り直した声が送れたときに前を消す／消せなければ一文。0050 の追記）は、
 // React に頼らない lib/retake.ts の afterSent・deleteReplaced と、useRetakeSlot の各操作の形で確かめる。
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -57,16 +57,16 @@ describe("7 出る所と形", () => {
     expect(retakeSlotFor("answer", { id: "n-9", kind: "voice", at: 5 })).toEqual({ at: "answer", id: "n-9", sentAt: 5, failed: false, retaking: false, replacing: false });
     expect(retakeSlotFor("answer", { id: "n-9", kind: "text", at: 5 })).toBeNull();
   });
-  it("今日の答え: 流れの欄の先頭（「送りました」のすぐ下、[はなす][かく] の上）に、マイクの印つきのボタン。青（primary）にも補助（aux）にもしない", () => {
+  it("今日の答え: 流れの欄の先頭（「送りました」のすぐ下、[話す][書く] の上）に、マイクの印つきのボタン。青（primary）にも補助（aux）にもしない", () => {
     const elder = render(h(ReplyBox, { target, who: "ばあば", retakeAt: "answer" }), { elder: true, slot: slotAt("answer") });
     expect(elder.startsWith(`<div class="stack answer">${BUTTON_ELDER}`)).toBe(true);
-    expect(elder).toMatch(new RegExp(`^<div class="stack answer">${button("とりなおす").source}<p class="who answer-who">ばあば</p><div class="grid2 answer-choice">`));
+    expect(elder).toMatch(new RegExp(`^<div class="stack answer">${button("録り直す").source}<p class="who answer-who">ばあば</p><div class="grid2 answer-choice">`));
     const family = render(h(ReplyBox, { target, retakeAt: "answer" }), { slot: slotAt("answer") });
-    expect(family).toMatch(new RegExp(`^<div class="stack answer">${button("取り直す").source}<div class="grid2 phrase-break">`));
-    // マイクの印は「はなす」と同じ形
+    expect(family).toMatch(new RegExp(`^<div class="stack answer">${button("録り直す").source}<div class="grid2 phrase-break">`));
+    // マイクの印は「話す」と同じ形
     const mic = elder.match(/<svg[\s\S]*?<\/svg>/g)!;
     expect(mic[0]).toBe(mic[1]);
-    for (const html of [elder, family]) expect(html).not.toMatch(/class="[^"]*(primary|aux)[^"]*"[^>]*><svg[^>]*>[\s\S]*?<\/svg>(とりなおす|取り直す)/);
+    for (const html of [elder, family]) expect(html).not.toMatch(/class="[^"]*(primary|aux)[^"]*"[^>]*><svg[^>]*>[\s\S]*?<\/svg>(録り直す|録り直す)/);
   });
   it("場所が違う・ない・段（retakeAt を渡さない）・録り直している・前を消している間は出さない", () => {
     expect(render(h(ReplyBox, { target, retakeAt: "answer" }), { slot: slotAt("n-1") })).not.toContain("retake");
@@ -78,13 +78,13 @@ describe("7 出る所と形", () => {
   it("返事: 語りの「送りました」のすぐ下に（返事の欄を開いている間・録り直している間は出さない）", () => {
     const notice = { at: "n-1", show: noop, clear: noop };
     const elder = render(h(Narrations, narrationsProps), { elder: true, slot: slotAt("n-1"), notice });
-    expect(elder).toMatch(new RegExp(`<div aria-live="polite"><p class="done">おくりました</p></div>${button("とりなおす").source}`));
+    expect(elder).toMatch(new RegExp(`<div aria-live="polite"><p class="done">送りました</p></div>${button("録り直す").source}`));
     const open = render(h(Narrations, { ...narrationsProps, openReplyId: "n-1" }), { elder: true, slot: slotAt("n-1"), notice });
     expect(open).not.toContain("retake");
     expect(render(h(Narrations, narrationsProps), { slot: slotAt("n-2") })).not.toContain("retake");
-    // 録り直している間は「おくりました」も出さない（やめたら、ボタンと一緒に戻る）
+    // 録り直している間は「送りました」も出さない（やめたら、ボタンと一緒に戻る）
     const retaking = render(h(Narrations, { ...narrationsProps, openReplyId: "n-1" }), { elder: true, slot: slotAt("n-1", { retaking: true }), notice });
-    expect(retaking).not.toContain("おくりました");
+    expect(retaking).not.toContain("送りました");
     const retakingFamily = render(h(Narrations, narrationsProps), { slot: slotAt("n-1", { retaking: true }) });
     expect(retakingFamily).not.toContain("送りました");
   });
@@ -106,7 +106,7 @@ describe("7 出る所と形", () => {
     expect(base).toMatch(/background: var\(--surface\);/);
     expect(css).toMatch(/\.retake:focus-visible \{\s*outline-color: var\(--retake\);/);
   });
-  it("「送りました」「おくりました」（.done）は押せない知らせ: 枠・白地の箱にせず、緑の文字の前にチェックの印。縦の高さは前の箱と同じ。「とりなおす」の枠とは違う見た目", () => {
+  it("「送りました」「送りました」（.done）は押せない知らせ: 枠・白地の箱にせず、緑の文字の前にチェックの印。縦の高さは前の箱と同じ。「録り直す」の枠とは違う見た目", () => {
     const css = read("src/client/styles.css");
     const done = css.match(/\n\.done \{([^}]*)\}/)![1]!;
     expect(done).not.toMatch(/border|background|border-radius/);
@@ -142,7 +142,7 @@ describe("8 消えるとき", () => {
     const src = code("src/client/lib/retake.ts");
     expect(src).toMatch(/if \(!slot \|\| slot\.retaking\) return;\s*const t = setTimeout\(\(\) => put\(\(s\) => \(s === slot \? null : s\)\), Math\.max\(0, retakeRemainingMs\(slot, Date\.now\(\)\)\)\)/);
   });
-  it("次に「はなす」「かく」「へんじ」（家族は「声で話す」「文字で書く」「返事」）を押したら消える。録り直している間は消さない", () => {
+  it("次に「話す」「書く」「返事」（家族は「声で話す」「文字で書く」「返事」）を押したら消える。録り直している間は消さない", () => {
     const box = code("src/client/parts/ReplyBox.tsx");
     expect(box).toMatch(/const clearNotices = \(\) => \{\s*notice\?\.clear\(\);\s*retakeSlot\?\.clear\(\);\s*\};/);
     expect(box.match(/clearNotices\(\);/g)).toHaveLength(4);
@@ -157,9 +157,9 @@ describe("8 消えるとき", () => {
     const narr = code("src/client/parts/Narrations.tsx");
     expect(narr).toMatch(/else if \(s\.kind === "text"\) \{\s*setSent\(true\);\s*timer\.current = setTimeout\(\(\) => setSent\(false\), SENT_NOTICE_MS\);/);
     const html = render(h(Narrations, narrationsProps), { slot: slotAt("n-1") });
-    expect(html).toMatch(new RegExp(`<p class="done">送りました</p></div>${button("取り直す").source}`));
+    expect(html).toMatch(new RegExp(`<p class="done">送りました</p></div>${button("録り直す").source}`));
   });
-  it("祖父母の画面の「おくりました」は次の操作まで残す（場所の時間で消さない。0043）", () => {
+  it("祖父母の画面の「送りました」は次の操作まで残す（場所の時間で消さない。0043）", () => {
     expect(code("src/client/screens/Home.tsx")).toMatch(/if \(elder\) setNoticeAt\("answer"\);/);
   });
 });
@@ -257,7 +257,7 @@ describe("9 押した後（押したらすぐ録り直し、送れたときに�
     expect(box).toMatch(/useEffect\(\(\) => \{\s*if \(autoStart\) rec\.toggle\(\);\s*\}, \[\]\);/);
     expect(box).toContain('useState<"choose" | "text" | "voice">(autoStart && !elder ? "voice" : "choose")');
   });
-  it("消せなかったとき: 録り直した声の「おくりました」の下に一文。[はなす][かく] はそのまま", () => {
+  it("消せなかったとき: 録り直した声の「送りました」の下に一文。[話す][書く] はそのまま", () => {
     const html = render(h(ReplyBox, { target, who: "ばあば", retakeAt: "answer" }), { elder: true, slot: slotAt("answer", { failed: true }) });
     expect(html).toContain(`<p role="alert" class="retake-failed">${words.screen.elder.retakeFailed}</p>`);
     expect(html).not.toContain('class="retake"');
@@ -268,10 +268,10 @@ describe("9 押した後（押したらすぐ録り直し、送れたときに�
 });
 
 describe("10 言葉", () => {
-  it("ボタンは祖父母「とりなおす」、家族「取り直す」。消せなかったときは両画面で同じ文", () => {
-    expect(words.screen.elder.retake).toBe("とりなおす");
-    expect(words.screen.family.retake).toBe("取り直す");
-    expect(words.screen.elder.retakeFailed).toBe("取り直せませんでした。前の声は残っています");
+  it("ボタンは祖父母「録り直す」、家族「録り直す」。消せなかったときは両画面で同じ文", () => {
+    expect(words.screen.elder.retake).toBe("録り直す");
+    expect(words.screen.family.retake).toBe("録り直す");
+    expect(words.screen.elder.retakeFailed).toBe("録り直せませんでした。前の声は残っています");
     expect(words.screen.family.retakeFailed).toBe(words.screen.elder.retakeFailed);
   });
   it("出さない言葉（消しました・もう一度話せます・！・お礼・削除・エラー）", () => {

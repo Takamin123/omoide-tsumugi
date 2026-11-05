@@ -51,15 +51,15 @@ describe("拡大の画面の描き方", () => {
     renderToStaticMarkup(
       h(PhotoViewer, { photo: p, origin: () => null, closing: false, onRequestClose: () => {}, onClosed: () => {}, closeLabel, label: words.photoView.label }),
     ) as string;
-  it("写真だけの画面。ボタンは「とじる」（祖父母）／「閉じる」（家族）の一つだけ", () => {
-    expect(words.elder.close).toBe("とじる");
+  it("写真だけの画面。ボタンは「閉じる」（祖父母）／「閉じる」（家族）の一つだけ", () => {
+    expect(words.elder.close).toBe("閉じる");
     expect(words.home.close).toBe("閉じる");
     const html = render(words.elder.close);
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain(`aria-label="${words.photoView.label}"`);
     expect(html.match(/<button/g)).toHaveLength(1);
-    expect(html).toMatch(/<button[^>]*class="primary viewer-close"[^>]*>とじる<\/button>/);
+    expect(html).toMatch(/<button[^>]*class="primary viewer-close"[^>]*>閉じる<\/button>/);
   });
   it("写真の記録（撮影日、場所）を、入り口と同じ形で閉じるボタンの上に出す。写真の枠には重ねない（両画面。0040 の追記、0047）", () => {
     // デモの家族の山形の写真と同じ地名（架空の公開の代表点。0038）
@@ -118,7 +118,7 @@ describe("決まりごと（ソース）", () => {
   it("祖父母の画面（入り口）でも、家族の画面（入り口、アルバムの帯）でも開く。帯は止まっているときだけ開く", () => {
     expect(read("src/client/parts/EntranceView.tsx")).toContain("<ZoomablePhoto photo={entrance.photo} focus={entrance.focus} variant={variant} />");
     const album = read("src/client/parts/Album.tsx");
-    // 閉じるボタンの言葉は画面ごと（祖父母の画面は「とじる」。0043）
+    // 閉じるボタンの言葉は画面ごと（祖父母の画面は「閉じる」。0043）
     expect(album).toMatch(/<ZoomablePhoto photo=\{it\.photo\} variant=\{variant\} canOpen=\{bandSettled\}/);
     expect(album).toContain("bandMovedAt.current = performance.now();");
   });

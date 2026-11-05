@@ -5,7 +5,7 @@
 // 返事: この人に届いたもの（自分の語りへの返事と、自分が入れた写真への語り）を写真ごとに（parts/Replies.tsx、lib/replies.ts。0058）。
 // タブのバッジはまだ見ていない数。開いた時点で見たことにし（サーバーにも知らせる）、開いている間に届いたものは次に開くまでバッジに残す。
 // 文字や声で答えている間は、下のタブを描かない（lib/composing.ts）。
-// 声を送った直後は「送りました」の下に「とりなおす」（画面に一つだけ。lib/retake.ts。0050）。前の声は録り直した声が送れたときに消すので、
+// 声を送った直後は「送りました」の下に「録り直す」（画面に一つだけ。lib/retake.ts。0050）。前の声は録り直した声が送れたときに消すので、
 // 取り直しの間も今日の入り口は「答えた」のまま（段は流れのまま。録音中に欄が作り直されない）。
 // 裏から前に戻ったときは、日付が替わったか裏に 10 分以上いたら、入り口と一覧を静かに読み直す（lib/useResumeRefresh.ts。0051）。
 // 一覧に文字起こしを待つ声の語りがある間は、一覧だけを静かに読み直す（lib/transcriptFollow.ts。0052）。一覧の読み込みは feed 一つにまとめる。
@@ -46,10 +46,10 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   tabNow.current = tab;
   const [entrance, setEntrance] = useState<Entrance | null | undefined>(undefined);
   const [feed, setFeed] = useState<FeedItem[] | null>(null);
-  /** 読み込めなかったときの例外。家族の画面は文に、祖父母の画面は祖父母の文と「もういちど」にする */
+  /** 読み込めなかったときの例外。家族の画面は文に、祖父母の画面は祖父母の文と「もう一度」にする */
   const [entranceError, setEntranceError] = useState<unknown>(null);
   const [feedError, setFeedError] = useState<unknown>(null);
-  /** 祖父母の画面の「もういちど」で読み直す */
+  /** 祖父母の画面の「もう一度」で読み直す */
   const [attempt, setAttempt] = useState(0);
   const [composing, setComposing] = useState(false);
   const composingSet = useMemo(() => new ComposingSet(setComposing), []);
@@ -73,7 +73,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const [answeredHere, setAnsweredHere] = useState(false);
   /** 段を閉じた後、問いかけの下に「送りました」を出しておく */
   const [sentNotice, setSentNotice] = useState(false);
-  /** 祖父母の画面で残している「おくりました」の場所（今日の答えは "answer"、返事は語りの ID）。残るのは一つだけ（0043） */
+  /** 祖父母の画面で残している「送りました」の場所（今日の答えは "answer"、返事は語りの ID）。残るのは一つだけ（0043） */
   const [noticeAt, setNoticeAt] = useState<string | null>(null);
   const notice = useMemo(() => ({ at: noticeAt, show: setNoticeAt, clear: () => setNoticeAt(null) }), [noticeAt]);
   const sentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -81,7 +81,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const retake = useRetakeSlot();
   /** 最後に入り口を読めた時刻（前に戻ったときの読み直しの判断に使う。0051） */
   const loadedAt = useRef<number | null>(null);
-  /** 読み込みの回。開いたとき・「もういちど」で進め、前の回の静かな読み直しの結果を捨てる */
+  /** 読み込みの回。開いたとき・「もう一度」で進め、前の回の静かな読み直しの結果を捨てる */
   const loadRound = useRef(0);
   /** 今出している入り口（静かな読み直しで替わったかを比べる。undefined は読み込み中） */
   const shown = useRef<Entrance | null | undefined>(undefined);
@@ -137,7 +137,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const { clear: clearRetake } = retake;
   /**
    * 前に戻ったときの静かな読み直し（0051）。「読み込み中」に戻さず、今の写真を出したまま届いたものに差し替える。
-   * 読めなかったものは黙って前のものを残す。入り口が替わったら、前の入り口に結びついた知らせと「とりなおす」を消す
+   * 読めなかったものは黙って前のものを残す。入り口が替わったら、前の入り口に結びついた知らせと「録り直す」を消す
    */
   const refreshing = useRef(false);
   const refresh = useCallback(() => {
@@ -246,7 +246,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
       const replaced = offerRetake("answer", sent);
       // 祖父母の画面は、次に答え始めるか返事を始めるまで残す（数秒で消すと、目を離していると見逃す。0028、0043）
       if (elder) setNoticeAt("answer");
-      // 家族の画面の声は「取り直す」と一緒に残す（4 秒で消さない。0050）。文字は 4 秒
+      // 家族の画面の声は「録り直す」と一緒に残す（4 秒で消さない。0050）。文字は 4 秒
       else if (sent.kind === "text") {
         setSentNotice(true);
         sentTimer.current = setTimeout(() => setSentNotice(false), SENT_NOTICE_MS);
@@ -282,13 +282,13 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   );
   const retry = () => setAttempt((n) => n + 1);
   const errorView = (e: unknown) => (e ? <LoadError error={e} elder={elder} onRetry={retry} /> : null);
-  // 祖父母の画面: 入り口が開けていて一覧だけ読めなかったときは、今日のタブには出さない（開いている写真のそばに「ひらけませんでした」は食い違う）。アルバムで出す
+  // 祖父母の画面: 入り口が開けていて一覧だけ読めなかったときは、今日のタブには出さない（開いている写真のそばに「開けませんでした」は食い違う）。アルバムで出す
   const todayError = errorView(elder ? entranceError : (entranceError ?? feedError));
   const albumError = errorView(elder ? feedError : (entranceError ?? feedError));
   const answerSlot = retake.slot?.at === "answer" ? retake.slot : null;
   // 録り直している間は「送りました」を出さない（やめたら、ボタンと一緒に戻る）
   const showAnswerNotice = !answerSlot?.retaking && (elder ? noticeAt === "answer" : sentNotice || !!answerSlot);
-  // 祖父母の画面: 段が閉じた後の「おくりました」と次のボタンが欄の下の方（画面の外）にあれば、見える所まで動かす（残す知らせを見逃さない。0043）
+  // 祖父母の画面: 段が閉じた後の「送りました」と次のボタンが欄の下の方（画面の外）にあれば、見える所まで動かす（残す知らせを見逃さない。0043）
   const noticeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!elder || noticeAt !== "answer") return;

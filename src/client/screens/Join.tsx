@@ -17,8 +17,9 @@ export function Join({ token, onJoined }: { token: string; onJoined: () => void 
       setError(joinErrorText(e));
     });
   }, [token, onJoined]);
+  // 人がまだ決まっていない（祖父母の画面の人かもしれない）ので、祖父母の画面の大きさで出す（0060）
   return (
-    <main>
+    <main className="elder">
       {error ? <ErrorLine text={error} /> : <p>{words.join.opening}</p>}
     </main>
   );

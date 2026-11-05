@@ -66,9 +66,9 @@ describe("添える家族の言葉の声と、問いかけの読み上げ", () =
     expect(unknown).not.toContain("秒");
     expect(render({ quote: voiceQuote(80_000) }, "family")).toContain("おかあさんの声（1分20秒）");
   });
-  it("祖父母の画面: ボタンは「きく」、誰の声かと長さはそばの補助の文（家族と同じ組み立て。0045）", () => {
+  it("祖父母の画面: ボタンは「聞く」、誰の声かと長さはそばの補助の文（家族と同じ組み立て。0045）", () => {
     const html = render({ quote: voiceQuote(13_400) }, "elder");
-    expect(html).toMatch(/<button[^>]*class="aux listen"[^>]*>.*?きく<\/button><span class="who">おかあさんの声（13秒）<\/span>/);
+    expect(html).toMatch(/<button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><span class="who">おかあさんの声（13秒）<\/span>/);
   });
   it("読み上げは questionAudioUrl があるときだけ、祖父母の画面だけ。そばに「AI の声で読みます」", () => {
     for (const over of [{}, { questionAudioUrl: null }]) {

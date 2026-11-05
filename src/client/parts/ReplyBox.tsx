@@ -1,13 +1,13 @@
 // 文字か声で送る。入り口への答えにも、語りへの返事にも使う。家族の画面と祖父母の画面で同じ部品（言葉と大きさだけが違う。0043）。
 // 家族の画面: 「声で話す」「文字で書く」。「声で話す」を押すとその場で録り始め、「終わる」で送る。文字なら欄と「送る」。
-// 祖父母の画面: 「はなす」「かく」。同じく「はなす」でその場で録り始め、「おわる」で送る（0008）。
+// 祖父母の画面: 「話す」「書く」。同じく「話す」でその場で録り始め、「終わる」で送る（0008）。
 // 選んだ後にもう一度「話す」を押させない（二度押さないと録り始めないのは分かりにくい。人間、2026-11-04）。
 // マイクの許可を待っている間（押した後、録り始める前）は、録るボタンの場所を押せない形にして「マイクを準備しています」を出す（両画面。0008 の追記）。
 // 文字・声の形が開いている間は、画面に「入力中」を知らせる（下のタブを隠す）。
 // 段が替わる（押したボタンが消える）ときは、操作の位置を次の段の主なボタンへ移す（読み上げが新しい段を読む。消えたボタンで位置を失わない）。
 // 送ったら入力欄を閉じる。「送りました」は呼ぶ側が出す（今日の答えは Home、返事は Narrations）。
-// 今日の答えの「とりなおす」（0050）は、この欄の先頭（「送りました」のすぐ下）に出し、押したらこの欄でそのまま録り始める（段を作り直さない）。
-// 返事の「とりなおす」は Narrations が出し、押したら返事の欄を autoStart で開く。
+// 今日の答えの「録り直す」（0050）は、この欄の先頭（「送りました」のすぐ下）に出し、押したらこの欄でそのまま録り始める（段を作り直さない）。
+// 返事の「録り直す」は Narrations が出し、押したら返事の欄を autoStart で開く。
 // 前の声は、録り直した声が送れたときに消す（lib/retake.ts）。送らずに終えたら（やめた・短すぎて捨てた・マイクが使えない・欄が閉じた）取り直しを終え、前の声は残す。
 import { useEffect, useRef, useState } from "react";
 import type { VoiceTarget } from "../lib/voice";
@@ -32,9 +32,9 @@ type Props = {
   onComposing?: (on: boolean) => void;
   /** 祖父母の画面の今日の答えで、ボタンのすぐ上に出す今の話者の呼ばれ方（0008） */
   who?: string;
-  /** 今日の答えの「とりなおす」（0050）を出す場所（"answer"）。押したらこの欄で録り始める */
+  /** 今日の答えの「録り直す」（0050）を出す場所（"answer"）。押したらこの欄で録り始める */
   retakeAt?: string;
-  /** 開いたらすぐ録り始める（返事の「とりなおす」を押した後。0050） */
+  /** 開いたらすぐ録り始める（返事の「録り直す」を押した後。0050） */
   autoStart?: boolean;
 };
 
@@ -75,12 +75,12 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
       });
     };
   }, []);
-  // 返事の「とりなおす」: 開いたらすぐ録り始める（家族の画面は声の段で開く）
+  // 返事の「録り直す」: 開いたらすぐ録り始める（家族の画面は声の段で開く）
   useEffect(() => {
     if (autoStart) rec.toggle();
     // 開いたときだけ（StrictMode の二度目は、一度目の待ちを useRecorder が捨てるので録音は一つ）
   }, []);
-  /** 次の操作（はなす・かく）を押したら、「送りました」と「とりなおす」を消す */
+  /** 次の操作（話す・書く）を押したら、「送りました」と「録り直す」を消す */
   const clearNotices = () => {
     notice?.clear();
     retakeSlot?.clear();
@@ -105,7 +105,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
   // 段が替わったら、操作の位置を次の段の主なボタンへ移す。移すのは、位置が失われた（押したボタンが消えた）か、この欄の中にあるときだけ（ほかの場所を触っている人から奪わない）
   const boxRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
-  // 送っている間も段に数える（押したボタンが送る間に押せなくなって位置が落ち、送り終えても段が替わらず戻らないのを防ぐ。祖父母の画面の「おわる」→ 送れた）
+  // 送っている間も段に数える（押したボタンが送る間に押せなくなって位置が落ち、送り終えても段が替わらず戻らないのを防ぐ。祖父母の画面の「終わる」→ 送れた）
   const step = rec.starting ? "starting" : rec.recording ? "recording" : `${mode}${failed ? "-failed" : busy ? "-busy" : ""}`;
   const lastStep = useRef(step);
   useEffect(() => {
@@ -144,7 +144,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
       }}
     >
       <textarea value={text} maxLength={2000} rows={4} onChange={(e) => setText(e.target.value)} aria-label={w.textLabel} />
-      {/* 祖父母の画面は、声のときと同じく文を先に、ボタンを後に（文が「おくる」を指す） */}
+      {/* 祖父母の画面は、声のときと同じく文を先に、ボタンを後に（文が「送る」を指す） */}
       {elder && failure}
       <div className="grid2">
         <button type="button" onClick={close}>
@@ -163,7 +163,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
     body = textForm;
   } else if (rec.starting) {
     // マイクの許可を待っている間。押せない（aria-disabled でフォーカスは残す。押しても useRecorder が無視する）。
-    // 祖父母の画面も「おわる」と同じ一つのボタンに替え、「かく」は出さない（待つ間に文字の欄へ移ると、録音が見えないまま始まりうる）。
+    // 祖父母の画面も「終わる」と同じ一つのボタンに替え、「書く」は出さない（待つ間に文字の欄へ移ると、録音が見えないまま始まりうる）。
     // 「やめる」は両画面・今日の答えでも出す（許可の表示が決着しないまま残るブラウザで、抜け出す道をなくさない）
     body = (
       <>
@@ -176,7 +176,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
       </>
     );
   } else if (elder) {
-    // 祖父母の画面: 選ぶ段の「はなす」で録り始める。録っている間は「おわる」だけ
+    // 祖父母の画面: 選ぶ段の「話す」で録り始める。録っている間は「終わる」だけ
     if (rec.recording) {
       body = (
         <>

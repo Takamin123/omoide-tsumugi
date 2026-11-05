@@ -1,9 +1,9 @@
 // 写真一枚の語りと返事。今日のタブとアルバムで同じものを使う（祖父母の画面でも。言葉は lib/screen.ts。0043）。
 // 語りは全文、話者の呼ばれ方つきで、家族の言葉の箱（紙の色の地。0059）に入れる。返事は元の語りの下に一段下げて。返事の入力欄は一度に一つ（開いている語りの ID を親が持つ）。
 // アルバムでは、入り口への答えの語りに「言葉の糸」（答えた入り口に添えた家族の言葉）を出し、押すと元の語りへ移る（0035）。今日のタブには出さない。
-// 声は話者名の行を「ばあばの声（13秒）」にし、[聞く][返事]（祖父母は [きく][へんじ]）を一行に並べる（0045）。
+// 声は話者名の行を「ばあばの声（13秒）」にし、[聞く][返事]（祖父母は [聞く][返事]）を一行に並べる（0045）。
 // 文字起こしが pending / failed の声は再生だけ（案内の文は出さない。0008、0028）。
-// 声で返事を送った直後は、「送りました」の下に「とりなおす」（0050）。押したら返事の欄を開いてすぐ録り始める。
+// 声で返事を送った直後は、「送りました」の下に「録り直す」（0050）。押したら返事の欄を開いてすぐ録り始める。
 // 前の返事は、録り直した声が送れたときに消し（lib/retake.ts）、消し終えてから一覧を読み直す。
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Narration, QuotedFrom } from "../../shared/api";
@@ -28,7 +28,7 @@ type Props = {
   onSent: () => void;
   /** 渡したときだけ「言葉の糸」を出す（アルバム）。押すと元の語りの ID を渡す */
   onJump?: (narrationId: string) => void;
-  /** 偽なら「返事」と返事の「とりなおす」を出さない（聞くだけ。写真を家族に共有する画面で言葉を添えるとき。0054） */
+  /** 偽なら「返事」と返事の「録り直す」を出さない（聞くだけ。写真を家族に共有する画面で言葉を添えるとき。0054） */
   canReply?: boolean;
 };
 
@@ -89,9 +89,9 @@ function NarrationView({
   const notice = useSentNotice();
   const retake = useRetake();
   const slot = retake?.slot?.at === narration.id ? retake.slot : null;
-  // 家族の画面: 声の返事の「送りました」は、「取り直す」と一緒に残す（4 秒で消さない。0050）。録り直している間は出さない
+  // 家族の画面: 声の返事の「送りました」は、「録り直す」と一緒に残す（4 秒で消さない。0050）。録り直している間は出さない
   const sent = !slot?.retaking && (notice ? notice.at === narration.id : sentHere || !!slot);
-  /** 「とりなおす」を押した後に開く返事の欄は、すぐ録り始める */
+  /** 「録り直す」を押した後に開く返事の欄は、すぐ録り始める */
   const [autoStart, setAutoStart] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);

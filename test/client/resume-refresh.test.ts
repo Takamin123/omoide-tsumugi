@@ -210,14 +210,14 @@ describe("Home の配線", () => {
     expect(refresh).not.toContain("loadFeed");
   });
 
-  it("入り口が替わったら、前の入り口に結びついた知らせと「とりなおす」を消す", () => {
+  it("入り口が替わったら、前の入り口に結びついた知らせと「録り直す」を消す", () => {
     expect(refresh).toContain("setAnsweredHere(false)");
     expect(refresh).toContain("setSentNotice(false)");
     expect(refresh).toContain('at === "answer" ? null : at');
     expect(refresh).toContain("clearRetake()");
   });
 
-  it("開いたときの読み込みの途中は読み直さない。重ねて読まない。前の回（開き直し・もういちど）の結果は捨てる", () => {
+  it("開いたときの読み込みの途中は読み直さない。重ねて読まない。前の回（開き直し・もう一度）の結果は捨てる", () => {
     expect(refresh).toMatch(/if \(refreshing\.current \|\| shown\.current === undefined\) return;/);
     expect(refresh).toContain("const round = loadRound.current;");
     expect(refresh.match(/if \(!current\(\)\) return;/g)).toHaveLength(2);

@@ -81,7 +81,7 @@ describe("useSender", () => {
     expect(metas[0].requestId).not.toBe(metas[1].requestId);
   });
 
-  it("送れた語りの { id, kind, at } を onSent に渡す（「とりなおす」。0050）", async () => {
+  it("送れた語りの { id, kind, at } を onSent に渡す（「録り直す」。0050）", async () => {
     stubFetch([202]);
     const onSent = vi.fn();
     const s = useSender(target, onSent);

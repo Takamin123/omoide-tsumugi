@@ -8,7 +8,7 @@ export type ScreenVariant = "elder" | "family";
 export const ScreenContext = createContext<ScreenVariant>("family");
 
 /**
- * 祖父母の画面で残している「おくりました」の場所。残るのは一つだけで、次に答え始める・返事を始めると消える（0028、0043）。
+ * 祖父母の画面で残している「送りました」の場所。残るのは一つだけで、次に答え始める・返事を始めると消える（0028、0043）。
  * 家族の画面では null（部品はしばらく出して消す）
  */
 export type SentNotice = { at: string | null; show: (at: string) => void; clear: () => void };

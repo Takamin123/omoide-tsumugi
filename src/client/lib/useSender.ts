@@ -6,10 +6,10 @@ export type SendState = "idle" | "sending" | "sent" | "failed";
 
 type Payload = ({ kind: "voice"; blob: Blob; durationMs: number | null } | { kind: "text"; text: string }) & { requestId: string };
 
-/** 「おくりました」を出しておく時間 */
+/** 「送りました」を出しておく時間 */
 export const SENT_NOTICE_MS = 4_000;
 
-/** 送れた語り。at は送れたと分かった手元の時刻（「とりなおす」を出す時間を数える。0050） */
+/** 送れた語り。at は送れたと分かった手元の時刻（「録り直す」を出す時間を数える。0050） */
 export type SentNarration = { id: string; kind: "voice" | "text"; at: number };
 
 /** 送る状態と操作（今日の答えは Home が持ち、ReplyBox とデモの帯で共有する） */

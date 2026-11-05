@@ -64,13 +64,13 @@ describe("祖父母の画面の形（家族の画面と同じ）", () => {
   });
 });
 
-describe("祖父母の答え方: 「はなす」「かく」", () => {
-  it("一語のひらがなのボタン二つ。同じ重さ（どちらも青にしない）。今の話者の呼ばれ方をすぐ上に出す", () => {
-    expect(words.screen.elder.byVoice).toBe("はなす");
-    expect(words.screen.elder.byText).toBe("かく");
+describe("祖父母の答え方: 「話す」「書く」", () => {
+  it("一語のボタン二つ。同じ重さ（どちらも青にしない）。今の話者の呼ばれ方をすぐ上に出す", () => {
+    expect(words.screen.elder.byVoice).toBe("話す");
+    expect(words.screen.elder.byText).toBe("書く");
     const html = inElder(h(ReplyBox, { target, who: "ばあば" }));
     expect(html).toContain('<p class="who answer-who">ばあば</p>');
-    expect(html).toMatch(/<div class="grid2 answer-choice"><button type="button" aria-pressed="false">.*?はなす<\/button><button type="button">.*?かく<\/button><\/div>/);
+    expect(html).toMatch(/<div class="grid2 answer-choice"><button type="button" aria-pressed="false">.*?話す<\/button><button type="button">.*?書く<\/button><\/div>/);
     expect(html).not.toContain('class="primary"');
   });
   it("返事の欄には呼ばれ方を出さない（語りの話者名に見えるため）。「やめる」がある", () => {
@@ -82,9 +82,9 @@ describe("祖父母の答え方: 「はなす」「かく」", () => {
     const html = renderToStaticMarkup(h(ReplyBox, { target })) as string;
     expect(html).toContain(words.home.byVoice);
     expect(html).toContain(words.home.byText);
-    expect(html).not.toContain(words.screen.elder.byText);
+    expect(html).not.toMatch(new RegExp(`>${words.screen.elder.byText}</button>`));
   });
-  it("祖父母の「はなす」は押すとその場で録り始める（選ぶボタンと録るボタンを兼ねる。0008 の二度押しのまま）", () => {
+  it("祖父母の「話す」は押すとその場で録り始める（選ぶボタンと録るボタンを兼ねる。0008 の二度押しのまま）", () => {
     const src = read("src/client/parts/ReplyBox.tsx");
     expect(src).toMatch(/clearNotices\(\);\s*rec\.toggle\(\);/);
   });
@@ -96,25 +96,25 @@ describe("祖父母の答え方: 「はなす」「かく」", () => {
   it("送れなかった文は祖父母の文。家族は種類ごとの文", () => {
     expect(words.screen.elder.sendFailed).toBe(words.elder.errors.sendFailed);
     expect(words.screen.family.sendFailed).toBeNull();
-    expect(words.screen.elder.send).toBe("おくる");
-    expect(words.screen.elder.sent).toBe("おくりました");
+    expect(words.screen.elder.send).toBe("送る");
+    expect(words.screen.elder.sent).toBe("送りました");
   });
 });
 
 describe("祖父母の画面の語りの欄", () => {
-  it("声の語りは、話者名の行が入り口と同じ注「{呼ばれ方}の声（13秒）」、その下に [きく][へんじ] を一つの行に（0045）", () => {
+  it("声の語りは、話者名の行が入り口と同じ注「{呼ばれ方}の声（13秒）」、その下に [聞く][返事] を一つの行に（0045）", () => {
     const html = inElder(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }));
-    expect(words.elder.listen).toBe("きく");
+    expect(words.elder.listen).toBe("聞く");
     expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
-    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?きく<\/button><button type="button" class="aux">へんじ<\/button><\/div>/);
+    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><button type="button" class="aux">返事<\/button><\/div>/);
     expect(html).not.toContain('class="who"');
-    expect(html).not.toContain("聞く");
+    expect(html).not.toContain("こえ");
   });
   it("文字起こしが pending / failed の声も、両画面で話者名の行の注と [聞く][返事]（本文と案内の文なし。0045）", () => {
     for (const transcriptStatus of ["pending", "failed"]) {
       const props = { narrations: [voice({ transcriptStatus, text: null })], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} };
       for (const [html, listen, reply] of [
-        [inElder(h(Narrations, props)), "きく", "へんじ"],
+        [inElder(h(Narrations, props)), "聞く", "返事"],
         [renderToStaticMarkup(h(Narrations, props)) as string, "聞く", "返事"],
       ]) {
         expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
@@ -134,12 +134,12 @@ describe("祖父母の画面の語りの欄", () => {
     }
   });
   it("流している間の語は「とめる」「止める」のまま。祖父母の語りの行のボタンだけ横の余白を 0.75rem に（0045）", () => {
-    expect(words.screen.elder.stopVoice).toBe("とめる");
+    expect(words.screen.elder.stopVoice).toBe("止める");
     expect(words.screen.family.stopVoice).toBe("止める");
     expect(words.screen.family.listen).toBe("聞く");
     expect(read("src/client/styles.css")).toMatch(/\.elder \.narration > \.paper > \.row > \.aux \{\s*padding-inline: 0\.75rem;\s*\}/);
   });
-  it("「おくりました」は場所が今の語りのときだけ（画面に一つだけ）", () => {
+  it("「送りました」は場所が今の語りのときだけ（画面に一つだけ）", () => {
     const n = (at: string | null) =>
       inElder(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }), {
         at,
@@ -175,7 +175,7 @@ describe("祖父母の画面の語りの欄", () => {
 
 describe("祖父母の画面の決まり（ソース）", () => {
   const home = read("src/client/screens/Home.tsx");
-  it("「おくりました」は祖父母の画面では時間で消さず、場所を一つだけ持つ", () => {
+  it("「送りました」は祖父母の画面では時間で消さず、場所を一つだけ持つ", () => {
     expect(home).toMatch(/if \(elder\) setNoticeAt\("answer"\);/);
     expect(home).toContain("<SentNoticeContext.Provider value={elder ? notice : null}>");
   });
@@ -183,7 +183,7 @@ describe("祖父母の画面の決まり（ソース）", () => {
     expect(home).toContain("const todayError = errorView(elder ? entranceError : (entranceError ?? feedError));");
     expect(home).toContain("const albumError = errorView(elder ? feedError : (entranceError ?? feedError));");
   });
-  it("読み込めなかったときの祖父母の文と「もういちど」", () => {
+  it("読み込めなかったときの祖父母の文と「もう一度」", () => {
     expect(home).toContain("words.elder.errors");
     expect(home).toContain("{words.elder.again}");
   });

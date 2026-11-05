@@ -140,7 +140,7 @@ describe("自分の写真に言葉を添える（0054）", () => {
     expect(html).not.toContain(words.photos.addWords);
   });
 
-  it("送る先はこの写真だけ（entranceId・replyToId とも null）。とりなおすの場所は写真の ID", () => {
+  it("送る先はこの写真だけ（entranceId・replyToId とも null）。録り直すの場所は写真の ID", () => {
     const src = read("src/client/screens/AddPhotos.tsx");
     expect(src).toMatch(/\{ photoId: photo\.id, entranceId: null, replyToId: null \}/);
     expect(src).toMatch(/<ReplyBox\s+target=\{target\}\s+onSent=\{onAdded\}[\s\S]*?retakeAt=\{photo\.id\}/);
@@ -175,13 +175,13 @@ describe("語りの canReply（0054。qa）", () => {
   const text = { ...voice, id: "n-2", kind: "text", text: "架空の文字の文", audioUrl: null, durationMs: null };
   const props = { narrations: [voice, text], nameOf: () => "ばあば", openReplyId: null, onOpenReply: noop, onSent: noop };
 
-  it("既定（渡さない）は今のまま: 「返事」と返事の「とりなおす」が出て、開いた返事の欄も出る", () => {
+  it("既定（渡さない）は今のまま: 「返事」と返事の「録り直す」が出て、開いた返事の欄も出る", () => {
     const html = withSlot(h(Narrations, props));
     expect(html.match(new RegExp(`>${words.home.reply}<`, "g"))).toHaveLength(2);
     expect(html).toContain('class="retake"');
     expect(withSlot(h(Narrations, { ...props, openReplyId: "n-1" }))).toContain(words.home.byVoice);
   });
-  it("偽: 「返事」「とりなおす」、開いた返事の欄を出さない。声は聞ける。文字だけの語りは空の行を描かない", () => {
+  it("偽: 「返事」「録り直す」、開いた返事の欄を出さない。声は聞ける。文字だけの語りは空の行を描かない", () => {
     const html = withSlot(h(Narrations, { ...props, openReplyId: "n-1", canReply: false }));
     expect(html).not.toContain(`>${words.home.reply}<`);
     expect(html).not.toContain('class="retake"');

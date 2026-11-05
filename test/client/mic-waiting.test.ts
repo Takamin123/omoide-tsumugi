@@ -27,9 +27,9 @@ const inElder = (el: any) => renderToStaticMarkup(h(ScreenContext.Provider, { va
 const inFamily = (el: any) => renderToStaticMarkup(el) as string;
 
 describe("マイクの許可を待っている間（0008 の追記）", () => {
-  it("言葉: 家族「マイクを準備しています」、祖父母「マイクを じゅんびしています」", () => {
+  it("言葉: 家族「マイクを準備しています」、祖父母「マイクを準備しています」", () => {
     expect(words.screen.family.micWaiting).toBe("マイクを​準備しています");
-    expect(words.screen.elder.micWaiting).toBe("マイクを じゅんび\u200Bしています");
+    expect(words.screen.elder.micWaiting).toBe("マイクを\u200B準備しています");
   });
   it("家族の画面: 録るボタンの場所は押せない「マイクを準備しています」（aria-disabled）と「やめる」。「話す」「声で話す」は出さない", () => {
     recorder.starting = true;
@@ -40,7 +40,7 @@ describe("マイクの許可を待っている間（0008 の追記）", () => {
     expect(html).not.toContain(words.home.byVoice);
     expect(html).not.toContain(words.home.byText);
   });
-  it("祖父母の画面: 「はなす」「かく」を、押せない一つのボタン「マイクを じゅんびしています」と「やめる」に替える（待つ間に「かく」へ移らせない）", () => {
+  it("祖父母の画面: 「話す」「書く」を、押せない一つのボタン「マイクを準備しています」と「やめる」に替える（待つ間に「書く」へ移らせない）", () => {
     recorder.starting = true;
     const html = inElder(h(ReplyBox, { target, who: "ばあば" }));
     expect(html).toContain(`aria-disabled="true">${words.elder.micWaiting}</button>`);
@@ -68,8 +68,8 @@ describe("聞くボタンの読み上げの名前（0045 の追記）", () => {
   it("言葉: 誰の声かを入れ、見える語を含める。呼ばれ方が分からなければ「声を聞く」", () => {
     expect(words.screen.family.listenName("ばあば")).toEqual({ play: "ばあばの声を聞く", stop: "ばあばの声を止める" });
     expect(words.screen.family.listenName(null)).toEqual({ play: "声を聞く", stop: "声を止める" });
-    expect(words.screen.elder.listenName("ばあば")).toEqual({ play: "ばあばの こえを きく", stop: "ばあばの こえを とめる" });
-    expect(words.screen.elder.listenName(null)).toEqual({ play: "こえを きく", stop: "こえを とめる" });
+    expect(words.screen.elder.listenName("ばあば")).toEqual({ play: "ばあばの声を聞く", stop: "ばあばの声を止める" });
+    expect(words.screen.elder.listenName(null)).toEqual({ play: "声を聞く", stop: "声を止める" });
     for (const w of [words.screen.family, words.screen.elder]) {
       expect(w.listenName("ばあば").play.endsWith(w.listen)).toBe(true);
       expect(w.listenName("ばあば").stop.endsWith(w.stopVoice)).toBe(true);
@@ -96,15 +96,15 @@ describe("聞くボタンの読み上げの名前（0045 の追記）", () => {
     onOpenReply: () => {},
     onSent: () => {},
   };
-  it("語りの欄: 声が何本並んでも、読み上げの名前で区別できる。見える文字は「聞く」「きく」のまま", () => {
+  it("語りの欄: 声が何本並んでも、読み上げの名前で区別できる。見える文字は「聞く」のまま", () => {
     const family = inFamily(h(Narrations, props));
     expect(family).toMatch(/<button[^>]*class="aux listen"[^>]*aria-label="ばあばの声を聞く"[^>]*>.*?聞く<\/button>/);
     expect(family).toMatch(/<button[^>]*class="aux listen"[^>]*aria-label="お母さんの声を聞く"[^>]*>.*?聞く<\/button>/);
     const elder = inElder(h(Narrations, props));
-    expect(elder).toMatch(/<button[^>]*class="aux listen"[^>]*aria-label="ばあばの こえを きく"[^>]*>.*?きく<\/button>/);
-    expect(elder).toMatch(/<button[^>]*class="aux listen"[^>]*aria-label="お母さんの こえを きく"[^>]*>.*?きく<\/button>/);
+    expect(elder).toMatch(/<button[^>]*class="aux listen"[^>]*aria-label="ばあばの声を聞く"[^>]*>.*?聞く<\/button>/);
+    expect(elder).toMatch(/<button[^>]*class="aux listen"[^>]*aria-label="お母さんの声を聞く"[^>]*>.*?聞く<\/button>/);
   });
-  it("入り口の引用の声も同じ名前。問いかけの読み上げ（よみあげ）には付けない", () => {
+  it("入り口の引用の声も同じ名前。問いかけの読み上げ（読み上げ）には付けない", () => {
     const photo = { id: "p-1", ownerMemberId: "m-grandma", width: 1600, height: 1200, takenAt: null, hasLocation: false, imageUrl: "/api/photos/p-1/image" };
     const entrance = {
       id: "e-1",
@@ -118,8 +118,8 @@ describe("聞くボタンの読み上げの名前（0045 の追記）", () => {
     const family = inFamily(h(EntranceView, { entrance, members, variant: "family" }));
     expect(family).toContain('aria-label="ばあばの声を聞く"');
     const elder = inFamily(h(EntranceView, { entrance, members, variant: "elder" }));
-    expect(elder).toContain('aria-label="ばあばの こえを きく"');
-    expect(elder).toMatch(/<button type="button" class="aux listen" aria-pressed="false">.*?よみあげ<\/button>/);
+    expect(elder).toContain('aria-label="ばあばの声を聞く"');
+    expect(elder).toMatch(/<button type="button" class="aux listen" aria-pressed="false">.*?読み上げ<\/button>/);
   });
 });
 
@@ -216,7 +216,7 @@ describe("段が替わったときの操作の位置（押したボタンが消�
     expect(src).toContain(`<button ref={primaryRef} type="button" className="primary stop" aria-pressed="true" onClick={rec.toggle}>`);
     expect(src).toMatch(/ref=\{primaryRef\}\s+type="button"\s+className=\{rec\.recording \? "primary stop" : "primary"\}/);
     expect(src.match(/ref=\{primaryRef\}/g)?.length).toBe(7);
-    // 送っている間も段に数える（祖父母の画面で「おわる」→ 送れた の後、「はなす」に戻る）
+    // 送っている間も段に数える（祖父母の画面で「おわる」→ 送れた の後、「話す」に戻る）
     expect(src).toContain('`${mode}${failed ? "-failed" : busy ? "-busy" : ""}`');
   });
 });

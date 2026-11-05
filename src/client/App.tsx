@@ -99,11 +99,12 @@ export function App() {
     );
   }
 
-  if (load.state === "loading") return <main><p>{words.loading}</p></main>;
-  if (load.state === "no-session") return <main><p>{words.noSession}</p></main>;
+  // 人がまだ決まっていない間（読み込み中・リンクなし・読めなかった）は、祖父母の画面の人かもしれないので、祖父母の画面の大きさで出す（0060）
+  if (load.state === "loading") return <main className="elder"><p>{words.loading}</p></main>;
+  if (load.state === "no-session") return <main className="elder"><p>{words.noSession}</p></main>;
   if (load.state === "error") {
     return (
-      <main className="stack">
+      <main className="stack elder">
         <ErrorLine text={load.text} />
         <button type="button" onClick={() => void reload()}>
           {words.retry}
@@ -116,7 +117,7 @@ export function App() {
   const meMember = view.me;
   const kind = screenFor(meMember, view.members.length, path);
   // 最初の人のリンクで、もう誰かいる（同じリンクを二台目で開いたなど）: このリンクでは入れない
-  if (kind === "no-session") return <main><p>{words.noSession}</p></main>;
+  if (kind === "no-session") return <main className="elder"><p>{words.noSession}</p></main>;
   if (kind === "first-person" || !meMember) return <FirstPerson onDone={() => void reload()} />;
 
   // デモの操作。出すかどうかはサーバーが決める（canAdvanceClock）。出さないときは描かない

@@ -102,7 +102,7 @@ export const api = {
     if (audio) form.append("audio", audio, audioFileName(audio.type));
     return call<{ narration: Narration }>("/api/narrations", { method: "POST", body: form });
   },
-  /** 送った直後の声の語りを消す（「とりなおす」。0050）。消せなければ 404。自動で送り直さない */
+  /** 送った直後の声の語りを消す（「録り直す」。0050）。消せなければ 404。自動で送り直さない */
   deleteNarration: (id: string) => call<void>(`/api/narrations/${encodeURIComponent(id)}`, { method: "DELETE" }),
   /** repliesSeenAt: この端末の人が返事のタブを最後に開いた時刻（null はまだ開いていない。0058） */
   getFeed: () =>
