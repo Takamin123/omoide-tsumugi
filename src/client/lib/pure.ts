@@ -149,9 +149,12 @@ export type AnswerPlace = "dock" | "flow" | "none";
  * - 答えた後: 問いかけの下の流れに戻す（もう一度答えられる。下の段には留めない）
  * - ほかの入力欄（語りへの返事）が開いている間: タブと同じく描かない
  * - それ以外: スクロールする欄の外の、タブのすぐ上の段（文字の欄・録音もそこで開く）
+ * - docked が偽（家族の画面）: 入り口があればいつも問いかけのカードの中（0059。段は祖父母の画面だけ）
  */
-export function answerPlace(hasEntrance: boolean, answered: boolean, otherComposing: boolean): AnswerPlace {
+export function answerPlace(hasEntrance: boolean, answered: boolean, otherComposing: boolean, docked = true): AnswerPlace {
   if (!hasEntrance) return "none";
+  // 段に留めない画面（家族の画面）は、いつも問いかけのカードの中（0059）
+  if (!docked) return "flow";
   if (answered) return "flow";
   if (otherComposing) return "none";
   return "dock";

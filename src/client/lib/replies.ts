@@ -49,6 +49,15 @@ export function replyGroups(feed: readonly FeedItem[], meId: string): ReplyGroup
 export const unseenCount = (feed: readonly FeedItem[], meId: string, seenAt: number | null) =>
   unseenReplies(repliesFor(feed, meId), seenAt).length;
 
+/** 返事のタブで「新しい」と示す語りの ID: 届いたもののうち、after（開く前の見た時刻）より後で upTo（開いた時点の一番新しいもの）までのもの（0061） */
+export function freshIds(feed: readonly FeedItem[], meId: string, after: number | null, upTo: number): Set<string> {
+  return new Set(
+    unseenReplies(repliesFor(feed, meId), after)
+      .filter((r) => r.narration.createdAt <= upTo)
+      .map((r) => r.narration.id),
+  );
+}
+
 /** 届いたものの一番新しい時刻（なければ null） */
 export function latestIncomingAt(feed: readonly FeedItem[], meId: string): number | null {
   return repliesFor(feed, meId)[0]?.narration.createdAt ?? null;

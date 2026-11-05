@@ -14,12 +14,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, FeedItem, FeedResult, Member } from "../../shared/api";
 import { api, ApiError } from "../lib/api";
 import { keepOrder } from "../lib/album";
-import { keepOrderNewFirst, latestIncomingAt, mergeSeenAt, replyGroups, unseenCount } from "../lib/replies";
+import { freshIds, keepOrderNewFirst, latestIncomingAt, mergeSeenAt, replyGroups, unseenCount } from "../lib/replies";
 import { ComposingContext, ComposingSet } from "../lib/composing";
 import { errorText } from "../lib/errors";
 import { answerPlace } from "../lib/pure";
 import { RetakeContext, useRetakeSlot } from "../lib/retake";
-import { ScreenContext, SentNoticeContext, type ScreenVariant } from "../lib/screen";
+import { InitialsContext, ScreenContext, SentNoticeContext, type ScreenVariant } from "../lib/screen";
+import { initialsFor } from "../lib/initials";
 import { SENT_NOTICE_MS, useSender, type SentNarration } from "../lib/useSender";
 import { navigate } from "../lib/route";
 import { homeBusy, refreshQuietly, useResumeRefresh } from "../lib/useResumeRefresh";
@@ -65,6 +66,11 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
    * サーバーの記録が届くまでの間もバッジを消しておく。開いている間に届いたものはこれより新しいので、次に開くまでバッジに残る
    */
   const [localSeenAt, setLocalSeenAt] = useState<number | null>(null);
+  /**
+   * 返事のタブを開いた時点でまだ見ていなかった範囲（見た時刻より後で、開いた時点の一番新しいものまで）。
+   * この範囲の届いたものを、そのタブを開いている間だけ「新しい」と示す（開いている間に届いたものは示さない。0061）
+   */
+  const [freshRange, setFreshRange] = useState<{ after: number | null; upTo: number } | null>(null);
   /** 返事のタブを開いたときの並び（写真の ID）。開いている間に読み直しても並び替えない */
   const [repliesOrder, setRepliesOrder] = useState<string[] | null>(null);
   /** 下の段の文字の欄・録音が開いているか（ほかの入力欄と分ける） */
@@ -189,6 +195,8 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   useTranscriptFollow(feed, followRead);
 
   const nameOf = (id: string) => view.members.find((m) => m.id === id)?.calledAs ?? "";
+  /** 話者の頭文字の丸（人の並びで色が決まる。0061） */
+  const initials = useMemo(() => initialsFor(view.members), [view.members]);
   const w = words.screen[variant];
 
   /** 返事のタブを開いた: 並びを決め、見たことにする（手元のバッジはすぐ消す。サーバーへの知らせは失敗しても黙る。0058） */
@@ -201,6 +209,11 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
   const changeTab = (t: HomeTab) => {
     setOpenReplyId(null);
     if (t === "replies") {
+      // 開く前の見た時刻から、開いた時点の一番新しいものまでを「新しい」とする。届いたものが一つもなければ何も示さない。
+      // 一覧がまだ届いていなければ示さない（開く前の見た時刻が分からない。届いた一覧は見たことを知らせた後のもの）
+      setFreshRange(
+        feed ? { after: mergeSeenAt(serverSeenAt, localSeenAt), upTo: latestIncomingAt(feed, me.id) ?? Number.NEGATIVE_INFINITY } : null,
+      );
       if (feed) openReplies(feed);
       else setRepliesOrder(null);
       // 見たことをサーバーに知らせてから読み直す（読み直しで届いたものはサーバーでも見たことになっている）。知らせが失敗しても読み直す。
@@ -308,7 +321,8 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
         !!entrance &&
         !!todays?.narrations.some((n) => n.entranceId === entrance.id && n.speakerMemberId === me.id));
     // ほかの入力欄（語りへの返事。ボタンを選ぶ前も含む）が開いている間は段を描かない。段の中で書いている間は段を残す（書きかけを消さない）
-    const place = answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null));
+    // 家族の画面は答えるボタンを問いかけのカードの中に置く（段に留めない。0059）。祖父母の画面は段のまま（0034・0043 の高さの約束）
+    const place = answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null), elder);
     // 祖父母の画面では、今の話者の呼ばれ方を答えのボタンのすぐそばにも出す（0008）
     const who = elder ? me.calledAs : undefined;
     if (place === "dock" && answerTarget) {
@@ -342,13 +356,14 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
           {entrance === null && !entranceError && <p className={elder ? undefined : "sub"}>{w.noEntrance}</p>}
           {entrance && (
             <section className="stack">
-              <EntranceView entrance={entrance} members={view.members} variant={variant} />
-              <div aria-live="polite" ref={noticeRef}>
-                {showAnswerNotice && <p className="done">{w.sent}</p>}
-              </div>
-              {place === "flow" && answerTarget && (
-                <ReplyBox target={answerTarget} sender={answer} who={who} onComposing={onFlowComposing} retakeAt="answer" />
-              )}
+              <EntranceView entrance={entrance} members={view.members} variant={variant}>
+                <div aria-live="polite" ref={noticeRef}>
+                  {showAnswerNotice && <p className="done">{w.sent}</p>}
+                </div>
+                {place === "flow" && answerTarget && (
+                  <ReplyBox target={answerTarget} sender={answer} who={who} onComposing={onFlowComposing} retakeAt="answer" />
+                )}
+              </EntranceView>
             </section>
           )}
 
@@ -376,6 +391,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
         {feedError && <div className="album-error">{errorView(feedError)}</div>}
         <Replies
           groups={repliesOrder ? keepOrderNewFirst(repliesOrder, groups, (g) => g.item.photo.id) : groups}
+          fresh={feed && freshRange ? freshIds(feed, me.id, freshRange.after, freshRange.upTo) : undefined}
           nameOf={nameOf}
           openReplyId={openReplyId}
           onOpenReply={setOpenReplyId}
@@ -406,6 +422,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
 
   return (
     <ScreenContext.Provider value={variant}>
+      <InitialsContext.Provider value={initials}>
       <SentNoticeContext.Provider value={elder ? notice : null}>
       <RetakeContext.Provider value={retake}>
       <ComposingContext.Provider value={composingSet}>
@@ -417,6 +434,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
       </ComposingContext.Provider>
       </RetakeContext.Provider>
       </SentNoticeContext.Provider>
+      </InitialsContext.Provider>
     </ScreenContext.Provider>
   );
 }

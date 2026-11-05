@@ -50,7 +50,7 @@ describe("祖父母の画面の形（家族の画面と同じ）", () => {
   it("下のタブ「今日」「アルバム」があり、開いたときは「今日」。上にメニューは置かず、呼ばれ方だけ", () => {
     const html = renderToStaticMarkup(h(Elder, { view: { ...view, me: grandma }, me: grandma, demo: null })) as string;
     expect(html).toContain('class="home-shell elder"');
-    expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabToday}</button>`);
+    expect(html).toMatch(new RegExp(`<button type="button" class="tab" aria-current="page"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabToday}</button>`));
     expect(html).toContain(`>${words.home.tabAlbum}</button>`);
     expect(html).toContain(`<p class="elder-name">${grandma.calledAs}</p>`);
     expect(html).not.toContain(words.home.menuFamily);
@@ -70,7 +70,7 @@ describe("祖父母の答え方: 「話す」「書く」", () => {
     expect(words.screen.elder.byText).toBe("書く");
     const html = inElder(h(ReplyBox, { target, who: "ばあば" }));
     expect(html).toContain('<p class="who answer-who">ばあば</p>');
-    expect(html).toMatch(/<div class="grid2 answer-choice"><button type="button" aria-pressed="false">.*?話す<\/button><button type="button">.*?書く<\/button><\/div>/);
+    expect(html).toMatch(/<div class="grid2 answer-choice"><button type="button" class="choice-fill" aria-pressed="false">.*?話す<\/button><button type="button" class="choice-line">.*?書く<\/button><\/div>/);
     expect(html).not.toContain('class="primary"');
   });
   it("返事の欄には呼ばれ方を出さない（語りの話者名に見えるため）。「やめる」がある", () => {
@@ -106,7 +106,7 @@ describe("祖父母の画面の語りの欄", () => {
     const html = inElder(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} }));
     expect(words.elder.listen).toBe("聞く");
     expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
-    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><button type="button" class="aux">返事<\/button><\/div>/);
+    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><button type="button" class="aux">(<svg.*?<\/svg>)?返事<\/button><\/div>/);
     expect(html).not.toContain('class="who"');
     expect(html).not.toContain("こえ");
   });
@@ -118,7 +118,7 @@ describe("祖父母の画面の語りの欄", () => {
         [renderToStaticMarkup(h(Narrations, props)) as string, "聞く", "返事"],
       ]) {
         expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
-        expect(html).toMatch(new RegExp(`<div class="row"><button[^>]*class="aux listen"[^>]*>.*?${listen}</button><button type="button" class="aux">${reply}</button></div>`));
+        expect(html).toMatch(new RegExp(`<div class="row"><button[^>]*class="aux listen"[^>]*>.*?${listen}</button><button type="button" class="aux">.*?${reply}</button></div>`));
         expect(html).not.toContain('class="told"');
         expect(html).not.toContain('class="who"');
       }
@@ -153,7 +153,7 @@ describe("祖父母の画面の語りの欄", () => {
   it("家族の画面の語りの声も同じ組み立て: 話者名の行「ばあばの声（13秒）」と [聞く][返事]（0045）", () => {
     const html = renderToStaticMarkup(h(Narrations, { narrations: [voice()], nameOf, openReplyId: null, onOpenReply: () => {}, onSent: () => {} })) as string;
     expect(html).toContain('<p class="speaker">ばあばの声（13秒）</p>');
-    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><button type="button" class="aux">返事<\/button><\/div>/);
+    expect(html).toMatch(/<div class="row"><button[^>]*class="aux listen"[^>]*>.*?聞く<\/button><button type="button" class="aux">(<svg.*?<\/svg>)?返事<\/button><\/div>/);
     expect(html).not.toContain("声で聞く");
   });
   it("アルバムの写真の拡大の閉じるは祖父母の言葉（ZoomablePhoto に画面を渡す）", () => {

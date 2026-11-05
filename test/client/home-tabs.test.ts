@@ -54,8 +54,8 @@ const renderAlbum = (over: Record<string, unknown> = {}) =>
 describe("家族の画面のタブ", () => {
   it("開いたときは「今日」。今のタブは aria-current で示し、上にメニューがある", () => {
     const html = renderToStaticMarkup(h(Home, { view, me: mother, demo: null })) as string;
-    expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabToday}</button>`);
-    expect(html).toContain(`<button type="button" class="tab">${words.home.tabAlbum}</button>`);
+    expect(html).toMatch(new RegExp(`<button type="button" class="tab" aria-current="page"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabToday}</button>`));
+    expect(html).toMatch(new RegExp(`<button type="button" class="tab"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabAlbum}</button>`));
     expect(html).toContain(words.home.menuPhotos);
     expect(html).toContain(words.home.menuFamily);
     // 「ほかの人にかわる」は置かない（端末はリンクの人。0036）
@@ -74,17 +74,18 @@ describe("家族の画面のタブ", () => {
   });
   it("アルバムのタブを選ぶと、そちらに aria-current が移る", () => {
     const html = renderToStaticMarkup(h(TabBar, { tab: "album", onChange: () => {}, composing: false })) as string;
-    expect(html).toContain(`<button type="button" class="tab">${words.home.tabToday}</button>`);
-    expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabAlbum}</button>`);
+    expect(html).toMatch(new RegExp(`<button type="button" class="tab"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabToday}</button>`));
+    expect(html).toMatch(new RegExp(`<button type="button" class="tab" aria-current="page"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabAlbum}</button>`));
   });
   it("文字や声で答えている間は、タブを描かない（押せない）", () => {
     expect(renderToStaticMarkup(h(TabBar, { tab: "today", onChange: () => {}, composing: true }))).toBe("");
   });
-  it("今のタブは色だけでなく、太さと上の線でも示す。文字は補助のボタンの大きさ、高さは 64px 以上", () => {
+  it("今のタブは色だけでなく、太さと印の後ろの淡い青の地でも示す（0059）。文字はタブの語の大きさ、祖父母の画面の高さは 64px 以上", () => {
     const css = fs.readFileSync(path.join(repoRoot, "src/client/styles.css"), "utf8") as string;
-    expect(css).toMatch(/\.tabs \.tab\[aria-current="page"\] \{[^}]*font-weight: bold;[^}]*box-shadow: inset 0 4px 0 var\(--accent\);/);
+    expect(css).toMatch(/\.tabs \.tab\[aria-current="page"\] \{[^}]*font-weight: bold;/);
+    expect(css).toMatch(/\.tabs \.tab\[aria-current="page"\] \.tab-icon \{\s*background: var\(--accent-soft\);/);
     expect(css).toMatch(/--tab-height: max\(64px, [\d.]+rem\);/);
-    expect(css).toMatch(/\.tabs \.tab \{[^}]*min-height: var\(--tab-height\);[^}]*font-size: var\(--font-aux\);/);
+    expect(css).toMatch(/\.tabs \.tab \{[^}]*min-height: var\(--tab-height\);[^}]*font-size: var\(--font-tab\);/);
   });
 });
 

@@ -1,4 +1,5 @@
 // 文字か声で送る。入り口への答えにも、語りへの返事にも使う。家族の画面と祖父母の画面で同じ部品（言葉と大きさだけが違う。0043）。
+// 主役の「声で話す」「話す」は青で塗り、「文字で書く」「書く」は青い枠（人間、2026-11-05。0059）。
 // 家族の画面: 「声で話す」「文字で書く」。「声で話す」を押すとその場で録り始め、「終わる」で送る。文字なら欄と「送る」。
 // 祖父母の画面: 「話す」「書く」。同じく「話す」でその場で録り始め、「終わる」で送る（0008）。
 // 選んだ後にもう一度「話す」を押させない（二度押さないと録り始めないのは分かりにくい。人間、2026-11-04）。
@@ -209,6 +210,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
             <button
               ref={primaryRef}
               type="button"
+              className="choice-fill"
               aria-pressed="false"
               disabled={busy}
               onClick={() => {
@@ -221,6 +223,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
             </button>
             <button
               type="button"
+              className="choice-line"
               disabled={busy}
               onClick={() => {
                 clearNotices();
@@ -276,6 +279,7 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
           <button
             ref={primaryRef}
             type="button"
+            className="choice-fill"
             disabled={busy}
             onClick={() => {
               clearNotices();
@@ -285,15 +289,18 @@ export function ReplyBox({ target, sender: external, onSent, onCancel, onComposi
               if (!failed) rec.toggle();
             }}
           >
+            <MicIcon />
             {w.byVoice}
           </button>
           <button
             type="button"
+            className="choice-line"
             onClick={() => {
               clearNotices();
               setMode("text");
             }}
           >
+            <PenIcon />
             {w.byText}
           </button>
         </div>

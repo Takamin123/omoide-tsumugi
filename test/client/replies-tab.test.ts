@@ -12,7 +12,7 @@ const { TabBar } = await load("../../src/client/parts/TabBar");
 const { Replies } = await load("../../src/client/parts/Replies");
 const { ScreenContext } = await load("../../src/client/lib/screen");
 const { words } = await load("../../src/client/words");
-const { badgeText, keepOrderNewFirst, latestIncomingAt, mergeSeenAt, replyGroups, unseenCount } = await load("../../src/client/lib/replies");
+const { badgeText, keepOrderNewFirst, latestIncomingAt, mergeSeenAt, replyGroups, unseenCount, freshIds: freshIdsFn } = await load("../../src/client/lib/replies");
 
 const photo = (id: string, owner: string, takenAt: string | null = null): Photo => ({
   id,
@@ -119,18 +119,19 @@ describe("下のタブ", () => {
   it("3 つ目は「返事」。まだ見ていなければ数のバッジ（見た目だけ）と、読み上げの隠した文", () => {
     expect(words.home.tabReplies).toBe("返事");
     const html = tabs({ unseen: 2 });
-    expect(html).toContain(
-      `<button type="button" class="tab">${words.home.tabReplies}<span class="tab-badge" aria-hidden="true">2</span><span class="visually-hidden">${words.home.tabUnseen(2)}</span></button>`,
+    // バッジは印（aria-hidden）の右上に重ねる。読み上げは語の後の隠した文
+    expect(html).toMatch(
+      new RegExp(`<button type="button" class="tab"><span class="tab-icon" aria-hidden="true"><svg.*?</svg><span class="tab-badge">2</span></span>${words.home.tabReplies}<span class="visually-hidden">${words.home.tabUnseen(2)}</span></button>`),
     );
     expect(words.home.tabUnseen(2)).toBe("、新しく 2件");
     // 99+ でも読み上げは実際の数
-    expect(tabs({ unseen: 150 })).toContain(`>99+</span><span class="visually-hidden">${words.home.tabUnseen(150)}</span>`);
+    expect(tabs({ unseen: 150 })).toMatch(new RegExp(`>99\\+</span></span>${words.home.tabReplies}<span class="visually-hidden">${words.home.tabUnseen(150)}</span>`));
   });
   it("0 件・返事のタブにいる間はバッジを出さない。返事のタブを開くと aria-current が移る", () => {
     expect(tabs({ unseen: 0 })).not.toContain("tab-badge");
     const html = tabs({ tab: "replies", unseen: 3 });
     expect(html).not.toContain("tab-badge");
-    expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabReplies}</button>`);
+    expect(html).toMatch(new RegExp(`<button type="button" class="tab" aria-current="page"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabReplies}</button>`));
   });
   it("家族の画面も祖父母の画面も 3 つのタブ（開いたときは「今日」）", () => {
     const view = {
@@ -140,9 +141,9 @@ describe("下のタブ", () => {
     const me = { id: "mom", calledAs: "お母さん", relation: "母", role: "family", speechStyle: "standard", dialectRegion: null, setUpByMemberId: null };
     for (const variant of ["family", "elder"]) {
       const html = renderToStaticMarkup(h(Home, { view, me, demo: null, variant })) as string;
-      expect(html).toContain(`<button type="button" class="tab" aria-current="page">${words.home.tabToday}</button>`);
-      expect(html).toContain(`<button type="button" class="tab">${words.home.tabAlbum}</button>`);
-      expect(html).toContain(`<button type="button" class="tab">${words.home.tabReplies}</button>`);
+      expect(html).toMatch(new RegExp(`<button type="button" class="tab" aria-current="page"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabToday}</button>`));
+      expect(html).toMatch(new RegExp(`<button type="button" class="tab"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabAlbum}</button>`));
+      expect(html).toMatch(new RegExp(`<button type="button" class="tab"><span class="tab-icon" aria-hidden="true">.*?</span>${words.home.tabReplies}</button>`));
     }
   });
   it("3 つのタブは等分を基本に、語の長さより狭くしない（360px・文字 150% で「アルバム」を折らない）。バッジは青地に白", () => {
@@ -165,7 +166,7 @@ describe("返事のタブの中身", () => {
     ) as string;
   it("写真ごとに、押すと大きく見られる写真と撮影日、糸の語り（声は聞く）と返事のボタン。言葉の糸・見出し・何枚目かは出さない", () => {
     const html = render("family");
-    expect(html.match(/class="replies-group"/g)).toHaveLength(2);
+    expect(html.match(/class="replies-group card-soft"/g)).toHaveLength(2);
     expect(html.indexOf('data-photo="P1"')).toBeLessThan(html.indexOf('data-photo="P2"'));
     expect(html).toContain(`aria-label="${words.photoView.open}"`);
     expect(html).toContain('<p class="photo-facts"><span>2019年5月3日</span></p>');
@@ -188,5 +189,30 @@ describe("返事のタブの中身", () => {
     expect(render("family", { groups: [], loading: true })).not.toContain(words.screen.family.noReplies);
     expect(words.screen.family.noReplies).toBe("まだ返事はありません。あなたの語りや写真に家族が話すと、ここに届きます");
     expect(words.screen.elder.noReplies).toBe("まだ返事は届いていません。あなたの話に家族が答えると、ここに出ます");
+  });
+});
+
+describe("「新しい」の札と強調（0061）", () => {
+  const freshIds = freshIdsFn;
+  const feed: FeedItem[] = [
+    {
+      photo: photo("P1", "mom"),
+      narrations: [n("a", "P1", "mom", 100), n("b", "P1", "gma", 200, { replyToId: "a" }), n("c", "P1", "gma", 300, { replyToId: "a" }), n("d", "P1", "gma", 400, { replyToId: "a" })],
+    } as FeedItem,
+  ];
+  it("開く前の見た時刻より後で、開いた時点の一番新しいものまで。自分の語りは入れない", () => {
+    expect([...freshIds(feed, "mom", 200, 300)]).toEqual(["c"]);
+    expect([...freshIds(feed, "mom", null, Number.POSITIVE_INFINITY)].sort()).toEqual(["b", "c", "d"]);
+    expect(freshIds(feed, "mom", 400, 400).size).toBe(0);
+  });
+  it("返事のタブでは、新しい語りの箱に fresh と、話者名の行に見える札「新しい」（隠した文は足さない）", () => {
+    const groups = replyGroups(feed, "mom");
+    const html = renderToStaticMarkup(
+      h(ScreenContext.Provider, { value: "family" }, h(Replies, { groups, nameOf: () => "ばあば", openReplyId: null, onOpenReply: () => {}, onSent: () => {}, loading: false, fresh: new Set(["c"]) })),
+    ) as string;
+    expect(html.match(/class="narration[^"]*fresh"/g)).toHaveLength(1);
+    expect(html).toContain('data-narration="c"');
+    expect(html).toMatch(new RegExp(`<div class="narration reply fresh" data-narration="c"><div class="paper"><p class="speaker">ばあば<span class="fresh-tag">${words.home.fresh}</span></p>`));
+    expect(words.home.fresh).toBe("新しい");
   });
 });

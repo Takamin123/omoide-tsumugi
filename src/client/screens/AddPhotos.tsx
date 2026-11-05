@@ -9,6 +9,8 @@ import { api } from "../lib/api";
 import { errorText } from "../lib/errors";
 import { emptyTally, tallyOne, type UploadTally } from "../lib/pure";
 import { RetakeContext, useRetakeSlot } from "../lib/retake";
+import { InitialsContext } from "../lib/screen";
+import { initialsFor } from "../lib/initials";
 import { navigate } from "../lib/route";
 import { SENT_NOTICE_MS, type SentNarration } from "../lib/useSender";
 import { shelfOutcome, uploadOne } from "../lib/upload";
@@ -29,6 +31,8 @@ export function AddPhotos({ me, members = [] }: { me: Member; members?: readonly
   // 読み直した一覧にない写真は選んでいないことにする
   const selected = mine.photos.find((p) => p.id === selectedId) ?? null;
   const nameOf = (id: string) => members.find((m) => m.id === id)?.calledAs ?? "";
+  /** 話者の頭文字の丸（0061） */
+  const initials = useMemo(() => initialsFor(members), [members]);
 
   async function onPick(files: File[]) {
     if (files.length === 0) return;
@@ -51,6 +55,7 @@ export function AddPhotos({ me, members = [] }: { me: Member; members?: readonly
   }
 
   return (
+    <InitialsContext.Provider value={initials}>
     <main className="stack">
       <nav className="top">
         <button type="button" onClick={() => navigate("/")} disabled={busy}>
@@ -104,6 +109,7 @@ export function AddPhotos({ me, members = [] }: { me: Member; members?: readonly
         />
       )}
     </main>
+    </InitialsContext.Provider>
   );
 }
 

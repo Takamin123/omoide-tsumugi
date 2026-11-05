@@ -74,20 +74,23 @@ export function PlayVoice({ src, label, stopLabel, icon = "play", name }: Props)
       aria-label={name ? (playing ? name.stop : name.play) : undefined}
       onClick={() => (playing ? mine.current?.stop() : play())}
     >
-      {playing ? (
-        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <rect x="6" y="6" width="12" height="12" rx="2" />
-        </svg>
-      ) : icon === "speaker" ? (
-        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 9v6h4l5 4V5L8 9H4z" />
-          <path d="M16 9a4 4 0 0 1 0 6" />
-        </svg>
-      ) : (
-        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      )}
+      {/* 淡い青の丸いボタンの中の、青い丸に白い印（0059）。止める間は四角 */}
+      <span className="listen-dot" aria-hidden="true">
+        {playing ? (
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+        ) : icon === "speaker" ? (
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 9v6h4l5 4V5L8 9H4z" />
+            <path d="M16 9a4 4 0 0 1 0 6" />
+          </svg>
+        ) : (
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </span>
       {playing ? stopLabel : label}
     </button>
   );

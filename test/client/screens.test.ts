@@ -38,7 +38,30 @@ describe("入り口の表示", () => {
     expect(html).toContain("あん頃は、よう海に行ったもんじゃ");
     expect(html).toContain("ばあば");
   });
+  it("問いかけのカードの先頭に「今日の問いかけ」（両画面、固定の入り口でも）。答えるボタンなどはカードの中、問いかけの下（0059・0061）", () => {
+    expect(words.home.questionHeading).toBe("今日の問いかけ");
+    for (const variant of ["family", "elder"] as const) {
+      for (const question of [null, "この浜には誰と行きましたか"]) {
+        const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({ question }), members, variant }, h("button", { id: "slot" }))) as string;
+        expect(html).toMatch(/<section class="card-soft ask"><p class="ask-head">今日の問いかけ<\/p><p class="question">[^<]+<\/p>(.*)<button id="slot"><\/button><\/section>/);
+      }
+    }
+  });
+  it("添える家族の言葉の話者名の左に頭文字の丸（飾り）。名前は必ず並べる（0061）", () => {
+    const { InitialsContext } = screenLib;
+    const html = renderToStaticMarkup(
+      h(
+        InitialsContext.Provider,
+        { value: initialsLib.initialsFor(members) },
+        h(EntranceView, { entrance: entrance({ quote: { narrationId: "n-1", speakerMemberId: "m-grandma", text: "あん頃" } }), members, variant: "family" }),
+      ),
+    ) as string;
+    expect(html).toMatch(/<span class="who quote-by"><span class="initial" aria-hidden="true" style="[^"]*">ば<\/span>ばあば<\/span>/);
+  });
 });
+
+const screenLib = await load("../../src/client/lib/screen");
+const initialsLib = await load("../../src/client/lib/initials");
 
 describe("添える家族の言葉の声と、問いかけの読み上げ", () => {
   const voiceQuote = (durationMs: number | null) => ({

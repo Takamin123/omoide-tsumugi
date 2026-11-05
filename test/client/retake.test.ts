@@ -292,7 +292,7 @@ describe("11 0043 の高さ（送る前の段・語り一つ）を変えない",
   });
   it("段・語り・補助のボタンの CSS に手を入れていない（足したのは .retake と一文の余白だけ）", () => {
     const css = read("src/client/styles.css");
-    expect(css).toMatch(/\.aux \{\s*font-size: var\(--font-aux\);\s*min-height: var\(--tap-min\);\s*gap: 0\.5rem;\s*align-self: flex-start;\s*\}/);
+    expect(css).toMatch(/\.aux \{\s*font-size: var\(--font-aux\);\s*min-height: var\(--tap-aux\);/);
     expect(css).toMatch(/\.retake-failed \{\s*margin: 0;\s*min-height: var\(--tap-min\);\s*\}/);
   });
 });

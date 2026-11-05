@@ -25,6 +25,11 @@ describe("answerPlace: 今日の答えのボタンを置く所", () => {
     expect(answerPlace(true, false, true)).toBe("none");
     expect(answerPlace(false, false, false)).toBe("none");
   });
+  it("家族の画面（段に留めない）は、入り口があればいつも問いかけのカードの中（0059）", () => {
+    expect(answerPlace(true, false, false, false)).toBe("flow");
+    expect(answerPlace(true, false, true, false)).toBe("flow");
+    expect(answerPlace(false, false, false, false)).toBe("none");
+  });
 });
 
 describe("Home の組み立て", () => {
@@ -37,7 +42,7 @@ describe("Home の組み立て", () => {
     expect(css).not.toMatch(/\.answer\.sticky/);
   });
   it("段の中の自分の入力の間は段を残し、ほかの入力欄（返事はボタンを選ぶ前から）の間は描かない", () => {
-    expect(home).toContain("answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null))");
+    expect(home).toContain("answerPlace(!!entrance, answered, !dockComposing && (composing || openReplyId !== null), elder)");
     expect(home).toContain("onComposing={setDockComposing}");
   });
   it("今日の入り口の答えの ReplyBox は、段か流れのどちらか一つだけ（ボタンを複製しない）", () => {

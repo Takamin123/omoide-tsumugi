@@ -2,6 +2,7 @@
 // どちらの画面の中かを、部品（ReplyBox、Narrations、Album）に配る。大きさは styles.css の .home-shell.elder が替える。
 import { createContext, useContext } from "react";
 import { words } from "../words";
+import type { Initial } from "./initials";
 
 export type ScreenVariant = "elder" | "family";
 
@@ -20,3 +21,6 @@ export function useScreen() {
   const variant = useContext(ScreenContext);
   return { variant, elder: variant === "elder", w: words.screen[variant] };
 }
+
+/** 人の ID → 話者の頭文字の丸（lib/initials.ts の initialsFor。0061）。画面が members から作って配る。なければ丸を出さない */
+export const InitialsContext = createContext<ReadonlyMap<string, Initial>>(new Map());

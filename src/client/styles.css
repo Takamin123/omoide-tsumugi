@@ -29,6 +29,11 @@
   --card-pad: 0.875rem;
   --paper-radius: 0.75rem;
   --paper-pad: 0.75rem;
+  --btn-line: #c9cfd4; /* 白いボタン・入力欄の細い枠（灰色の太い枠にしない。0059） */
+  --btn-line-width: 1.5px;
+  --listen-dot: 1.75rem; /* 「聞く」「読み上げ」の丸い印 */
+  --initial-size: 1.75rem; /* 話者の頭文字の丸（0061） */
+  --replies-thumb: 4rem; /* 返事のタブの写真 */
 
   /* 書体。外のフォントは読み込まず、端末にある書体を使う。家族の言葉もゴシック（明朝はやめた。人間、2026-11-05。0059） */
   --font-gothic: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic",
@@ -91,12 +96,18 @@
   --tap-gap: 0.75rem; /* 隣との間: 12px（最低 8px） */
   --primary-height: 4.5rem; /* 主な動作: 72px（最低 64px） */
   --tab-height: max(64px, 3.5rem); /* 下のタブ（最低 64px） */
-  --tab-icon: 1.5rem;
+  --tab-icon: 1.125rem; /* 文字 150% でもタブの高さ（3.5rem）の内に収まる大きさ */
   --card-radius: 1.25rem;
   --card-pad: 1rem;
   --paper-radius: 1rem;
   /* 横は詰める（幅 360px・文字 150% で声の語りの [聞く][返事] を一行に。0045） */
   --paper-pad: 0.75rem 0.5rem;
+  --btn-line: var(--border); /* 祖父母の画面はボタンの輪郭 3:1 以上 */
+  --btn-line-width: 2px;
+  /* 印は話者名・ボタンの文字に合わせる（行の高さとボタンの幅を変えない。0045・0061） */
+  --listen-dot: 1.2em;
+  --initial-size: 1.5em;
+  --replies-thumb: 6rem;
   font-size: var(--font-main);
   line-height: var(--line-height);
 }
@@ -111,8 +122,6 @@
     --page-pad: 1.75rem;
   }
   .elder {
-    --font-tab: 1.375rem; /* 22px */
-    --tab-icon: 1.75rem;
     --card-radius: 1.75rem;
     --card-pad: 1.5rem;
     --paper-radius: 1.125rem;
@@ -182,7 +191,7 @@ button,
   min-height: var(--tap-min);
   min-width: var(--tap-min);
   padding: 0.5rem 1rem;
-  border: 2px solid var(--border);
+  border: var(--btn-line-width) solid var(--btn-line);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
@@ -191,6 +200,25 @@ button,
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+}
+
+/* 押せるものは、押した瞬間に少し沈む（transform だけ。動きを減らす設定では付けない。0059） */
+button:active:not(:disabled):not([aria-disabled="true"]),
+.button:active:not(.disabled) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .button {
+    transition: none;
+  }
+  button:active:not(:disabled):not([aria-disabled="true"]),
+  .button:active:not(.disabled) {
+    transform: none;
+  }
 }
 
 button:disabled {
@@ -211,6 +239,37 @@ button:disabled {
   border-color: var(--accent);
   color: var(--accent-text);
   font-weight: bold;
+}
+
+/*
+ * 答えるボタン（0059）: 主役の「声で話す」「話す」は青で塗り、「文字で書く」「書く」は青い枠。押した間は少し濃く／淡い青に
+ */
+.choice-fill {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: bold;
+}
+
+.choice-line {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.elder .choice-line {
+  border-width: 3px;
+}
+
+.primary:active:not(:disabled):not([aria-disabled="true"]),
+.choice-fill:active:not(:disabled) {
+  background: var(--accent-press);
+  border-color: var(--accent-press);
+}
+
+.choice-line:active:not(:disabled) {
+  background: var(--accent-soft-press);
 }
 
 /* hidden 属性は、display を持つクラス（.stack など）より強くする */
@@ -242,7 +301,7 @@ label {
 }
 
 fieldset {
-  border: 2px solid var(--border);
+  border: var(--btn-line-width) solid var(--btn-line);
   border-radius: var(--radius);
   padding: 0.5rem 1rem 1rem;
   margin: 0;
@@ -272,7 +331,7 @@ textarea {
   width: 100%;
   min-height: var(--tap-min);
   padding: 0.5rem 0.75rem;
-  border: 2px solid var(--border);
+  border: var(--btn-line-width) solid var(--btn-line);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
@@ -289,16 +348,34 @@ textarea {
   padding: 0.75rem;
 }
 
-/* 写真は白い台紙に貼る形 */
-.mount {
+/* 白いカード＋柔らかい影（灰色の太い枠の箱をやめた。0059） */
+.card-soft {
   margin: 0;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  padding: 0.625rem 0.625rem 0.875rem;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: var(--card-pad);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* 入り口の写真のカード。写真は縁を細く、角を丸く */
+.mount {
+  padding: 0.5rem 0.5rem var(--card-pad);
+}
+
+.mount .photo,
+.mount .photo-button {
+  border-radius: calc(var(--card-radius) - 0.375rem);
+}
+
+/* 問いかけのカード（見出し・問いかけ・読み上げ・答えるボタン。0059・0061） */
+.ask-head {
+  margin: 0;
+  font-size: var(--font-sub);
+  font-weight: bold;
+  color: var(--accent);
 }
 
 .photo {
@@ -314,7 +391,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  padding: 0 0.25rem;
+  padding: 0 0.5rem;
 }
 
 /*
@@ -374,26 +451,50 @@ textarea {
   word-break: auto-phrase;
 }
 
-/* 補助のボタン（聞く、返事、直す、リンクを作る）。主な動作より小さく、文字は 20px 以上 */
+/* 補助のボタン（聞く、返事、直す、リンクを作る）。主な動作より小さい丸いボタン（祖父母の画面は文字 20px 以上・高さ 52px 以上） */
 .aux {
   font-size: var(--font-aux);
-  min-height: var(--tap-min);
-  gap: 0.5rem;
+  min-height: var(--tap-aux);
+  gap: 0.375rem;
   align-self: flex-start;
+  border-radius: 999px;
+  padding-inline: 0.875rem;
 }
 
+/* 「聞く」「読み上げ」: 淡い青の丸いボタンに、青い丸の白い印（0059） */
 .aux.listen {
-  border-color: var(--accent);
+  background: var(--accent-soft);
+  border-color: transparent;
   color: var(--accent);
+  font-weight: bold;
+  padding-left: 0.25rem;
 }
 
+.elder .aux.listen {
+  border-color: var(--accent);
+  font-weight: normal;
+}
+
+.aux.listen:active:not(:disabled),
 .aux.listen[aria-pressed="true"] {
+  background: var(--accent-soft-press);
+}
+
+.listen-dot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--listen-dot);
+  height: var(--listen-dot);
+  border-radius: 50%;
   background: var(--accent);
   color: var(--accent-text);
 }
 
-.aux svg {
-  flex: none;
+.aux .listen-dot svg {
+  width: 50%;
+  height: 50%;
 }
 
 .read-aloud {
@@ -412,6 +513,31 @@ textarea {
 .grid2 > button {
   width: 100%;
   min-height: var(--primary-height);
+  gap: 0.375rem;
+}
+
+/* 答えるボタンの印は文字に合わせる（祖父母の画面は語の上に置く大きな印のまま） */
+.grid2 > button > svg {
+  flex: none;
+  width: 1.125em;
+  height: 1.125em;
+}
+
+/* 幅が足りない（家族の画面の 360px・文字 130%・150% など）ときは印を出さず、語を言葉の切れ目でだけ折る */
+.grid2 {
+  container: answer-row / inline-size;
+}
+
+@container answer-row (width < 18rem) {
+  .grid2 > button > svg {
+    display: none;
+  }
+}
+
+.elder .grid2 > button > svg {
+  display: inline;
+  width: auto;
+  height: auto;
 }
 
 /* 言葉の途中で折らない。折ってよいのは文字列に入れた切れ目（\u200B）だけ */
@@ -499,7 +625,11 @@ textarea {
 /* ---- 家族の画面 ---- */
 
 main.home {
-  gap: 1.5rem;
+  gap: 0.75rem;
+}
+
+.elder main.home {
+  gap: 1.25rem;
 }
 
 .feed-photo {
@@ -520,6 +650,11 @@ main.home {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+/* 返事の印（家族の画面の「返事」） */
+.aux svg {
+  flex: none;
 }
 
 /* 返事は、元の語りの下に一段下げて */
@@ -559,11 +694,46 @@ main.home {
   margin-top: 0.2em;
 }
 
-.narration .speaker {
+.narration .speaker,
+.quote-by {
   margin: 0;
   font-size: var(--font-sub);
   font-weight: bold;
   color: var(--paper-ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.375rem;
+}
+
+/* 話者の頭文字の丸（0061）。名前の左の飾り。色は lib/initials.ts（地と字は 4.5:1 以上） */
+.initial {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--initial-size);
+  height: var(--initial-size);
+  border-radius: 50%;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 返事のタブの、開いた時点でまだ見ていなかった語り（0061）: 淡い青の地と枠（紙の色と分ける）と札「新しい」 */
+.narration.fresh > .paper {
+  background: var(--fresh-bg);
+  box-shadow: inset 0 0 0 1.5px var(--fresh-line);
+}
+
+.fresh-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.5em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: bold;
+  line-height: 1.5;
 }
 
 .reply-box {
@@ -623,6 +793,11 @@ main.home {
  */
 .elder .narration > .paper > .row > .aux {
   padding-inline: 0.75rem;
+}
+
+/* 「聞く」は丸い印の分、左の余白を詰める（[聞く][返事] の幅を前と同じに保つ） */
+.elder .narration > .paper > .row > .aux.listen {
+  padding-left: 0.25rem;
 }
 
 /* 言葉の糸と、その下の「返事」（や返事の欄）は、どちらも押せるので間を 0.5rem（最低 8px）に保つ */
@@ -695,6 +870,7 @@ main.home {
   font-size: var(--font-main);
   font-weight: bold;
   border: 3px solid var(--retake);
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--retake);
 }
@@ -705,10 +881,9 @@ main.home {
   height: 1.25em;
 }
 
-/* 押した間は少し沈め、地をごく淡いオレンジに（塗りつぶさない） */
+/* 押した間は地をごく淡いオレンジに（塗りつぶさない。沈むのはほかのボタンと同じ） */
 .retake:active {
   background: var(--retake-press);
-  transform: translateY(1px);
 }
 
 .retake:focus-visible {
@@ -833,7 +1008,7 @@ nav.top button {
 .today-narrations {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 0.75rem;
 }
 
 /*
@@ -845,7 +1020,7 @@ nav.top button {
   display: grid;
   grid-template-columns: repeat(3, minmax(max-content, 1fr));
   background: var(--surface);
-  border-top: 1px solid var(--line);
+  box-shadow: 0 -1px 0 var(--line);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -855,25 +1030,47 @@ nav.top button {
   border-radius: 0;
   background: transparent;
   color: var(--text-sub);
-  font-size: var(--font-aux);
+  font-size: var(--font-tab);
   font-weight: normal;
-  box-shadow: inset 0 4px 0 transparent;
-  padding: 0.5rem 0.25rem;
-  gap: 0.3rem;
+  line-height: 1.2;
+  padding: 0.25rem;
+  flex-direction: column;
+  gap: 0.125rem;
   white-space: nowrap;
+}
+
+/* タブの印（飾り）。今のタブは印の後ろに淡い青の地（0059） */
+.tab-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--tab-icon) + 1.5rem);
+  height: calc(var(--tab-icon) + 0.25rem);
+  border-radius: 999px;
+}
+
+.tab-icon > svg {
+  width: var(--tab-icon);
+  height: var(--tab-icon);
 }
 
 /*
  * 返事のタブのまだ見ていない数（0058）。見た目だけ（読み上げは隠した文）。新しい色を足さず、主な動作の青に白の数字（約 8:1）。
  * 数は補助の文字の大きさ（16px 以上）。出たとき・数が変わったときだけ小さく弾む（操作に応える範囲の短い動き。動きを減らす設定では動かさない）
  */
+/* 印の右に寄せ、タブの上の端からはみ出さない（タブの上の余白の内に） */
 .tab-badge {
+  position: absolute;
+  top: -0.25rem;
+  left: calc(50% + var(--tab-icon) * 0.4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.6em;
-  height: 1.6em;
-  padding: 0 0.15em; /* 横の余白は小さく（「99+」でも幅 360px・文字 150% でタブが一行に入るように） */
+  min-width: 1.4em;
+  height: 1.4em;
+  padding: 0 0.25em;
+  box-shadow: 0 0 0 2px var(--surface);
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-text);
@@ -902,48 +1099,44 @@ nav.top button {
   border-left: 1px solid var(--line);
 }
 
-/* 今のタブ: 色だけでなく、太さと上の線でも示す */
+/* 今のタブ: 色だけでなく、太さと印の後ろの淡い青の地でも示す（0059） */
 .tabs .tab[aria-current="page"] {
   color: var(--accent);
   font-weight: bold;
-  box-shadow: inset 0 4px 0 var(--accent);
+}
+
+.tabs .tab[aria-current="page"] .tab-icon {
+  background: var(--accent-soft);
 }
 
 /* ---- 返事のタブ（0058） ---- */
 
-/* 写真ごとの節。節の間は区切りの線 */
+/* 写真ごとの節は白いカード（0059） */
 .replies-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
+  gap: 0.75rem;
 }
 
-.replies-group + .replies-group {
-  border-top: 2px solid var(--line);
-  padding-top: 1.5rem;
-}
-
-/* 節の頭: 小さめの写真（押すと拡大）と、写真の記録（撮影日・場所）。幅が足りなければ記録は写真の下へ */
+/* 節の頭: 小さな写真（押すと拡大）と、写真の記録（撮影日・場所）。幅が足りなければ記録は写真の下へ */
 .replies-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem 0.75rem;
 }
 
 .replies-photo {
   flex: none;
-  width: min(55%, 16rem);
+  width: var(--replies-thumb);
 }
 
 .replies-photo .photo-button {
-  border-radius: 6px;
+  border-radius: 0.5rem;
   overflow: hidden;
 }
 
-/* 縦長の写真や大きい文字でも、画面の高さの 3 割ほどに抑え、下の語りが見えるようにする（はみ出す分は切る。押せば全体が見える） */
 .replies-photo .photo {
-  max-height: min(12rem, 30dvh);
+  height: var(--replies-thumb);
+  max-height: none;
   object-fit: cover;
 }
 
@@ -1086,6 +1279,17 @@ nav.top button {
   right: 0.25rem;
 }
 
+/* 押した瞬間に沈む（帯の縦の中央に寄せる translateY と合わせる） */
+.album-band .album-arrow:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(-50%) scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .album-band .album-arrow:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(-50%);
+  }
+}
+
 /* 端では押せない。色を落とす（disabled で読み上げにも伝わる） */
 .album-arrow:disabled {
   opacity: 1;
@@ -1135,6 +1339,14 @@ nav.top button {
   .album-arrow {
     position: static;
     transform: none;
+  }
+  .album-band .album-arrow:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(0.97);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .album-band .album-arrow:active:not(:disabled):not([aria-disabled="true"]) {
+      transform: none;
+    }
   }
   .album-count {
     padding: 0 0.5rem;
