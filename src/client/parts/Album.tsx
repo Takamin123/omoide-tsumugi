@@ -1,4 +1,4 @@
-// 家族の画面のアルバム: 上に写真の帯（黒い台紙、白い縁、淡い写真コーナー。左右の矢印は写真の両脇に重ねる）、その下に何枚目かの一行、
+// 家族の画面のアルバム: 上に写真の帯（黒い台紙、影とわずかな傾きの白い縁、淡い写真コーナー、両端に前後の写真を薄く。丸い矢印は写真の両脇に重ねる）、その下に何枚目かの点と一行、
 // 下に写真ごとの語りの縦の欄。欄の節の頭には見出し（小さい写真・撮影日・場所・何枚目か）があり、欄の上端に貼り付く（0041）。
 // 帯と語りは連動する（lib/album.ts）。縦に読んで次の写真の見出しが欄の上端に届いたら帯が一度だけ切り替わり、
 // 帯をめくるか矢印を押すと語りがその写真の頭まで動く。往復はしない。動きを減らす設定では動かさずに切り替える。
@@ -31,6 +31,9 @@ type Props = {
   /** 語りの欄の一番下に置くもの（デモの帯） */
   footer?: ReactNode;
 };
+
+/** 何枚目かの点を出す上限（これより多いと点が並びきらない） */
+const MAX_DOTS = 12;
 
 /** 帯が止まってから、写真を押して開けるまでの間（ミリ秒） */
 const BAND_SETTLE_MS = 250;
@@ -159,6 +162,9 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, onPhotosCha
   return (
     <div className="album">
       <section className="album-band" aria-label={w.albumBandLabel} hidden={composing}>
+        {/* 前後の写真を両端に薄くのぞかせる（飾り。押せない。帯の後ろに置き、めくる操作は帯が受ける。0059） */}
+        {index > 0 && <img className="album-peek prev" src={items[index - 1]!.photo.imageUrl} alt="" aria-hidden="true" decoding="async" />}
+        {index < count - 1 && <img className="album-peek next" src={items[index + 1]!.photo.imageUrl} alt="" aria-hidden="true" decoding="async" />}
         {/* 幅の狭い縦長のスマホでは、矢印を何枚目かの行の両端に置き、写真を帯の幅いっぱい近くまで広げる。それ以外（低いスマホ・タブレット・横向き）は写真の両脇に重ねる（styles.css。0034） */}
         <div
           ref={bandRef}
@@ -198,14 +204,24 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, onPhotosCha
               <path d="M15 5l-7 7 7 7" />
             </svg>
           </button>
-          <p className="album-count" aria-live="polite">
-            {w.albumPositionParts(index + 1, count).map((part, k) => (
-              <span key={k}>
-                {k > 0 && " "}
-                {part}
+          <div className="album-pos">
+            {/* 何枚目かの点（飾り。13 枚以上と、欄が狭いときは出さない。何枚目かは文字で出す。0059・0061） */}
+            {count <= MAX_DOTS && (
+              <span className="album-dots" aria-hidden="true">
+                {items.map((it, i) => (
+                  <span key={it.photo.id} className={i === index ? "dot on" : "dot"} />
+                ))}
               </span>
-            ))}
-          </p>
+            )}
+            <p className="album-count" aria-live="polite">
+              {w.albumPositionParts(index + 1, count).map((part, k) => (
+                <span key={k}>
+                  {k > 0 && " "}
+                  {part}
+                </span>
+              ))}
+            </p>
+          </div>
           <button type="button" className="album-arrow next" aria-label={w.albumNext} disabled={!can.next} onClick={() => go(index + 1)}>
             <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 5l7 7-7 7" />
@@ -253,14 +269,17 @@ export function Album({ items, nameOf, currentId, onCurrent, onSent, onPhotosCha
                   <span className="album-ordinal" aria-hidden="true">{w.albumOrdinal(i + 1)}</span>
                 </p>
               </div>
-              <Narrations
-                narrations={it.narrations}
-                nameOf={nameOf}
-                openReplyId={openReplyId}
-                onOpenReply={setOpenReplyId}
-                onSent={onSent}
-                onJump={jumpTo}
-              />
+              {/* 語りは一枚のカードにまとめる（返事は一段下げる。0059） */}
+              <div className="card-soft album-card">
+                <Narrations
+                  narrations={it.narrations}
+                  nameOf={nameOf}
+                  openReplyId={openReplyId}
+                  onOpenReply={setOpenReplyId}
+                  onSent={onSent}
+                  onJump={jumpTo}
+                />
+              </div>
               {/* 語りの後に置く（見出し＋語り一つの高さは変えない。0041・0043・0045） */}
               {variant === "family" && (
                 <AddToPhoto photoId={it.photo.id} addedPhotos={it.addedPhotos ?? []} onChanged={onPhotosChanged ?? onSent} />

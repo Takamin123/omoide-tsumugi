@@ -162,6 +162,9 @@ export function AddToPhotoView({ shown, fresh, progress, busy, limit, error, onP
         onPointerCancel={() => setPressed(false)}
         onPointerLeave={() => setPressed(false)}
       >
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
         {w.addToPhoto}
         <input
           type="file"

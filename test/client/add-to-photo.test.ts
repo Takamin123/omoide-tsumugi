@@ -80,9 +80,9 @@ describe("アルバムの節の末尾（0048）", () => {
     expect(s1).not.toContain(`>${words.home.addedPhotosLabel}<`);
     expect(s2).not.toContain("added-photos");
   });
-  it("ボタンは「返事」と同じ重さ（補助のボタン .aux。白い枠、--tap-min）。押すとその場で写真を選ぶ（複数）", () => {
+  it("ボタンは補助のボタン（.aux）で、点線の枠で横いっぱい（0059）。押すとその場で写真を選ぶ（複数）", () => {
     const [s1 = ""] = sectionsOf(renderAlbum("family"));
-    expect(s1).toMatch(/<label class="button aux add-pick">この写真に\u200B追加する<input type="file" accept="image\/\*" multiple="" class="visually-hidden"\/><\/label>/);
+    expect(s1).toMatch(/<label class="button aux add-pick"><svg[^>]*><path[^>]*><\/path><\/svg>この写真に\u200B追加する<input type="file" accept="image\/\*" multiple="" class="visually-hidden"\/><\/label>/);
   });
 });
 
@@ -134,7 +134,7 @@ describe("AddToPhotoView の各段", () => {
   it("何もしていないとき: ボタンだけ（列も文も出さない）", () => {
     const html = view({});
     expect(html).not.toContain("added-photos");
-    expect(html).not.toContain("<p");
+    expect(html).not.toMatch(/<p[ >]/);
     expect(html).toContain(words.home.addToPhoto);
   });
 });

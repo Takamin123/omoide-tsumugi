@@ -116,6 +116,11 @@ describe("アルバム", () => {
     expect(words.home.albumPosition(1, 4)).toBe("4枚のうち 1枚");
     expect(words.home.albumPositionParts(1, 4)).toEqual(["4枚のうち", "1枚"]);
     expect(html).toContain('<p class="album-count" aria-live="polite"><span>4枚のうち</span><span> 1枚</span></p>');
+    // 点は見た目だけ（aria-hidden）。今の写真の点だけ on。前後の写真は薄くのぞかせる飾り（一枚目は次だけ）。語りは一枚のカード（0059）
+    expect(html).toMatch(/<span class="album-dots" aria-hidden="true"><span class="dot on"><\/span>(<span class="dot"><\/span>){3}<\/span>/);
+    expect(html).not.toContain("album-peek prev");
+    expect(html).toContain('<img class="album-peek next" src="/api/photos/p-2/image" alt="" aria-hidden="true"');
+    expect(html.match(/class="card-soft album-card"/g)).toHaveLength(4);
     expect(html).toMatch(new RegExp(`<button type="button" class="album-arrow prev" aria-label="${words.home.albumPrev}" disabled="">`));
     expect(html).toMatch(new RegExp(`<button type="button" class="album-arrow next" aria-label="${words.home.albumNext}">`));
   });
