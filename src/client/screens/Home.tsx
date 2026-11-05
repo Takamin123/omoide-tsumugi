@@ -9,7 +9,7 @@
 // 取り直しの間も今日の入り口は「答えた」のまま（段は流れのまま。録音中に欄が作り直されない）。
 // 裏から前に戻ったときは、日付が替わったか裏に 10 分以上いたら、入り口と一覧を静かに読み直す（lib/useResumeRefresh.ts。0051）。
 // 一覧に文字起こしを待つ声の語りがある間は、一覧だけを静かに読み直す（lib/transcriptFollow.ts。0052）。一覧の読み込みは feed 一つにまとめる。
-// 祖父母が開いても読める大きさにする。家族の言葉は明朝。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
+// 家族の言葉はゴシックで、紙の色の箱に入れる（0059）。声は「聞く」のボタンで流し、誰の声かと長さは注「ばあばの声（13秒）」に出す（0045）。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Entrance, FamilyView, FeedItem, FeedResult, Member } from "../../shared/api";
 import { api, ApiError } from "../lib/api";

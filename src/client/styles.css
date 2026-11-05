@@ -1,31 +1,38 @@
 /*
- * 高齢の人の画面の最低ライン（docs/implementation-policy.md 1）の数値は、ここの定数にだけ置く。
- * 数値は上げてよいが、下げない。rem で指定し、ブラウザの文字の大きさの設定を妨げない。
+ * 大きさの定数は、家族の画面（:root）と祖父母の画面（.elder）に分けて、ここにだけ置く（0059）。rem で指定し、ブラウザの文字の大きさの設定を妨げない。
+ * - 家族の画面: ふつうのスマホの大きさ（docs/implementation-policy.md 1「家族の画面の大きさ」。高齢の人を考慮しない。人間、2026-11-05）
+ * - 祖父母の画面: 高齢の人の画面の最低ライン（docs/implementation-policy.md 1）。数値は上げてよいが、下げない
  */
 :root {
-  --font-main: 1.375rem; /* 語り・問いかけ・ボタン: 22px（最低 20px） */
-  --font-sub: 1.0625rem; /* 補助の文字: 17px（最低 16px） */
-  --font-aux: 1.25rem; /* 補助のボタン（聞く、返事、ほかの人にかわる）: 20px（最低 20px） */
-  --font-title: 1.625rem;
-  --font-told: 1.3125rem; /* 家族の言葉（明朝）: 21px */
-  --font-question: 1.5rem; /* 家族の画面の問いかけ: 24px */
-  --font-elder-told: 1.375rem; /* 祖父母の画面の添える言葉: 22px（タブレットは下で大きくする） */
+  --font-main: 1rem; /* 本文・ボタン: 16px */
+  --font-sub: 0.8125rem; /* 補助の文字（日付・場所・話者名）: 13px */
+  --font-aux: 0.9375rem; /* 補助のボタン（聞く、返事）: 15px */
+  --font-title: 1.25rem; /* 20px */
+  --font-told: 1.0625rem; /* 家族の言葉: 17px */
+  --font-question: 1.1875rem; /* 問いかけ: 19px */
+  --font-tab: 0.75rem; /* 下のタブの語: 12px */
+  --font-elder-told: 1.375rem; /* 祖父母の画面の家族の言葉: 22px（タブレットは下で大きくする） */
   --font-elder-question: 1.625rem; /* 祖父母の画面の問いかけ: 26px */
   --font-elder-action: 2rem; /* 祖父母の画面の主な動作: 32px */
-  --line-height: 1.6; /* 最低 1.5 */
-  --line-height-told: 1.8;
-  --tap-min: 3.25rem; /* 押せる場所: 52px（最低 48px） */
-  --tap-gap: 0.75rem; /* 隣との間: 12px（最低 8px） */
-  --primary-height: 4.5rem; /* 主な動作: 72px（最低 64px） */
+  --line-height: 1.6;
+  --line-height-told: 1.6; /* 家族の言葉（両画面。人間、2026-11-05） */
+  --tap-min: 2.75rem; /* 押せる場所: 44px */
+  --tap-aux: 2.5rem; /* 補助のボタン（聞く・返事）: 40px */
+  --tap-gap: 0.5rem; /* 隣との間: 8px */
+  --primary-height: 3rem; /* 答えるボタン（声で話す・文字で書く）: 48px */
   --elder-action-height: 5.25rem; /* 祖父母の画面の主な動作: 84px（タブレットは下で大きくする） */
+  --tab-height: 3.25rem; /* 下のタブ: 52px */
+  --tab-icon: 1.25rem; /* 下のタブの印: 20px */
   --page-pad: 1rem;
   --radius: 0.75rem;
+  --card-radius: 1rem;
+  --card-pad: 0.875rem;
+  --paper-radius: 0.75rem;
+  --paper-pad: 0.75rem;
 
-  /* 書体。外のフォントは読み込まず、端末にある書体を使う */
+  /* 書体。外のフォントは読み込まず、端末にある書体を使う。家族の言葉もゴシック（明朝はやめた。人間、2026-11-05。0059） */
   --font-gothic: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic",
     YuGothic, Meiryo, "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
-  --font-mincho: "Yu Mincho", YuMincho, "Hiragino Mincho ProN", "Hiragino Mincho Pro", "BIZ UDPMincho", "BIZ UDMincho",
-    "Noto Serif JP", "Noto Serif CJK JP", serif;
 
   /* 色（白地・地の色に対し文字は 4.5:1 以上、輪郭は 3:1 以上）。主な動作の色は --accent の一つだけ */
   --bg: #eef1f3;
@@ -45,10 +52,21 @@
    */
   --retake: #a14a0b;
   --retake-press: #fdf1e7;
+  /* 家族の言葉の箱だけの淡い紙の色（人間、2026-11-05。0059）。問いかけ・ボタン・日付・画面の地には使わない。文字は紙の地で約 14:1 */
+  --paper: #f6f3ee;
+  --paper-ink: #2a2420;
+  /* 白いカードの柔らかい影（飾り。カードの縁は影だけで、灰色の枠を付けない） */
+  --card-shadow: 0 1px 2px rgba(20, 30, 40, 0.06), 0 4px 16px rgba(20, 30, 40, 0.06);
+  /* 淡い青: 聞く・読み上げの丸いボタンの地、今のタブの地、押した間の地。青の文字で約 7:1 */
+  --accent-soft: #e7eef7;
+  --accent-soft-press: #dbe5f2;
+  --accent-press: #173c6c; /* 青で塗ったボタンを押した間 */
+  /* 返事のタブの、まだ見ていなかった返事の強調（淡い青。紙の色と分ける。0058・0061） */
+  --fresh-bg: #f4f7fb;
+  --fresh-line: #c9d6e8;
 
   /* 家族の画面のタブとアルバム */
   --home-bg: #edeff1; /* 家族の画面の地（クリーム色にしない） */
-  --tab-height: max(64px, 3.5rem); /* 下のタブの高さ（最低 64px） */
   --album-mat: #2a2f35; /* 写真の帯の黒い台紙 */
   --album-print: #fbfaf7; /* 写真の白い縁 */
   --album-corner: #d8cfbe; /* 写真コーナー（飾り） */
@@ -56,14 +74,49 @@
   --album-off-mat: #8a929a; /* 端で押せない矢印。台紙で約 4.3:1（押せないことは disabled でも伝える） */
 }
 
+/*
+ * 祖父母の画面（.home-shell.elder）の定数。高齢の人の画面の最低ライン（docs/implementation-policy.md 1）。
+ * 家族の画面と同じ名前の定数をここで祖父母の値に替える（部品は共有し、大きさだけが違う。0043・0059）。数値は上げてよいが、下げない
+ */
+.elder {
+  --font-main: 1.375rem; /* 語り・問いかけ・ボタン: 22px（最低 20px） */
+  --font-sub: 1.0625rem; /* 補助の文字: 17px（最低 16px） */
+  --font-aux: 1.25rem; /* 補助のボタン（聞く、返事）: 20px（最低 20px） */
+  --font-title: 1.625rem;
+  --font-told: var(--font-elder-told);
+  --font-question: var(--font-elder-question);
+  --font-tab: 1.25rem; /* 下のタブの語: 20px（最低 20px） */
+  --tap-min: 3.25rem; /* 押せる場所: 52px（最低 48px） */
+  --tap-aux: 3.25rem;
+  --tap-gap: 0.75rem; /* 隣との間: 12px（最低 8px） */
+  --primary-height: 4.5rem; /* 主な動作: 72px（最低 64px） */
+  --tab-height: max(64px, 3.5rem); /* 下のタブ（最低 64px） */
+  --tab-icon: 1.5rem;
+  --card-radius: 1.25rem;
+  --card-pad: 1rem;
+  --paper-radius: 1rem;
+  /* 横は詰める（幅 360px・文字 150% で声の語りの [聞く][返事] を一行に。0045） */
+  --paper-pad: 0.75rem 0.5rem;
+  font-size: var(--font-main);
+  line-height: var(--line-height);
+}
+
 /* タブレット（祖父母の画面を大きく） */
 @media (min-width: 40rem) {
   :root {
     --font-elder-told: 1.75rem; /* 28px */
-    --font-elder-question: 2rem; /* 32px */
+    --font-elder-question: 2.125rem; /* 34px */
     --font-elder-action: 2.5rem; /* 40px */
     --elder-action-height: 7rem; /* 112px */
     --page-pad: 1.75rem;
+  }
+  .elder {
+    --font-tab: 1.375rem; /* 22px */
+    --tab-icon: 1.75rem;
+    --card-radius: 1.75rem;
+    --card-pad: 1.5rem;
+    --paper-radius: 1.125rem;
+    --paper-pad: 1.125rem;
   }
 }
 
@@ -82,6 +135,8 @@ body {
   font-family: var(--font-gothic);
   font-size: var(--font-main);
   line-height: var(--line-height);
+  /* 字間を詰める（人間、2026-11-05） */
+  font-feature-settings: "palt";
 }
 
 main {
@@ -282,14 +337,25 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-/* 家族が語った言葉（引用、語り、返事）は明朝 */
+/*
+ * 家族の言葉の箱（添える家族の言葉、語り、返事）。淡い紙の色の地に、話者名・本文・聞く／返事をまとめる（人間、2026-11-05。0059）。
+ * 紙の色はこの箱だけ（問いかけ・ボタン・日付・画面の地には付けない）
+ */
+.paper {
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--paper-radius);
+  padding: var(--paper-pad);
+}
+
+/* 家族が語った言葉（引用、語り、返事）。ゴシック、行間 1.6（明朝はやめた。人間、2026-11-05。0059） */
 .told {
   margin: 0;
-  font-family: var(--font-mincho);
-  font-weight: 600;
   font-size: var(--font-told);
   line-height: var(--line-height-told);
+  color: var(--paper-ink);
   white-space: pre-wrap;
+  text-wrap: pretty;
 }
 
 .who {
@@ -302,7 +368,10 @@ textarea {
   margin: 0;
   font-size: var(--font-question);
   font-weight: bold;
-  line-height: var(--line-height);
+  line-height: 1.5;
+  text-wrap: balance;
+  /* 行をそろえるときに語の途中で折らない（日本語の文節で折る。対応しないブラウザはふつうの折り方） */
+  word-break: auto-phrase;
 }
 
 /* 補助のボタン（聞く、返事、直す、リンクを作る）。主な動作より小さく、文字は 20px 以上 */
@@ -443,20 +512,19 @@ main.home {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0 0.25rem;
 }
 
-.narration + .narration {
-  border-top: 1px solid var(--line);
-  padding-top: 0.75rem;
+/* 語りの中身（話者名・本文・言葉の糸・聞く／返事）は家族の言葉の箱の中に縦に並べる */
+.narration > .paper,
+.paper.quote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 
-/* 返事は、元の語りの下に左の線で */
+/* 返事は、元の語りの下に一段下げて */
 .narration.reply {
-  border-top: none;
-  padding: 0.25rem 0 0 0.75rem;
-  margin-top: 0.25rem;
-  border-left: 4px solid var(--line);
+  margin-left: 1.25rem;
 }
 
 /* 言葉の糸から移ってきた語り。フォーカスの枠で、移った先を示す（引用の範囲は強調しない） */
@@ -466,7 +534,7 @@ main.home {
   border-radius: 0.25rem;
 }
 
-/* 言葉の糸（アルバムだけ）: 補助の文字の体で本文（明朝）と見分ける。行全体が一つのボタン。押せることは印と下線でも示す */
+/* 言葉の糸（アルバムだけ）: 補助の文字の体で本文と見分ける。行全体が一つのボタン。押せることは印と下線でも示す */
 .thread {
   width: 100%;
   min-height: var(--tap-min);
@@ -495,6 +563,7 @@ main.home {
   margin: 0;
   font-size: var(--font-sub);
   font-weight: bold;
+  color: var(--paper-ink);
 }
 
 .reply-box {
@@ -504,7 +573,6 @@ main.home {
 
 .reply-box textarea,
 .answer textarea {
-  font-family: var(--font-mincho);
   font-size: var(--font-told);
   line-height: var(--line-height-told);
 }
@@ -539,22 +607,13 @@ main.home {
   align-self: auto;
 }
 
-.elder .told,
-.elder .answer textarea,
-.elder .reply-box textarea {
-  font-size: var(--font-elder-told);
-}
-
-.elder .question {
-  font-size: var(--font-elder-question);
-}
-
 /*
  * 祖父母の画面のアルバムの語りは、話者名・本文・「へんじ」の間を 0.5rem から 0.25rem に詰める。
- * 本文が大きい（行の高さ 59.4px。家族は 56.7px）ため、幅 360・375px × 高さ 640・667px の文字 150% とタブレットの文字 150% で、
+ * 本文が大きい（当時の行の高さ 59.4px）ため、幅 360・375px × 高さ 640・667px の文字 150% とタブレットの文字 150% で、
  * 語り一つ（見出し＋話者名＋本文 3 行＋「へんじ」）が語りの欄に入らなかった（0043 の高さの節）。文字・行間・ボタン・写真の下限は下げない
  */
-.elder .album-section .narration {
+.elder .album-section .narration,
+.elder .album-section .narration > .paper {
   gap: 0.25rem;
 }
 
@@ -562,7 +621,7 @@ main.home {
  * 声の語りの [きく][へんじ] を、幅 360px・文字 150% でも一行に並べる（縦に積むと語り一つが語りの欄に入らない。0045）。
  * 詰めるのはボタンの中の横の余白だけ（1rem → 0.75rem）。文字・押せる大きさ・隣との間は変えない
  */
-.elder .narration > .row > .aux {
+.elder .narration > .paper > .row > .aux {
   padding-inline: 0.75rem;
 }
 
@@ -1524,8 +1583,14 @@ nav.top button {
   margin-bottom: 0.5rem;
 }
 
-/* 横いっぱい。家族の画面でも、祖父母の画面の主な動作と同じ大きさの文字 */
+/* 横いっぱい。家族の画面はふつうの主な動作の大きさ、祖父母の画面は祖父母の主な動作の大きさ（0040 の大きさは 0059 で祖父母の画面だけに） */
 .viewer-close {
+  min-height: var(--primary-height);
+  font-size: var(--font-main);
+}
+
+.viewer.elder .viewer-close {
+  min-height: var(--elder-action-height);
   font-size: var(--font-elder-action);
 }
 
@@ -1537,7 +1602,8 @@ nav.top button {
   .viewer-facts {
     margin-bottom: 0.25rem;
   }
-  .viewer-close {
+  .viewer-close,
+  .viewer.elder .viewer-close {
     min-height: max(64px, var(--tap-min));
     font-size: var(--font-main);
   }

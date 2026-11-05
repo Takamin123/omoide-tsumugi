@@ -172,7 +172,7 @@ describe("アルバム", () => {
       '<div class="album-head"><img class="album-thumb" src="/api/photos/p-1/image" alt="" loading="lazy" decoding="async"/><p class="album-head-text"><span>1994年10月9日</span><span class="album-ordinal" aria-hidden="true">1枚目</span></p></div>',
     );
     expect(html).toContain("語り n-1");
-    expect(html).toMatch(/<div class="narration" data-narration="n-1"><p class="speaker">ばあば<\/p><p class="told">語り n-1<\/p>.*<div class="narration reply" data-narration="n-2"><p class="speaker">お母さん<\/p><p class="told">返事の文<\/p>/);
+    expect(html).toMatch(/<div class="narration" data-narration="n-1"><div class="paper"><p class="speaker">ばあば<\/p><p class="told">語り n-1<\/p>.*<div class="narration reply" data-narration="n-2"><div class="paper"><p class="speaker">お母さん<\/p><p class="told">返事の文<\/p>/);
     // 撮影日がない写真は、小さい写真と何枚目かだけ。読み上げでは節の名前「4枚のうち 2枚」で区切りを伝え、見える「2枚目」は重ねて読ませない
     expect(html).toContain(
       '<section data-photo="p-2" class="album-section" aria-label="4枚のうち 2枚"><div class="album-head"><img class="album-thumb" src="/api/photos/p-2/image" alt="" loading="lazy" decoding="async"/><p class="album-head-text"><span class="album-ordinal" aria-hidden="true">2枚目</span></p></div>',
@@ -389,7 +389,7 @@ describe("言葉の糸（アルバムの答えの語りの「元の言葉」。0
   it("アルバムでは、答えの語りの本文の下・ボタンの行の上に、行全体が一つのボタンで出す", () => {
     const html = renderAlbum({ items: withAnswer(answer({})) });
     expect(html).toMatch(
-      /<div class="narration" data-narration="n-ans"><p class="speaker">お母さん<\/p><p class="told">語り n-ans<\/p><button type="button" class="thread"><svg aria-hidden="true"[^>]*>.*?<\/svg><span>ばあばの『浮き輪を膨らましてくれてね』から<\/span><\/button><div class="row">/,
+      /<div class="narration" data-narration="n-ans"><div class="paper"><p class="speaker">お母さん<\/p><p class="told">語り n-ans<\/p><button type="button" class="thread"><svg aria-hidden="true"[^>]*>.*?<\/svg><span>ばあばの『浮き輪を膨らましてくれてね』から<\/span><\/button><div class="row">/,
     );
     // 糸は一つだけ（元の語りや、答えでない語りには出さない）
     expect(html.match(/class="thread"/g)?.length).toBe(1);

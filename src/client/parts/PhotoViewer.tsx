@@ -41,12 +41,14 @@ type Props = {
   /** 閉じる動きが終わった */
   onClosed: () => void;
   closeLabel: string;
+  /** 祖父母の画面から開いたとき（body に置くので、祖父母の大きさの定数 .elder をここで付ける。0059） */
+  elder?: boolean;
   label: string;
 };
 
 type Phase = "start" | "open" | "closing";
 
-export function PhotoViewer({ photo, origin, closing, onRequestClose, onClosed, closeLabel, label }: Props) {
+export function PhotoViewer({ photo, origin, closing, onRequestClose, onClosed, closeLabel, label, elder = false }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   /** 写真の、拡大していないときの位置と大きさ（stage の中） */
@@ -254,7 +256,7 @@ export function PhotoViewer({ photo, origin, closing, onRequestClose, onClosed, 
   const fade = { opacity: shown ? 1 : 0, transition: animate ? `opacity ${VIEWER_MOTION_MS}ms ease` : "none" };
 
   return (
-    <div className="viewer" role="dialog" aria-modal="true" aria-label={label}>
+    <div className={elder ? "viewer elder" : "viewer"} role="dialog" aria-modal="true" aria-label={label}>
       <div className="viewer-backdrop" style={fade} aria-hidden="true" />
       <div
         ref={stageRef}

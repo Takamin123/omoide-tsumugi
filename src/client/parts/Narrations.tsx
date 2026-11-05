@@ -1,5 +1,5 @@
 // 写真一枚の語りと返事。今日のタブとアルバムで同じものを使う（祖父母の画面でも。言葉は lib/screen.ts。0043）。
-// 語りは明朝で全文、話者の呼ばれ方つき。返事は元の語りの下に左の線で。返事の入力欄は一度に一つ（開いている語りの ID を親が持つ）。
+// 語りは全文、話者の呼ばれ方つきで、家族の言葉の箱（紙の色の地。0059）に入れる。返事は元の語りの下に一段下げて。返事の入力欄は一度に一つ（開いている語りの ID を親が持つ）。
 // アルバムでは、入り口への答えの語りに「言葉の糸」（答えた入り口に添えた家族の言葉）を出し、押すと元の語りへ移る（0035）。今日のタブには出さない。
 // 声は話者名の行を「ばあばの声（13秒）」にし、[聞く][返事]（祖父母は [きく][へんじ]）を一行に並べる（0045）。
 // 文字起こしが pending / failed の声は再生だけ（案内の文は出さない。0008、0028）。
@@ -100,19 +100,40 @@ function NarrationView({
   return (
     // data-narration: 言葉の糸から移ってくるときの目印（Album の jumpTo）
     <div className={`narration${reply ? " reply" : ""}`} data-narration={narration.id}>
-      {/* 声の語りは、話者名の行を「ばあばの声（13秒）」にする（行を増やさず、聞くと返事を一行に並べるため。0045） */}
-      <p className="speaker">{narration.audioUrl ? w.listenNote(speaker || null, length) : speaker}</p>
-      {narration.text && <p className="told">{narration.text}</p>}
-      {thread && onJump && (
-        // 本文（明朝）と見分けるため補助の文字の体。押せることは上向きの印と下線でも示す
-        <button type="button" className="thread" onClick={() => onJump(thread.to)}>
-          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 19V5M5 12l7-7 7 7" />
-          </svg>
-          <span>{thread.label}</span>
-        </button>
-      )}
-      {replying ? (
+      {/* 家族の言葉の箱（紙の色の地）。話者名・本文・言葉の糸・聞く／返事をまとめる（0059） */}
+      <div className="paper">
+        {/* 声の語りは、話者名の行を「ばあばの声（13秒）」にする（行を増やさず、聞くと返事を一行に並べるため。0045） */}
+        <p className="speaker">{narration.audioUrl ? w.listenNote(speaker || null, length) : speaker}</p>
+        {narration.text && <p className="told">{narration.text}</p>}
+        {thread && onJump && (
+          // 本文と見分けるため補助の文字の体。押せることは上向きの印と下線でも示す
+          <button type="button" className="thread" onClick={() => onJump(thread.to)}>
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+            <span>{thread.label}</span>
+          </button>
+        )}
+        {!replying && (canReply || narration.audioUrl) && (
+          <div className="row">
+            {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen} stopLabel={w.stopVoice} name={w.listenName(speaker || null)} />}
+            {canReply && (
+              <button
+                type="button"
+                className="aux"
+                onClick={() => {
+                  notice?.clear();
+                  retake?.clear();
+                  onReplying(true);
+                }}
+              >
+                {w.reply}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {replying && (
         <ReplyBox
           target={{ photoId: narration.photoId, entranceId: null, replyToId: narration.id }}
           autoStart={autoStart}
@@ -136,24 +157,7 @@ function NarrationView({
             onReplying(false);
           }}
         />
-      ) : canReply || narration.audioUrl ? (
-        <div className="row">
-          {narration.audioUrl && <PlayVoice src={narration.audioUrl} label={w.listen} stopLabel={w.stopVoice} name={w.listenName(speaker || null)} />}
-          {canReply && (
-            <button
-              type="button"
-              className="aux"
-              onClick={() => {
-                notice?.clear();
-                retake?.clear();
-                onReplying(true);
-              }}
-            >
-              {w.reply}
-            </button>
-          )}
-        </div>
-      ) : null}
+      )}
       <div aria-live="polite">{sent && <p className="done">{w.sent}</p>}</div>
       {canReply && !replying && (
         <Retake

@@ -137,7 +137,7 @@ describe("祖父母の画面の語りの欄", () => {
     expect(words.screen.elder.stopVoice).toBe("とめる");
     expect(words.screen.family.stopVoice).toBe("止める");
     expect(words.screen.family.listen).toBe("聞く");
-    expect(read("src/client/styles.css")).toMatch(/\.elder \.narration > \.row > \.aux \{\s*padding-inline: 0\.75rem;\s*\}/);
+    expect(read("src/client/styles.css")).toMatch(/\.elder \.narration > \.paper > \.row > \.aux \{\s*padding-inline: 0\.75rem;\s*\}/);
   });
   it("「おくりました」は場所が今の語りのときだけ（画面に一つだけ）", () => {
     const n = (at: string | null) =>
@@ -190,8 +190,7 @@ describe("祖父母の画面の決まり（ソース）", () => {
   it("大きさは .home-shell.elder の下で祖父母の定数に替える（答えのボタン、家族の言葉、問いかけ）", () => {
     const css = read("src/client/styles.css");
     expect(css).toMatch(/\.elder \.answer \.primary,[\s\S]*?min-height: var\(--elder-action-height\);\s*font-size: var\(--font-elder-action\);/);
-    expect(css).toMatch(/\.elder \.told,[^{]*\{\s*font-size: var\(--font-elder-told\);/);
-    expect(css).toMatch(/\.elder \.question \{\s*font-size: var\(--font-elder-question\);/);
+    expect(css).toMatch(/\n\.elder \{[^}]*--font-told: var\(--font-elder-told\);[^}]*--font-question: var\(--font-elder-question\);/);
   });
   it("家族の設定の画面の名前は声に限らない言い方", () => {
     expect(words.member.roleElder).toBe("文字の大きな画面（祖父母向け）");

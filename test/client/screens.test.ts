@@ -283,11 +283,12 @@ describe("位置の生の値を外に出さない", () => {
   });
 });
 
-describe("高齢の人の画面の最低ライン（styles.css の :root）", () => {
+describe("高齢の人の画面の最低ライン（styles.css の .elder。家族の画面の :root には当てない。0059）", () => {
   const css = read("src/client/styles.css");
   const root = /:root\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+  const elder = /\n\.elder\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
   const rem = (name: string): number => {
-    const m = new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(root);
+    const m = new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(elder);
     if (!m) throw new Error(`--${name} が rem で定義されていない`);
     return Number(m[1]) * 16;
   };
@@ -295,10 +296,16 @@ describe("高齢の人の画面の最低ライン（styles.css の :root）", ()
     ["font-main", 20],
     ["font-sub", 16],
     ["tap-min", 48],
+    ["font-aux", 20],
+    ["font-tab", 20],
+    ["tap-aux", 48],
     ["tap-gap", 8],
     ["primary-height", 64],
   ])("--%s は %ipx 以上", (name, min) => {
     expect(rem(name as string)).toBeGreaterThanOrEqual(min as number);
+  });
+  it("祖父母の画面のタブは 64px 以上", () => {
+    expect(elder).toMatch(/--tab-height: max\(64px, [\d.]+rem\);/);
   });
   it("行間は 1.5 以上", () => {
     expect(Number(/--line-height:\s*([\d.]+)/.exec(root)?.[1])).toBeGreaterThanOrEqual(1.5);
@@ -329,6 +336,12 @@ describe("高齢の人の画面の最低ライン（styles.css の :root）", ()
     ["accent-text", "recording", 4.5],
     ["border", "bg", 3],
     ["border", "surface", 3],
+    ["paper-ink", "paper", 4.5],
+    ["text-sub", "paper", 4.5],
+    ["accent", "accent-soft", 4.5],
+    ["accent", "accent-soft-press", 4.5],
+    ["accent-text", "accent-press", 4.5],
+    ["text", "fresh-bg", 4.5],
   ])("コントラスト: --%s と --%s は %s:1 以上", (fg, bg, min) => {
     expect(ratio(color(fg as string), color(bg as string))).toBeGreaterThanOrEqual(min as number);
   });

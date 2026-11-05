@@ -93,6 +93,7 @@ export function ZoomablePhoto({ photo, focus, variant, canOpen, tabIndex, lazy }
             onRequestClose={requestClose}
             onClosed={onClosed}
             closeLabel={variant === "elder" ? words.elder.close : words.home.close}
+            elder={variant === "elder"}
             label={words.photoView.label}
           />,
           document.body,

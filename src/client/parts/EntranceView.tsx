@@ -1,4 +1,4 @@
-// 入り口の表示: 写真（白い台紙に貼る形）、添える家族の言葉（話者の呼ばれ方つき。声なら本人の録音を聞ける）、問いかけ一つ。
+// 入り口の表示: 写真（白い台紙に貼る形）、添える家族の言葉（紙の色の箱に、話者の呼ばれ方つき。0059。声なら本人の録音を聞ける）、問いかけ一つ。
 // 問いかけが null（固定の入り口）のときは、クライアントの固定の一文を出す。
 // 問いかけの読み上げは、音声があるときだけ。自動では流さず、そばに常に明示の文を出す（0019、0027）。
 import type { Entrance, Member } from "../../shared/api";
@@ -31,9 +31,10 @@ export function EntranceView({ entrance, members, variant }: Props) {
               </p>
             )}
             {quote && (
-              <>
-                <blockquote className="told">{quote.text}</blockquote>
+              // 添える家族の言葉は、紙の色の箱に話者名・本文・聞くをまとめる（0059）
+              <div className="paper quote">
                 {quoteBy && <span className="who">{quoteBy}</span>}
+                <blockquote className="told">{quote.text}</blockquote>
                 {quote.audioUrl && (
                   // ボタンは一語（祖父母「きく」、家族「聞く」）。誰の声かと長さはそばの補助の文に出す（0045）
                   <div className="read-aloud">
@@ -41,7 +42,7 @@ export function EntranceView({ entrance, members, variant }: Props) {
                     <span className="who">{w.listenNote(quoteBy, voiceLength(quote.durationMs))}</span>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </figcaption>
         )}
