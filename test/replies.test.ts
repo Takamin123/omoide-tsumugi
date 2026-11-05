@@ -91,3 +91,28 @@ describe("unseenReplies", () => {
     expect(unseenReplies(all, 90)).toEqual([]);
   });
 });
+
+describe("自分の言葉を引用した入り口への答え（(c)。2026-11-05）", () => {
+  // me = お母さん。P8 はまごの写真（自分の写真ではない）。じいちゃんが、お母さんの言葉を引用した入り口に答えた
+  const P8 = photo("P8", "gc");
+  const mine = n("mom-words", "P8", "me", 10);
+  const answer = n("jii-answer", "P8", "jii", 20, { entranceId: "E1", quotedFrom: { narrationId: "mom-words", speakerMemberId: "me", text: "架空の言葉" } });
+  const otherQuote = n("jii-other", "P8", "jii", 30, { entranceId: "E2", quotedFrom: { narrationId: "x", speakerMemberId: "gc", text: "架空" } });
+  const f = [item(P8, [mine, answer, otherQuote])];
+
+  it("自分の写真でなく返事でもなくても、自分の言葉を引用した入り口への答えは届いたものに入る。引用元を answeredMine に持つ", () => {
+    const got = repliesFor(f, "me");
+    expect(got.map((r) => r.narration.id)).toEqual(["jii-answer"]);
+    expect(got[0]).toMatchObject({ toMyNarration: false, onMyPhoto: false, repliedTo: null });
+    expect(got[0]!.answeredMine?.id).toBe("mom-words");
+  });
+  it("ほかの人の言葉を引用した入り口への答えは入らない", () => {
+    expect(repliesFor(f, "me").some((r) => r.narration.id === "jii-other")).toBe(false);
+  });
+  it("引用元が一覧にないときも答えは入る（answeredMine は null）", () => {
+    const got = repliesFor([item(P8, [answer])], "me");
+    expect(got.map((r) => r.narration.id)).toEqual(["jii-answer"]);
+    expect(got[0]!.answeredMine).toBeNull();
+  });
+});
+

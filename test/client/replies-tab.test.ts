@@ -64,6 +64,29 @@ describe("返事のタブのまとまり", () => {
     expect(groups[1]!.narrations.map((x: any) => x.id)).toEqual(["g2", "y2"]);
     expect(groups.map((g: any) => g.latestAt)).toEqual([40, 30]);
   });
+  it("自分の言葉を引用した入り口への答えなら、引用元の自分の語りを上に出す（2026-11-05）", () => {
+    const f = [
+      item(photo("P8", "mom"), [
+        n("m8", "P8", "mom", 10),
+        n("other8", "P8", "yui", 15),
+        n("j8", "P8", "jii", 20, { entranceId: "E1", quotedFrom: { narrationId: "m8", speakerMemberId: "mom", text: "架空の言葉" } }),
+      ]),
+    ];
+    const g = replyGroups(f, "mom");
+    expect(g[0]!.narrations.map((x: any) => x.id)).toEqual(["m8", "other8", "j8"]);
+  });
+  it("ほかの人の写真でも、自分の言葉を引用した入り口への答えなら、その写真と引用元の自分の語りを出す（(c) だけで入る）", () => {
+    const f = [
+      item(photo("P7", "yui"), [
+        n("m7", "P7", "mom", 10),
+        n("y7", "P7", "yui", 12),
+        n("j7", "P7", "jii", 20, { entranceId: "E2", quotedFrom: { narrationId: "m7", speakerMemberId: "mom", text: "架空の言葉" } }),
+      ]),
+    ];
+    const g = replyGroups(f, "mom");
+    expect(g.map((x: any) => x.item.photo.id)).toEqual(["P7"]);
+    expect(g[0]!.narrations.map((x: any) => x.id)).toEqual(["m7", "j7"]);
+  });
   it("返した先が輪になっていても止まる", () => {
     const loop = [item(photo("P9", "mom"), [n("a", "P9", "jii", 1, { replyToId: "b" }), n("b", "P9", "yui", 2, { replyToId: "a" })])];
     expect(replyGroups(loop, "mom")[0]!.narrations.map((x: any) => x.id).sort()).toEqual(["a", "b"]);

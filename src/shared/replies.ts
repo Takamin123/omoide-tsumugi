@@ -2,6 +2,7 @@
 // その人（me）について、次の語りを一つずつ（重なりは一つに数える）:
 //   (a) me の語りへの、ほかの人の返事（replyToId が me の語り）
 //   (b) me が入れた写真（photo.ownerMemberId が me）への、ほかの人の語り（返事でないものも、返事も）
+//   (c) me の言葉を引用した入り口への、ほかの人の答え（quotedFrom の話し手が me）。me の言葉への答えなので (a) と同じく扱う（2026-11-05。0058）
 // 自分の語りは数えない。声の語りは文字起こしの状態（pending・failed）に関わらず数える。返事の返事は (a) の一段だけを見る
 import type { FeedItem, FeedNarration, Photo } from "./api";
 
@@ -12,6 +13,8 @@ export type ReplyItem = {
   repliedTo: FeedNarration | null;
   /** (a) me の語りへの返事か */
   toMyNarration: boolean;
+  /** (c) me の言葉を引用した入り口への答えなら、引用元の語り（feed になければ null。答えは届いたものに入る） */
+  answeredMine: FeedNarration | null;
   /** (b) me が入れた写真への語りか */
   onMyPhoto: boolean;
 };
@@ -27,8 +30,10 @@ export function repliesFor(feed: readonly FeedItem[], meId: string): ReplyItem[]
       if (n.speakerMemberId === meId) continue;
       const repliedTo = n.replyToId ? (byId.get(n.replyToId) ?? null) : null;
       const toMyNarration = repliedTo?.speakerMemberId === meId;
-      if (!toMyNarration && !onMyPhoto) continue;
-      out.push({ photo: item.photo, narration: n, repliedTo, toMyNarration, onMyPhoto });
+      const quotedMe = n.quotedFrom?.speakerMemberId === meId;
+      const answeredMine = quotedMe ? (byId.get(n.quotedFrom!.narrationId) ?? null) : null;
+      if (!toMyNarration && !quotedMe && !onMyPhoto) continue;
+      out.push({ photo: item.photo, narration: n, repliedTo, toMyNarration, answeredMine, onMyPhoto });
     }
   }
   return out.sort((x, y) => y.narration.createdAt - x.narration.createdAt || (x.narration.id < y.narration.id ? -1 : x.narration.id > y.narration.id ? 1 : 0));

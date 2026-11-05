@@ -1,7 +1,8 @@
-// 返事のタブ（0058）の画面の側の決まり。何が届いたもの（(a) 自分の語りへの返事、(b) 自分の写真への語り）か・まだ見ていないかは
+// 返事のタブ（0058）の画面の側の決まり。何が届いたもの（(a) 自分の語りへの返事、(b) 自分の写真への語り、(c) 自分の言葉を引用した入り口への答え）か・まだ見ていないかは
 // src/shared/replies.ts（repliesFor・unseenReplies）に従う。ここではそれを写真ごとにまとめ、出す語りを決める。DOM に頼らない。
 // 写真ごとに出すのは、届いたものを含む糸（根の語りから下の返事まで）まるごと。自分の語りへの返事なら自分の語りが根として上に出る。
 // 届いた語りにこのタブで返事をしたら、その返事も糸の中に残る（送った返事が消えないように）。自分だけの語りの糸は出さない。
+// 自分の言葉を引用した入り口への答え（(c)）なら、引用元の自分の語りの糸も出す（同じ写真の一覧の順のまま。自分の言葉が上、答えが下）。
 import type { FeedItem, FeedNarration } from "../../shared/api";
 import { repliesFor, unseenReplies } from "../../shared/replies";
 
@@ -33,7 +34,12 @@ export function replyGroups(feed: readonly FeedItem[], meId: string): ReplyGroup
       }
       return at.id;
     };
-    const roots = new Set(incoming.filter((x) => x.photo.id === item.photo.id).map((x) => rootOf(x.narration)));
+    const here = incoming.filter((x) => x.photo.id === item.photo.id);
+    const roots = new Set(here.map((x) => rootOf(x.narration)));
+    for (const x of here) {
+      const q = x.answeredMine && byId.get(x.answeredMine.id);
+      if (q) roots.add(rootOf(q));
+    }
     groups.push({ item, narrations: item.narrations.filter((n) => roots.has(rootOf(n))), latestAt: r.narration.createdAt });
   }
   return groups;
