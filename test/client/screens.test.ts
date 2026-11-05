@@ -43,9 +43,13 @@ describe("入り口の表示", () => {
     for (const variant of ["family", "elder"] as const) {
       for (const question of [null, "この浜には誰と行きましたか"]) {
         const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({ question }), members, variant }, h("button", { id: "slot" }))) as string;
-        expect(html).toMatch(/<section class="card-soft ask"><p class="ask-head">今日の問いかけ<\/p><p class="question">[^<]+<\/p>(.*)<button id="slot"><\/button><\/section>/);
+        expect(html).toMatch(/<section class="card-soft ask"><div class="ask-top"><p class="ask-head">今日の問いかけ<\/p><\/div><p class="question">[^<]+<\/p><button id="slot"><\/button><\/section>/);
       }
     }
+  });
+  it("祖父母の画面の読み上げは、見出しと同じ行の右に、注「AI の声で読みます」→ボタンの組で置く（問いかけの上。0059 の追記）", () => {
+    const html = renderToStaticMarkup(h(EntranceView, { entrance: entrance({ question: "q", questionAudioUrl: "/a.mp3" }), members, variant: "elder" })) as string;
+    expect(html).toMatch(/<div class="ask-top"><p class="ask-head">今日の問いかけ<\/p><div class="read-aloud"><span class="who">AI の声で読みます<\/span><button[^>]*class="aux listen"[^>]*>.*?読み上げ<\/button><\/div><\/div><p class="question">q<\/p>/);
   });
   it("添える家族の言葉の話者名の左に頭文字の丸（飾り）。名前は必ず並べる（0061）", () => {
     const { InitialsContext } = screenLib;

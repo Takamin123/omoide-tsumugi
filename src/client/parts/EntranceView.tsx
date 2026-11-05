@@ -62,15 +62,17 @@ export function EntranceView({ entrance, members, variant, children }: Props) {
       </figure>
       {/* 問いかけと答えるボタンを一枚のカードに（0059）。先頭に見出し「今日の問いかけ」（固定の入り口でも出す。0061） */}
       <section className="card-soft ask">
-        <p className="ask-head">{words.home.questionHeading}</p>
+        {/* 見出しの行: 左に見出し、右に読み上げ（祖父母の画面だけ。0019）とそばの注。入らなければ読み上げを次の行へ（人間の提案 2026-11-05。0059） */}
+        <div className="ask-top">
+          <p className="ask-head">{words.home.questionHeading}</p>
+          {variant === "elder" && entrance.questionAudioUrl && (
+            <div className="read-aloud">
+              <span className="who">{words.elder.readAloudNote}</span>
+              <PlayVoice src={entrance.questionAudioUrl} label={words.elder.readAloud} stopLabel={words.elder.stopVoice} icon="speaker" />
+            </div>
+          )}
+        </div>
         <p className="question">{entrance.question ?? words.fixedQuestion}</p>
-        {/* 読み上げは祖父母の画面だけ（0019） */}
-        {variant === "elder" && entrance.questionAudioUrl && (
-          <div className="read-aloud">
-            <PlayVoice src={entrance.questionAudioUrl} label={words.elder.readAloud} stopLabel={words.elder.stopVoice} icon="speaker" />
-            <span className="who">{words.elder.readAloudNote}</span>
-          </div>
-        )}
         {children}
       </section>
     </>
