@@ -12,7 +12,7 @@ export const guideWords = {
   stepsTitle: "触る順番",
   step1: {
     title: "じいちゃんで答える",
-    body: `問いかけを${q(words.elder.readAloud)}で聞き、${q(words.elder.speak)}か${q(words.elder.write)}で答えます。話し終えたら${q(words.elder.stop)}。`,
+    body: `写真の下へスクロールすると、問いかけが出ます。これを${q(words.elder.readAloud)}で聞き、${q(words.elder.speak)}か${q(words.elder.write)}で答えます。話し終えたら${q(words.elder.stop)}。`,
   },
   step2: {
     title: "お母さんで聞く",

@@ -411,26 +411,6 @@ textarea {
   }
 }
 
-/*
- * 横長の広い画面（PC）: 写真の高さの上限だけでは問いかけが段の上に入らない（1280×800 で写真 74px 以下になる）ので、
- * 左に写真と家族の言葉、右に問いかけの二段組にする。写真は比のまま縮めて切らない。写真の側を問いかけの側より狭くしない（0059 の追記）。
- * タブレットの横向き（1180×820 まで）は変えない
- */
-@media (min-width: 75rem) and (orientation: landscape) {
-  .elder .entrance-pair {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    align-items: start;
-    gap: 1rem;
-  }
-  .elder .mount .photo {
-    width: auto;
-    max-width: 100%;
-    margin-inline: auto;
-    max-height: max(10rem, calc(100vh - 36rem));
-  }
-}
-
 /* 問いかけのカード（見出し・問いかけ・読み上げ・答えるボタン。0059・0061） */
 .ask-top {
   display: flex;
@@ -839,13 +819,6 @@ main.home {
 .elder .home-dock > .answer,
 .elder .album-section {
   max-width: 52rem;
-}
-
-/* 横長の広い画面の今日だけ、二段組の分だけ広げる（0059 の追記。アルバムと返事は変えない） */
-@media (min-width: 75rem) and (orientation: landscape) {
-  .elder main.home:has(> .entrance-pair) {
-    max-width: 72rem;
-  }
 }
 
 .elder-head {

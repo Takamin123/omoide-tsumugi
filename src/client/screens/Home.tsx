@@ -355,7 +355,7 @@ export function Home({ view, me, demo, variant = "family" }: Props) {
           {/* 入り口がない（家族の写真がまだ一枚もない）ときは一行だけ。家族には入れ方を、祖父母には待てばよいことを言う（0010 の追記） */}
           {entrance === null && !entranceError && <p className={elder ? undefined : "sub"}>{w.noEntrance}</p>}
           {entrance && (
-            <section className="stack entrance-pair">
+            <section className="stack">
               <EntranceView entrance={entrance} members={view.members} variant={variant}>
                 <div aria-live="polite" ref={noticeRef}>
                   {showAnswerNotice && <p className="done">{w.sent}</p>}
