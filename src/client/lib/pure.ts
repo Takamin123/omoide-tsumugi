@@ -1,5 +1,5 @@
 // 画面から分けた、純粋な小さな関数。DOM に頼らない（test/client/ から Node で確かめる）。
-import { MAX_VOICE_DURATION_MS, type Clock } from "../../shared/api";
+import { DEMO_GUIDE_KEY_PATTERN, MAX_VOICE_DURATION_MS, type Clock } from "../../shared/api";
 import { words } from "../words";
 
 /** 緯度経度を小数第 2 位（約 1 km）に丸める。生の値は送らない・保存しない。 */
@@ -116,6 +116,12 @@ export function isAndroidLineInApp(userAgent: string): boolean {
 export function tokenFromJoinPath(pathname: string): string | null {
   const m = /^\/join\/([A-Za-z0-9_-]{20,100})\/?$/.exec(pathname);
   return m ? (m[1] ?? null) : null;
+}
+
+/** 審査員の案内の道すじから鍵を取り出す。"/demo/<鍵>" でなければ null（ほかの知らない道と同じ扱いになる。0062） */
+export function keyFromDemoGuidePath(pathname: string): string | null {
+  const m = /^\/demo\/([^/]+)\/?$/.exec(pathname);
+  return m && DEMO_GUIDE_KEY_PATTERN.test(m[1]!) ? m[1]! : null;
 }
 
 /** 写真の登録の結果を数える */

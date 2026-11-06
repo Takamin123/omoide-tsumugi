@@ -48,7 +48,7 @@ export function fakeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     speechProbe: null,
     speaker: null,
     runInBackground: () => {},
-    config: { appEnv: "development", createFamilyToken: null, opsRecordToken: null, opsRecordFamilies: [], demoResetToken: null },
+    config: { appEnv: "development", createFamilyToken: null, opsRecordToken: null, opsRecordFamilies: [], demoResetToken: null, demoGuideKey: null, demoGuideLinks: null },
     now: () => new Date(),
     ...overrides,
   };
@@ -299,6 +299,8 @@ export function makeTestApp(
       opsRecordToken: OPS_TOKEN,
       opsRecordFamilies: [],
       demoResetToken: DEMO_RESET_TOKEN,
+      demoGuideKey: null,
+      demoGuideLinks: null,
     },
     now: () => now,
   };

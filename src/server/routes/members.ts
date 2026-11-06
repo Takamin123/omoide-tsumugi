@@ -5,6 +5,7 @@ import { memberInputSchema, type MemberInput, type MemberLinkResult } from "../.
 import type { MemberRow } from "../core/ports";
 import { hashToken, newInviteToken } from "../core/secrets";
 import { canManageFamily, setInviteCookie } from "./auth";
+import { demoGuideOpen } from "./demo";
 import type { AppEnv } from "./env";
 import { fail, parseWith, readJson } from "./http";
 import { memberView } from "./views";
@@ -32,6 +33,11 @@ async function hasActiveLink(c: Context<AppEnv>, memberId: string): Promise<bool
   return (await c.get("deps").repos.members.listIdsWithActiveLink(c.get("family").id)).includes(memberId);
 }
 
+/** 審査員の案内が開いている間、デモの家族の人とリンクは変えられない（0062） */
+function lockedByDemoGuide(c: Context<AppEnv>): boolean {
+  return c.get("family").isDemo && demoGuideOpen(c.get("deps").config);
+}
+
 export const members = new Hono<AppEnv>()
   .post("/members", async (c) => {
     const me = c.get("member");
@@ -53,6 +59,7 @@ export const members = new Hono<AppEnv>()
       return c.json(memberView(row, true), 201);
     }
 
+    if (lockedByDemoGuide(c)) return fail(c, "forbidden");
     if (!(await setUpByIsValid(c, input))) return fail(c, "not_found");
     await deps.repos.members.create(row);
     return c.json(memberView(row, false), 201);
@@ -60,7 +67,7 @@ export const members = new Hono<AppEnv>()
 
   .patch("/members/:id", async (c) => {
     const me = c.get("member");
-    if (!canManageFamily(me)) return fail(c, "forbidden");
+    if (!canManageFamily(me) || lockedByDemoGuide(c)) return fail(c, "forbidden");
     const input = parseWith(memberInputSchema, await readJson(c));
     if (!input) return fail(c, "invalid_request");
     const id = c.req.param("id");
@@ -77,7 +84,7 @@ export const members = new Hono<AppEnv>()
   // その人のリンクを作る（作り直す）。その人の前のリンクだけが使えなくなる
   .post("/members/:id/link", async (c) => {
     const me = c.get("member");
-    if (!canManageFamily(me)) return fail(c, "forbidden");
+    if (!canManageFamily(me) || lockedByDemoGuide(c)) return fail(c, "forbidden");
     const deps = c.get("deps");
     const familyId = c.get("family").id;
     const target = await deps.repos.members.get(familyId, c.req.param("id"));

@@ -14,6 +14,7 @@ const {
   roundLocation,
   tallyOne,
   toHex,
+  keyFromDemoGuidePath,
   tokenFromJoinPath,
   validDurationMs,
   voiceLength,
@@ -115,4 +116,18 @@ describe("写真の登録の数え方", () => {
     t = tallyOne(t, "unreadable");
     expect(t).toEqual({ total: 3, done: 3, added: 1, duplicate: 1, unreadable: 1, failed: 0 });
   });
+});
+
+describe("keyFromDemoGuidePath（審査員の案内。0062）", () => {
+  const key = "a1".repeat(32);
+  it("/demo/<鍵> の鍵を返す", () => {
+    expect(keyFromDemoGuidePath(`/demo/${key}`)).toBe(key);
+    expect(keyFromDemoGuidePath(`/demo/${key}/`)).toBe(key);
+  });
+  it.each(["/demo", "/demo/", "/demo/short", `/demo/${key}/x`, `/demo/${"a".repeat(201)}`, `/x/demo/${key}`, `/demo/${"a".repeat(40)}%2F`])(
+    "%s はほかの知らない道（null）",
+    (p) => {
+      expect(keyFromDemoGuidePath(p)).toBeNull();
+    },
+  );
 });

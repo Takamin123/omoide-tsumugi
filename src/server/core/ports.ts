@@ -821,6 +821,13 @@ export interface AppConfig {
    * ないとき、短すぎるとき、CREATE_FAMILY_TOKEN・OPS_RECORD_TOKEN と同じ値のときは誰も戻せない
    */
   demoResetToken: string | null;
+  /**
+   * 審査員の案内（/demo/<鍵>、POST /api/demo/guide）の鍵（0062）。
+   * ないとき、短すぎるとき、URL に載せられないとき、ほかの鍵と同じ値のときはページを開かない。本番には登録しない
+   */
+  demoGuideKey: string | null;
+  /** 審査員の案内に並べる 4 人のリンクの合言葉（JSON。呼ばれ方 → 合言葉）。形は routes/demo.ts で確かめる。0062 */
+  demoGuideLinks: string | null;
 }
 
 /** レスポンスを返した後に続ける処理。Workers では waitUntil、VPS ではそのまま待たずに走らせる。 */

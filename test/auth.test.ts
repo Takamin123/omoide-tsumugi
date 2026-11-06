@@ -17,9 +17,10 @@ const apiRoutes = [
 ].sort();
 
 describe("合言葉の確認", () => {
-  it("確認しない入り口は、この 3 つだけ", () => {
+  it("確認しない入り口は、この 4 つだけ", () => {
     expect(PUBLIC_ROUTES.map(([m, p]) => `${m} ${p}`).sort()).toEqual([
       "GET /api/health",
+      "POST /api/demo/guide", // 審査員の案内。合言葉の代わりに本文の鍵で守り、合わなければ 404（0062。test/demo-guide.test.ts）
       "POST /api/families",
       "POST /api/session",
     ]);
@@ -45,6 +46,7 @@ describe("合言葉の確認", () => {
       "POST /api/check/transcribe",
       "POST /api/demo/clock/advance",
       "POST /api/demo/families/:familyId/reset",
+      "POST /api/demo/guide",
       "POST /api/families",
       "POST /api/members",
       "POST /api/members/:id/link",

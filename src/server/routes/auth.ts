@@ -1,10 +1,12 @@
 // 合言葉の確認。ここ一か所で行い、既定で閉じる（docs/implementation-policy.md 4）。
 // 確認しない入り口は PUBLIC_ROUTES に明示的に並べる。それ以外の /api/* はすべて確認を通す。
 // 一覧が変わったら test/auth.test.ts が気づく。
-// 合言葉の代わりに別の鍵で守る入り口: 運営の記録（/api/ops/*、OPS_RECORD_TOKEN）と、デモの初期化（/api/demo/families/*、DEMO_RESET_TOKEN）
+// 合言葉の代わりに別の鍵で守る入り口: 運営の記録（/api/ops/*、OPS_RECORD_TOKEN）と、デモの初期化（/api/demo/families/*、DEMO_RESET_TOKEN）。
+// 審査員の案内（POST /api/demo/guide、DEMO_GUIDE_KEY）は PUBLIC_ROUTES に置き、入り口の中で本文の鍵を確かめる（0062）
 // リンクは一人ずつ（0036）。合言葉から家族と人を引き、人のいない「最初の人のリンク」で通せる入り口は FIRST_PERSON_ROUTES に並べる。
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { DEMO_GUIDE_KEY_PATTERN } from "../../shared/api";
 import { hashToken, timingSafeEqual } from "../core/secrets";
 import type { AppConfig, MemberRow } from "../core/ports";
 import type { AppEnv } from "./env";
@@ -17,6 +19,7 @@ export const PUBLIC_ROUTES: readonly (readonly [method: string, path: string])[]
   ["GET", "/api/health"], // ヘルスチェック（秘密の値を使わず、通ったことだけを返す）
   ["POST", "/api/session"], // 合言葉の入力
   ["POST", "/api/families"], // 家族を作る。合言葉の代わりに CREATE_FAMILY_TOKEN（Bearer）で守る
+  ["POST", "/api/demo/guide"], // 審査員の案内。合言葉の代わりに本文の鍵（DEMO_GUIDE_KEY）で守る。合わなければ 404（0062）
 ];
 
 /**
@@ -139,6 +142,45 @@ export async function hasDemoResetKey(c: Context<AppEnv>): Promise<boolean> {
     return false;
   }
   return bearerEquals(c, expected);
+}
+
+export type DemoGuideKeyMisconfig =
+  | "too_short"
+  | "not_url_safe"
+  | "same_as_create_family_token"
+  | "same_as_ops_record_token"
+  | "same_as_demo_reset_token";
+
+/**
+ * 設定された審査員の案内の鍵が使えるか。ほかの鍵と同じ規則（0030）に、URL の道に載せられることを足す（0062）。
+ * 設定がないときは null（誤りではない）
+ */
+export function demoGuideKeyMisconfig(config: AppConfig): DemoGuideKeyMisconfig | null {
+  const key = config.demoGuideKey;
+  if (!key) return null;
+  if (key.length < OPS_KEY_MIN_LENGTH) return "too_short";
+  if (!DEMO_GUIDE_KEY_PATTERN.test(key)) return "not_url_safe";
+  if (config.createFamilyToken && key === config.createFamilyToken) return "same_as_create_family_token";
+  if (config.opsRecordToken && key === config.opsRecordToken) return "same_as_ops_record_token";
+  if (config.demoResetToken && key === config.demoResetToken) return "same_as_demo_reset_token";
+  return null;
+}
+
+/** 案内の鍵が設定されていて、使える値か（秘密の値を消せば偽。消すだけでページが閉じる。本番には登録しない。0062） */
+export function demoGuideKeyUsable(config: AppConfig): boolean {
+  return config.demoGuideKey !== null && demoGuideKeyMisconfig(config) === null;
+}
+
+/** 渡された鍵が案内の鍵と同じか（時間が一定の比較）。設定がない・使えない設定なら誰も通さない */
+export async function matchesDemoGuideKey(config: AppConfig, given: string): Promise<boolean> {
+  const expected = config.demoGuideKey;
+  if (!expected) return false;
+  const misconfig = demoGuideKeyMisconfig(config);
+  if (misconfig) {
+    console.warn(JSON.stringify({ event: "demo_guide_key_misconfigured", reason: misconfig }));
+    return false;
+  }
+  return timingSafeEqual(given, expected);
 }
 
 /**

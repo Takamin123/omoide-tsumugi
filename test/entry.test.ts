@@ -134,7 +134,19 @@ describe("createCloudflareDeps の設定", () => {
       opsRecordToken: null,
       opsRecordFamilies: [],
       demoResetToken: null,
+      demoGuideKey: null,
+      demoGuideLinks: null,
     });
+  });
+
+  it("審査員の案内の鍵とリンクを読む。空なら設定なし（0062）", () => {
+    const env = { DB: {}, BUCKET: fakeBucket(), APP_ENV: "preview", DEMO_GUIDE_KEY: "g", DEMO_GUIDE_LINKS: "{}" } as unknown as Env;
+    const config = createCloudflareDeps(env, fakeCtx()).config;
+    expect(config.demoGuideKey).toBe("g");
+    expect(config.demoGuideLinks).toBe("{}");
+    const empty = { DB: {}, BUCKET: fakeBucket(), DEMO_GUIDE_KEY: "", DEMO_GUIDE_LINKS: "" } as unknown as Env;
+    expect(createCloudflareDeps(empty, fakeCtx()).config.demoGuideKey).toBeNull();
+    expect(createCloudflareDeps(empty, fakeCtx()).config.demoGuideLinks).toBeNull();
   });
 
   it("デモの初期化の鍵を読む（0038）", () => {

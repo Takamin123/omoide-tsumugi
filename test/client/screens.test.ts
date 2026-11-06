@@ -11,6 +11,7 @@ const { DemoBar } = await load("../../src/client/parts/DemoBar");
 const { MemberForm } = await load("../../src/client/parts/MemberForm");
 const { FamilySetup } = await load("../../src/client/screens/FamilySetup");
 const { words } = await load("../../src/client/words");
+const { guideWords } = await load("../../src/client/demo/guideWords");
 const { AUDIO_FILE_ACCEPT } = await load("../../src/client/lib/voice");
 
 const members = [
@@ -117,17 +118,31 @@ describe("添える家族の言葉の声と、問いかけの読み上げ", () =
 
 describe("デモの帯", () => {
   const clock = { date: "2026-11-02", slot: "morning" };
+  const bar = { clock, advancing: false, longWait: false, error: null, onAdvance: () => {} };
+  it("夜から翌朝へ進めている間だけ「進めています」を出し、ボタンを押せなくする（0062）", () => {
+    expect(renderToStaticMarkup(h(DemoBar, bar))).not.toContain(words.demo.advancing);
+    // 待ちの間に読み直すと時計はもう朝。押したときの時間帯で決めるので、時計が朝でも出たまま
+    const waiting = renderToStaticMarkup(h(DemoBar, { ...bar, advancing: true, longWait: true }));
+    expect(waiting).toContain(words.demo.advancing);
+    expect(waiting).toMatch(/<button[^>]*disabled=""/);
+    // 朝・昼はすぐ終わるので出さない
+    expect(renderToStaticMarkup(h(DemoBar, { ...bar, advancing: true }))).not.toContain(words.demo.advancing);
+  });
+  it("進めている間の状態は App が持つ（帯はタブごとに描き直されるので、タブを替えても消えない。0062）", () => {
+    expect(stripComments(read("src/client/App.tsx"))).toContain("useAdvanceClock(onAdvanced)");
+    expect(stripComments(read("src/client/parts/DemoBar.tsx"))).not.toMatch(/function DemoBar[\s\S]*useState/);
+  });
   it("録音済みファイルの入口は onAudioFile を渡したときだけ", () => {
-    const without = renderToStaticMarkup(h(DemoBar, { clock, onAdvanced: () => {} }));
+    const without = renderToStaticMarkup(h(DemoBar, bar));
     expect(without).toContain(words.demo.advance);
     expect(without).not.toContain(words.demo.sendFile);
-    const withFile = renderToStaticMarkup(h(DemoBar, { clock, onAdvanced: () => {}, onAudioFile: () => {} }));
+    const withFile = renderToStaticMarkup(h(DemoBar, { ...bar, onAudioFile: () => {} }));
     expect(withFile).toContain(words.demo.sendFile);
     expect(withFile).toContain(`accept="${AUDIO_FILE_ACCEPT}"`);
     expect(withFile).not.toMatch(/<input[^>]*disabled/);
   });
   it("送っている間は、録音済みファイルを選べない", () => {
-    const html = renderToStaticMarkup(h(DemoBar, { clock, onAdvanced: () => {}, onAudioFile: () => {}, audioDisabled: true }));
+    const html = renderToStaticMarkup(h(DemoBar, { ...bar, onAudioFile: () => {}, audioDisabled: true }));
     expect(html).toMatch(/<input[^>]*type="file"[^>]*disabled=""|<input[^>]*disabled=""[^>]*type="file"/);
   });
   it("祖父母の画面は、送っている間 audioDisabled を立てる（今日の答えの送る状態を Home が持つ。0043）", () => {
@@ -227,15 +242,18 @@ const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), "utf8") 
 const checkDir = path.join(clientDir, "check");
 /** 運営の記録の画面（/ops/record、0025）。家族に見せないので、言葉をこの中に置いてよい */
 const opsDir = path.join(clientDir, "ops");
+/** 審査員の案内（/demo/<鍵>、0062）。読むのは審査員で家族ではないので、言葉をこの中に置いてよい */
+const demoGuideDir = path.join(clientDir, "demo");
 
 describe("家族に見せる日本語は words.ts にだけある", () => {
-  it("words.ts 以外の src/client に、コメント以外の日本語がない（開発用の check/ と ops/ を除く）", () => {
+  it("words.ts 以外の src/client に、コメント以外の日本語がない（開発用の check/ と ops/、審査員の案内の demo/ を除く）", () => {
     const jp = /[぀-ヿ㐀-鿿！-｠]/;
     const offenders: string[] = [];
     for (const file of listFiles(clientDir)) {
       if (file.endsWith(`${path.sep}words.ts`)) continue;
       if (file.startsWith(`${checkDir}${path.sep}`)) continue;
       if (file.startsWith(`${opsDir}${path.sep}`)) continue;
+      if (file.startsWith(`${demoGuideDir}${path.sep}`)) continue;
       stripComments(fs.readFileSync(file, "utf8"))
         .split("\n")
         .forEach((line: string, i: number) => {
@@ -265,6 +283,38 @@ describe("家族に見せる日本語は words.ts にだけある", () => {
     );
     expect(importers.map((f) => path.relative(repoRoot, f))).toEqual(["src/client/App.tsx"]);
     expect(read("src/client/App.tsx")).toMatch(/lazy\(\(\) => import\("\.\/ops\/RecordPage"\)\)/);
+  });
+});
+
+describe("審査員の案内（0062）", () => {
+  it("demo/ は App の lazy からだけ読み込む（家族の画面からつながない）", () => {
+    const importers = listFiles(clientDir).filter(
+      (f) => !f.startsWith(`${demoGuideDir}${path.sep}`) && /["']\.{1,2}\/(?:\.\.\/)*demo\//.test(fs.readFileSync(f, "utf8")),
+    );
+    expect(importers.map((f) => path.relative(repoRoot, f))).toEqual(["src/client/App.tsx"]);
+    expect(read("src/client/App.tsx")).toMatch(/lazy\(\(\) => import\("\.\/demo\/GuidePage"\)\)/);
+  });
+
+  it("案内の文に出す画面の名前は、words.ts のいまの文字と同じ", () => {
+    const quoted = (t: string) => [...t.matchAll(/「([^」]+)」/g)].map((m) => m[1]!);
+    expect(quoted(guideWords.step1.body)).toEqual([words.elder.readAloud, words.elder.speak, words.elder.write, words.elder.stop]);
+    expect(quoted(guideWords.step2.body)).toEqual([words.home.tabReplies, words.home.listen, words.home.tabAlbum]);
+    expect(quoted(guideWords.nextBody)).toEqual([words.demo.label, words.demo.advance]);
+    // 「入り口」は審査員に通じないので使わない。AI の話し相手に見せる言葉も置かない
+    expect(JSON.stringify(guideWords)).not.toContain("入り口");
+  });
+
+  it("画面が探す 4 人の呼ばれ方は、種の 4 人と同じ（ずれると人のボタンが消える）", async () => {
+    const { SEED_MEMBERS } = await load("../../src/server/demo/seed");
+    const names = [guideWords.elderName, guideWords.motherName, ...guideWords.otherNames].sort();
+    expect(names).toEqual(SEED_MEMBERS.map((m: { calledAs: string }) => m.calledAs).sort());
+  });
+
+  it("案内のページは検索に載せず、referrer を外に出さず、リンクは同じタブで開く", () => {
+    const page = read("src/client/demo/GuidePage.tsx");
+    expect(page).toContain('"noindex, nofollow"');
+    expect(page).toContain('"no-referrer"');
+    expect(page).not.toContain("target=");
   });
 });
 

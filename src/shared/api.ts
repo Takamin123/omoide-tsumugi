@@ -279,6 +279,13 @@ export type Entrance = {
  */
 export type AdvanceClockResult = { clock: Clock };
 
+// POST /api/demo/guide { key } → 200 DemoGuideResult。審査員の案内（/demo/<鍵>）。鍵が合わない・設定がないときは、区別せず 404 not_found（0062）
+/** 案内の鍵の形。URL の道にそのまま載る文字だけ（/join の合言葉と同じ文字）。上限は入力の検証のため */
+export const DEMO_GUIDE_KEY_PATTERN = /^[A-Za-z0-9_-]{32,200}$/;
+export const demoGuideInputSchema = z.object({ key: z.string().regex(DEMO_GUIDE_KEY_PATTERN) });
+/** 使えるリンクだけが、台本の人の並びで入る。使えないリンクは入らない（その人のボタンを出さない） */
+export type DemoGuideResult = { people: { calledAs: string; token: string }[] };
+
 /**
  * POST /api/demo/families/:familyId/reset（Authorization: Bearer <DEMO_RESET_TOKEN>）。0038
  * デモの家族（is_demo）を、種の写真・語り・入り口の状態に戻し、最後に毎朝の処理と同じ関数を呼ぶ。返すのは ID と件数だけ。

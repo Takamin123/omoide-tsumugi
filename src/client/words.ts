@@ -324,6 +324,8 @@ export const words = {
     label: "デモ",
     clock: (label: string) => `いま ${label}`,
     advance: "次の時間帯へ",
+    /** 夜から翌朝へ進めている間（毎朝の処理が走り、1 分以上かかる。0062） */
+    advancing: "進めています",
     sendFile: "録音済みの音声を送る",
   },
 

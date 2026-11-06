@@ -3,6 +3,7 @@
 import {
   errorKindSchema,
   type AdvanceClockResult,
+  type DemoGuideResult,
   type DemoResetResult,
   type Entrance,
   type ErrorKind,
@@ -113,6 +114,8 @@ export const api = {
   todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
 
   advanceClock: () => call<AdvanceClockResult>("/api/demo/clock/advance", { method: "POST" }),
+  /** 審査員の案内のリンクを受け取る。鍵は URL の検索語ではなく本文で送る（0062） */
+  demoGuide: (key: string) => call<DemoGuideResult>("/api/demo/guide", json("POST", { key })),
   /** デモの家族を最初の状態に戻す（運営だけ。鍵は渡すだけで残さない。0038） */
   resetDemo: (familyId: string, resetToken: string) =>
     call<DemoResetResult>(`/api/demo/families/${encodeURIComponent(familyId)}/reset`, {

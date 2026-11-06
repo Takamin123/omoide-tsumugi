@@ -2,9 +2,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api, ApiError, type FamilyViewWithClock } from "./lib/api";
 import { errorText } from "./lib/errors";
-import { screenFor, tokenFromJoinPath } from "./lib/pure";
+import { keyFromDemoGuidePath, screenFor, tokenFromJoinPath } from "./lib/pure";
 import { navigate, usePath } from "./lib/route";
-import { DemoBar, type DemoProps } from "./parts/DemoBar";
+import { DemoBar, useAdvanceClock, type DemoProps } from "./parts/DemoBar";
 import { ErrorLine } from "./parts/ErrorLine";
 import { AddPhotos } from "./screens/AddPhotos";
 import { Elder } from "./screens/Elder";
@@ -22,6 +22,8 @@ import { words } from "./words";
 const CheckPage = __CHECK_PAGE__ ? lazy(() => import("./check/CheckPage")) : null;
 /** 運営の記録の画面。本番のビルドにも入る（chunk は分ける）。守りはサーバーの運営の鍵（0030） */
 const OpsRecordPage = lazy(() => import("./ops/RecordPage"));
+/** 審査員の案内。守りはサーバーの鍵（chunk は分ける。0062） */
+const DemoGuidePage = lazy(() => import("./demo/GuidePage"));
 
 type Load =
   | { state: "loading" }
@@ -55,10 +57,18 @@ export function App() {
     }
   }, []);
 
+  const onAdvanced = useCallback(() => {
+    const reloaded = reload();
+    setTick((t) => t + 1);
+    return reloaded;
+  }, [reload]);
+  const advance = useAdvanceClock(onAdvanced);
+
   const joinToken = tokenFromJoinPath(path);
   const isCheck = CheckPage !== null && path === "/check";
   const isOps = path === "/ops/record";
-  const needsFamily = !joinToken && path !== "/start" && !isOps && !isCheck;
+  const demoGuideKey = keyFromDemoGuidePath(path);
+  const needsFamily = !joinToken && path !== "/start" && !isOps && !demoGuideKey && !isCheck;
   useEffect(() => {
     if (needsFamily) void reload();
   }, [needsFamily, reload]);
@@ -74,6 +84,13 @@ export function App() {
     return (
       <Suspense fallback={<main><p>{words.loading}</p></main>}>
         <OpsRecordPage />
+      </Suspense>
+    );
+  }
+  if (demoGuideKey) {
+    return (
+      <Suspense fallback={<main><p>{words.loading}</p></main>}>
+        <DemoGuidePage guideKey={demoGuideKey} />
       </Suspense>
     );
   }
@@ -123,13 +140,7 @@ export function App() {
   // デモの操作。出すかどうかはサーバーが決める（canAdvanceClock）。出さないときは描かない
   const demo: DemoProps | null =
     view.family.canAdvanceClock === true
-      ? {
-          clock: view.family.clock,
-          onAdvanced: () => {
-            void reload();
-            setTick((t) => t + 1);
-          },
-        }
+      ? { clock: view.family.clock, ...advance }
       : null;
 
   const key = `${meMember.id}-${tick}`;
