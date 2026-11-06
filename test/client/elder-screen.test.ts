@@ -196,3 +196,46 @@ describe("祖父母の画面の決まり（ソース）", () => {
     expect(words.member.roleElder).toBe("文字の大きな画面（祖父母向け）");
   });
 });
+
+describe("祖父母の今日の二段組（横長の広い画面だけ。0059 の追記）", () => {
+  const css = read("src/client/styles.css");
+  /** 中かっこを数えて、@media の本文を取り出す */
+  const mediaBodies = (query: string) => {
+    const bodies: string[] = [];
+    let at = css.indexOf(`@media ${query} {`);
+    while (at >= 0) {
+      const open = css.indexOf("{", at);
+      let depth = 1;
+      let i = open + 1;
+      for (; depth > 0; i++) {
+        if (css[i] === "{") depth++;
+        if (css[i] === "}") depth--;
+      }
+      bodies.push(css.slice(open + 1, i - 1));
+      at = css.indexOf(`@media ${query} {`, i);
+    }
+    return bodies;
+  };
+  const wide = mediaBodies("(min-width: 75rem) and (orientation: landscape)").join("\n");
+
+  it("二段組と広い欄は、幅 75rem 以上の横長の @media の中にだけある（スマホ・タブレットの縦向き・1180×820 を変えない）", () => {
+    for (const selector of [".entrance-pair", ":has(> .entrance-pair)"]) {
+      expect(wide).toContain(selector);
+      expect(css.split(selector).length - 1).toBe(wide.split(selector).length - 1);
+    }
+    expect(wide).toMatch(/\.elder \.entrance-pair\s*\{[^}]*display: grid/);
+  });
+
+  it("写真は縦横の比のまま縮め、切らない（高さの上限と width: auto。cover にしない）", () => {
+    const rule = wide.match(/\.elder \.mount \.photo\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toContain("width: auto");
+    expect(rule).toContain("max-height: max(10rem, calc(100vh - 36rem))");
+    expect(rule).not.toContain("object-fit");
+    expect(wide).not.toContain("cover");
+  });
+
+  it("広げるのは今日の欄だけ（祖父母の画面の中の、入り口のある main に限る）", () => {
+    expect(wide).toMatch(/\.elder main\.home:has\(> \.entrance-pair\)\s*\{[^}]*max-width: 72rem/);
+    expect(read("src/client/screens/Home.tsx").match(/entrance-pair/g)).toHaveLength(1);
+  });
+});
