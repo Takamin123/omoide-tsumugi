@@ -10,7 +10,7 @@ export const guideWords = {
   lead: "おもいでつむぎは、離れて暮らす家族が写真と思い出を持ち寄る場です。下のボタンから、架空の家族それぞれの画面をご確認いただけます。",
   /** 新しい家族を作るボタンと、専用の画面の見出し */
   newFamily: "新しい家族を作る",
-  newFamilyNote: `新しい家族の最初の日は、まだ語りがないので、決まった問いかけが出ます。語ってから${q(words.demo.advance)}を押すと、翌朝から Claude の問いかけが届きます（固定の問いかけになることもあります）。`,
+  newFamilyNote: `新しい家族の最初の日は、決まった問いかけが出ます。写真を入れて${q(words.demo.advance)}を押すと、翌朝から Claude の問いかけが届きます（決まった問いかけになることもあります）。`,
   startBody: "新しい家族の場を作ります。このブラウザは、その家族の最初の人になります。",
   startSubmit: words.start.submit,
   startBack: words.home.menuHome,
