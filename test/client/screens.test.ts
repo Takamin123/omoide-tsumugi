@@ -297,8 +297,6 @@ describe("審査員の案内（0062）", () => {
 
   it("案内の文に出す画面の名前は、words.ts のいまの文字と同じ", () => {
     const quoted = (t: string) => [...t.matchAll(/「([^」]+)」/g)].map((m) => m[1]!);
-    expect(quoted(guideWords.step1.body)).toEqual([words.elder.readAloud, words.elder.speak, words.elder.write, words.elder.stop]);
-    expect(quoted(guideWords.step2.body)).toEqual([words.home.tabReplies, words.home.listen, words.home.tabAlbum]);
     expect(quoted(guideWords.nextBody)).toEqual([words.demo.label, words.demo.advance]);
     // 「入り口」は審査員に通じないので使わない。AI の話し相手に見せる言葉も置かない
     expect(JSON.stringify(guideWords)).not.toContain("入り口");
@@ -306,7 +304,7 @@ describe("審査員の案内（0062）", () => {
 
   it("画面が探す 4 人の呼ばれ方は、種の 4 人と同じ（ずれると人のボタンが消える）", async () => {
     const { SEED_MEMBERS } = await load("../../src/server/demo/seed");
-    const names = [guideWords.elderName, guideWords.motherName, ...guideWords.otherNames].sort();
+    const names = [...guideWords.names].sort();
     expect(names).toEqual(SEED_MEMBERS.map((m: { calledAs: string }) => m.calledAs).sort());
   });
 

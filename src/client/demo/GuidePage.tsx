@@ -63,47 +63,18 @@ export default function GuidePage({ guideKey }: { guideKey: string }) {
     );
   }
 
-  const open = (calledAs: string, primary: boolean) => {
-    const person = load.people.find((p) => p.calledAs === calledAs);
-    if (!person) return null;
-    return (
-      <a key={calledAs} className={primary ? "button primary" : "button"} href={`/join/${person.token}`}>
-        {calledAs}
-      </a>
-    );
-  };
   const g = guideWords;
 
   return (
     <main className="stack demo-guide">
-      <header>
-        <h1>{words.appName}</h1>
-        <p>{g.lead}</p>
-      </header>
+      <h1>{words.appName}</h1>
 
-      <section className="card-soft" aria-labelledby="guide-steps">
-        <h2 id="guide-steps">{g.stepsTitle}</h2>
-        <ol className="demo-guide-steps">
-          <li>
-            <h3>{g.step1.title}</h3>
-            {open(g.elderName, true)}
-            <p>{g.step1.body}</p>
-          </li>
-          <li>
-            <h3>{g.step2.title}</h3>
-            {open(g.motherName, true)}
-            <p>{g.step2.body}</p>
-          </li>
-          <li>
-            <h3>{g.step3.title}</h3>
-            <p>{g.step3.body}</p>
-          </li>
-        </ol>
-        <div className="demo-guide-others">
-          <span className="sub">{g.others}</span>
-          {g.otherNames.map((name) => open(name, false))}
-        </div>
-      </section>
+      <div className="stack">
+        {g.names.flatMap((name) => {
+          const person = load.people.find((p) => p.calledAs === name);
+          return person ? [<a key={name} className="button primary" href={`/join/${person.token}`}>{name}</a>] : [];
+        })}
+      </div>
 
       <section className="card-soft" aria-labelledby="guide-next">
         <h2 id="guide-next">{g.nextTitle}</h2>

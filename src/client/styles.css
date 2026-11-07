@@ -997,44 +997,12 @@ main.home {
   margin-top: 0;
 }
 
-.demo-guide h2,
-.demo-guide h3 {
+.demo-guide h2 {
   margin: 0;
 }
 
 .demo-guide p {
   margin: 0;
-}
-
-.demo-guide-steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: guide-step;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.demo-guide-steps > li {
-  counter-increment: guide-step;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* 触る順番の番号（li を flex にすると既定の番号が消えるので、見出しの頭に出す） */
-.demo-guide-steps h3::before {
-  content: counter(guide-step) ". ";
-}
-
-.demo-guide-others {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.75rem;
 }
 
 .demo-guide-notes {
