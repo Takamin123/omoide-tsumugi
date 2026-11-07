@@ -10,13 +10,13 @@ export const guideWords = {
   lead: "おもいでつむぎは、離れて暮らす家族が写真と思い出を持ち寄る場です。下のボタンから、架空の家族それぞれの画面をご確認いただけます。",
   /** 新しい家族を作るボタンと、専用の画面の見出し */
   newFamily: "新しい家族を作る",
-  newFamilyNote: `新しい家族の最初の日は、まだ語りがないので、決まった問いかけが出ます。語ってから${q(words.demo.advance)}を押すと、翌朝から Claude の問いかけになります。`,
+  newFamilyNote: `新しい家族の最初の日は、まだ語りがないので、決まった問いかけが出ます。語ってから${q(words.demo.advance)}を押すと、翌朝から Claude の問いかけが届きます（固定の問いかけになることもあります）。`,
   startBody: "新しい家族の場を作ります。このブラウザは、その家族の最初の人になります。",
   startSubmit: words.start.submit,
   startBack: words.home.menuHome,
   familyLimit: "新しい家族はこれ以上作れません。4 人の家族の画面をご確認ください。",
   nextTitle: "次の日へ進める",
-  nextBody: `各タブの一番下、${q(words.demo.label)}の帯の${q(words.demo.advance)}で翌朝へ進みます。家族の語りをもとに、Claude が一人ひとりの翌日の写真と問いかけを作ります。語りは、語った本人ではなく、ほかの家族の翌日の問いかけに活きます。押してから 2 分ほどかかります。`,
+  nextBody: `各タブの一番下、${q(words.demo.label)}の帯の${q(words.demo.advance)}で翌朝へ進みます。家族の語りをもとに、Claude が一人ひとりの翌日の写真と問いかけを作ります。押してから 2 分ほどかかります。`,
   notesTitle: "ご注意",
   notes: [
     "ボタンを押すと、このブラウザがその人になります。一度に一人です。開いていたほかのタブも、その人として動きます。ほかの人を開くには、ブラウザの「戻る」でこのページへ。",
