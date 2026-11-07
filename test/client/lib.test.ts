@@ -96,7 +96,7 @@ describe("api: エラーは種類（ErrorKind）だけにする", () => {
 
   it("本文の error を種類にする", async () => {
     stubFetch([() => jsonRes(404, { error: "not_demo" })]);
-    const err = await api.advanceClock().catch((e: unknown) => e);
+    const err = await api.advanceClock("2026-11-02").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err.kind).toBe("not_demo");
     expect(err.status).toBe(404);

@@ -1,6 +1,6 @@
 // qa: むすびの推測（musubi_guess。0044）の足りないところ。
 // - 渡す材料の上限（記録 150 件・語りの本文 20,000 字。新しい順に残る）と、作業の表の鍵（順番に依らない）
-// - デモの時計のボタン（次の時間帯へ → 翌朝）が、Cron と同じ毎朝の処理を通ってむすびを作ること
+// - デモの時計のボタン（次の日へ）が、Cron と同じ毎朝の処理を通ってむすびを作ること
 // - saveGuessed が、写真の入らないむすびの行を残さないこと
 // Claude は偽物。家族はすべて架空。
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -143,7 +143,7 @@ const rows = (table: string, familyId: string) =>
   d1.prepare(`SELECT * FROM ${table} WHERE family_id = ?`).bind(familyId).all<Record<string, unknown>>().then((r) => r.results);
 
 describe("デモの時計のボタンも、同じ毎朝の処理でむすびを推測する", () => {
-  it("次の時間帯へを 3 回（朝 → 昼 → 夜 → 翌朝）押すと、翌朝の処理でむすびの推測が走り、guessed のむすびが入る", async () => {
+  it("次の日へを一押しすると、翌朝の処理でむすびの推測が走り、guessed のむすびが入る", async () => {
     const fc = fakeClaude({ replies: [reply(["p1", "p2"], ["r1", "r2"])] });
     const t = makeTestApp(d1, { claude: onlyPurpose(fc.claude, "musubi_guess") });
     const f = await createFamily(t, true);
@@ -153,10 +153,6 @@ describe("デモの時計のボタンも、同じ毎朝の処理でむすびを�
     await addTold(t, f.familyId, m.id, p1.id, "伊勢の旅で夫婦岩を見た。", "伊勢の旅");
     await addTold(t, f.familyId, m.id, p2.id, "伊勢の旅の宿のすき焼き。", "伊勢の旅");
 
-    for (let i = 0; i < 2; i++) {
-      expect((await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: m.cookie } })).status).toBe(200);
-      expect(await rows("musubi", f.familyId)).toEqual([]);
-    }
     const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: m.cookie } });
     expect(((await res.json()) as { clock: { slot: string } }).clock.slot).toBe("morning");
     const ms = await rows("musubi", f.familyId);

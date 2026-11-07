@@ -19,6 +19,16 @@ argument-hint: "[local|preview|production] [家族 ID]"
 - **出してよいのは、環境、家族 ID、デモかどうか、件数だけ。** 家族の名前、語りの本文、写真の URL、R2 のキーを、会話・ログ・ファイルに出さない。家族 ID もファイルやコミットに書かない
 - **本番では、必ず人間の確認を取ってから消す。** サブエージェントとして動いているときは、本番では数えるところまでで止め、「本番で消すのは人間に頼む必要がある」と報告して返す
 
+## 審査の後に消す家族（0062）
+
+審査員が案内から作った家族は `families.name = 'demo-guide'` で引ける。ID は会話に出してよいがファイルに書かない。消すのはこの家族だけで、台本の 4 人の家族は `/demo-reset` で戻す。
+
+```bash
+npx wrangler d1 execute omoide-tsumugi-preview --env preview --remote --json --command "SELECT id FROM families WHERE name = 'demo-guide' AND is_demo = 1"
+```
+
+一つずつ、下の手順に `--allow-demo` を付けて消す。
+
 ## 前提
 
 - 環境、データベース、バケットの名前は `wrangler.jsonc` を正とする。スクリプトは、プレビューと本番が同じ D1 か R2 を指していたら止まる

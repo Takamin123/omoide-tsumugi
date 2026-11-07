@@ -38,7 +38,7 @@ argument-hint: "[preview|production]"
 
 Claude や文字起こしを呼んで確かめる専用の入り口（ヘルスチェックの奥の段）は作っていません。`GET /api/health` は、通ったことだけを返します。代わりに、毎朝の処理のログで確かめます。
 
-- preview: デモの家族の時計を進めて（デモの帯の時計のボタンを、翌朝になるまで押す）、毎朝の処理を走らせる。ダッシュボードの Workers Logs か `npx wrangler tail --env preview` で `morning_done` を探し、`byClaude` が 1 以上、`speech.made` が 1 以上であることを見る。`fallbacks` に `not_configured` があればキーがない
+- preview: デモの家族の時計を進めて（デモの帯の「次の日へ」を押す）、毎朝の処理を走らせる。ダッシュボードの Workers Logs か `npx wrangler tail --env preview` で `morning_done` を探し、`byClaude` が 1 以上、`speech.made` が 1 以上であることを見る。`fallbacks` に `not_configured` があればキーがない
   - 本物の Claude と読み上げを呼ぶ（費用がかかる）。一度で足りる
 - production: 書き込みをしないので、時計は進めない。日本時間 3:00 の Cron の `morning_done` を、ダッシュボードの Workers Logs で見る
   - 家族がいない朝や、家族を作った初日（全員が固定の入り口）は、`byClaude` も `speech.made` も 0 になる（`speech.made` は Claude の入り口にだけ数える）。それは失敗ではない。その間は、`morning_done` が出ていること、`families` の数、`fallbacks` の理由に `not_configured` がないことだけを見る

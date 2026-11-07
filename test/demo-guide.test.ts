@@ -2,6 +2,7 @@
 // 架空の家族と架空の値だけを使う（本物の鍵とリンクを書かない）。
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { demoGuideKeyMisconfig } from "../src/server/routes/auth";
+import { DEMO_GUIDE_FAMILY_LIMIT, DEMO_GUIDE_FAMILY_NAME } from "../src/server/routes/demo";
 import { SEED_MEMBERS } from "../src/server/demo/seed";
 import {
   addMember,
@@ -207,12 +208,135 @@ describe("案内が開いている間、デモの家族の人とリンクは変�
     expect((await send("POST", `/api/members/${real.ids["ゆい"]}/link`, real.cookie)).status).toBe(200);
   });
 
-  it("鍵かリンクの設定が使えないときは、開いていないとみなす", async () => {
+  it("鍵かリンクの設定が使えなくても、鍵があれば守る（閉じる側に倒す）。鍵を消せば変えられる", async () => {
     const { ids, links, cookie } = await seedLikeFamily();
     configure("short", links);
-    expect((await send("POST", `/api/members/${ids["ゆい"]}/link`, cookie)).status).toBe(200);
+    expect((await send("POST", `/api/members/${ids["ゆい"]}/link`, cookie)).status).toBe(403);
     configure(KEY, "{");
+    expect((await send("PATCH", `/api/members/${ids["ゆい"]}`, cookie, input)).status).toBe(403);
+    configure(null, links);
     expect((await send("PATCH", `/api/members/${ids["ゆい"]}`, cookie, input)).status).toBe(200);
+  });
+});
+
+describe("審査員が新しい家族を作る", () => {
+  const create = (body: unknown) =>
+    t.app.request("/api/demo/guide/families", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const clearJudgeFamilies = async () => {
+    await d1.prepare("DELETE FROM invite_links WHERE family_id IN (SELECT id FROM families WHERE name = ?)").bind(DEMO_GUIDE_FAMILY_NAME).run();
+    await d1.prepare("DELETE FROM members WHERE family_id IN (SELECT id FROM families WHERE name = ?)").bind(DEMO_GUIDE_FAMILY_NAME).run();
+    await d1.prepare("DELETE FROM families WHERE name = ?").bind(DEMO_GUIDE_FAMILY_NAME).run();
+  };
+  const judgeCount = async () =>
+    (await d1.prepare("SELECT count(*) AS n FROM families WHERE name = ?").bind(DEMO_GUIDE_FAMILY_NAME).first<{ n: number }>())!.n;
+  const send = (method: string, path: string, cookie: string, body?: unknown) =>
+    t.app.request(path, {
+      method,
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  it("鍵が合えば、デモの家族で時計つきの家族ができ、cookie は最初の人のリンク。本文に合言葉を返さない。保存させない", async () => {
+    await clearJudgeFamilies();
+    const { links } = await seedLikeFamily();
+    configure(KEY, links);
+    const res = await create({ key: KEY });
+    expect(res.status).toBe(204);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(await res.text()).toBe("");
+    const cookie = inviteCookieFrom(res)!;
+    const view = (await (await t.app.request("/api/family", { headers: { Cookie: cookie } })).json()) as {
+      family: { isDemo: boolean; clock: { slot: string } | null; canAdvanceClock: boolean };
+      members: unknown[];
+      me: unknown;
+    };
+    expect(view.family.isDemo).toBe(true);
+    expect(view.family.clock?.slot).toBe("morning");
+    expect(view.family.canAdvanceClock).toBe(true);
+    expect(view.members).toEqual([]);
+    expect(view.me).toBeNull();
+    // Cron の対象外
+    expect(await t.deps.repos.families.listIdsWithoutClock()).not.toContain(
+      (await d1.prepare("SELECT id FROM families WHERE name = ?").bind(DEMO_GUIDE_FAMILY_NAME).first<{ id: string }>())!.id,
+    );
+  });
+
+  it.each([
+    ["鍵の不一致", { key: "x".repeat(40) }],
+    ["鍵がない", {}],
+    ["形が違う", { key: 1 }],
+  ])("%s は 404 で、何も作らない", async (_name, input) => {
+    await clearJudgeFamilies();
+    const { links } = await seedLikeFamily();
+    configure(KEY, links);
+    const res = await create(input);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not_found" });
+    expect(inviteCookieFrom(res)).toBeNull();
+    expect(await judgeCount()).toBe(0);
+  });
+
+  it("設定なし・リンクの設定が読めない・本番と同じ鍵なしは 404（閉じている）", async () => {
+    await clearJudgeFamilies();
+    const { links } = await seedLikeFamily();
+    configure(null, links);
+    expect((await create({ key: KEY })).status).toBe(404);
+    configure(KEY, "{");
+    expect((await create({ key: KEY })).status).toBe(404);
+    configure(KEY, null);
+    expect((await create({ key: KEY })).status).toBe(404);
+    expect(await judgeCount()).toBe(0);
+  });
+
+  it("ふつうの家族を作る入り口は、案内の鍵では開かない", async () => {
+    const { links } = await seedLikeFamily();
+    configure(KEY, links);
+    const res = await t.app.request("/api/families", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ isDemo: true }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("合計 20 まで。超えたら 409 family_limit で何も作らず、cookie も置かない。同時に押しても超えない。ほかの家族は数えない", async () => {
+    await clearJudgeFamilies();
+    const { links } = await seedLikeFamily();
+    configure(KEY, links);
+    const results = await Promise.all(Array.from({ length: DEMO_GUIDE_FAMILY_LIMIT + 3 }, () => create({ key: KEY })));
+    expect(results.filter((r) => r.status === 204)).toHaveLength(DEMO_GUIDE_FAMILY_LIMIT);
+    const over = results.filter((r) => r.status === 409);
+    expect(over).toHaveLength(3);
+    expect(await over[0]!.json()).toEqual({ error: "family_limit" });
+    expect(inviteCookieFrom(over[0]!)).toBeNull();
+    expect(await judgeCount()).toBe(DEMO_GUIDE_FAMILY_LIMIT);
+    // 宙に浮いたリンクを残さない
+    const orphan = await d1.prepare("SELECT count(*) AS n FROM invite_links WHERE family_id NOT IN (SELECT id FROM families)").first<{ n: number }>();
+    expect(orphan!.n).toBe(0);
+    await clearJudgeFamilies();
+  });
+
+  it("審査員の家族は、案内が開いている間も人を足せてリンクを作れる。4 人の家族は変えられないまま", async () => {
+    await clearJudgeFamilies();
+    const script = await seedLikeFamily();
+    configure(KEY, script.links);
+    const judge = inviteCookieFrom(await create({ key: KEY }))!;
+    const first = await send("POST", "/api/members", judge, { ...defaultMember, calledAs: "架空のはは" });
+    expect(first.status).toBe(201);
+    const me = inviteCookieFrom(first)!;
+    const added = await send("POST", "/api/members", me, { ...defaultMember, role: "elder", calledAs: "架空のそふ" });
+    expect(added.status).toBe(201);
+    const { id } = (await added.json()) as { id: string };
+    const link = await send("POST", `/api/members/${id}/link`, me);
+    expect(link.status).toBe(200);
+    expect((await send("PATCH", `/api/members/${id}`, me, { ...defaultMember, role: "elder", calledAs: "架空のじいじ" })).status).toBe(200);
+    // 4 人の家族
+    expect((await send("POST", "/api/members", script.cookie, { ...defaultMember, calledAs: "架空のおば" })).status).toBe(403);
+    expect((await send("POST", `/api/members/${script.ids["ゆい"]}/link`, script.cookie)).status).toBe(403);
+    expect((await send("PATCH", `/api/members/${script.ids["ゆい"]}`, script.cookie, { ...defaultMember, calledAs: "架空のおば" })).status).toBe(403);
+    // 審査員の家族の cookie で、4 人の家族の人は触れない（ほかの家族として 404）
+    expect((await send("POST", `/api/members/${script.ids["ゆい"]}/link`, me)).status).toBe(404);
+    await clearJudgeFamilies();
   });
 });
 

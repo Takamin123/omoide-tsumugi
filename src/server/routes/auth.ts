@@ -20,6 +20,7 @@ export const PUBLIC_ROUTES: readonly (readonly [method: string, path: string])[]
   ["POST", "/api/session"], // 合言葉の入力
   ["POST", "/api/families"], // 家族を作る。合言葉の代わりに CREATE_FAMILY_TOKEN（Bearer）で守る
   ["POST", "/api/demo/guide"], // 審査員の案内。合言葉の代わりに本文の鍵（DEMO_GUIDE_KEY）で守る。合わなければ 404（0062）
+  ["POST", "/api/demo/guide/families"], // 審査員が新しい家族を作る。同じ鍵で守る。合わなければ 404（0062）
 ];
 
 /**
@@ -164,11 +165,6 @@ export function demoGuideKeyMisconfig(config: AppConfig): DemoGuideKeyMisconfig 
   if (config.opsRecordToken && key === config.opsRecordToken) return "same_as_ops_record_token";
   if (config.demoResetToken && key === config.demoResetToken) return "same_as_demo_reset_token";
   return null;
-}
-
-/** 案内の鍵が設定されていて、使える値か（秘密の値を消せば偽。消すだけでページが閉じる。本番には登録しない。0062） */
-export function demoGuideKeyUsable(config: AppConfig): boolean {
-  return config.demoGuideKey !== null && demoGuideKeyMisconfig(config) === null;
 }
 
 /** 渡された鍵が案内の鍵と同じか（時間が一定の比較）。設定がない・使えない設定なら誰も通さない */

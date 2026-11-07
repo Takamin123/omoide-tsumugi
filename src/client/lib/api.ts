@@ -113,9 +113,12 @@ export const api = {
   /** この端末の人の今日の入り口 */
   todayEntrance: () => call<{ entrance: Entrance | null }>("/api/entrances/today"),
 
-  advanceClock: () => call<AdvanceClockResult>("/api/demo/clock/advance", { method: "POST" }),
+  /** 翌朝へ。from は画面の日付（別の押しが先に進めていたら、サーバーは何もしない。0062） */
+  advanceClock: (from: string) => call<AdvanceClockResult>("/api/demo/clock/advance", json("POST", { from })),
   /** 審査員の案内のリンクを受け取る。鍵は URL の検索語ではなく本文で送る（0062） */
   demoGuide: (key: string) => call<DemoGuideResult>("/api/demo/guide", json("POST", { key })),
+  /** 審査員が新しい家族を作る。この端末は、その家族の最初の人のリンクで開いた状態になる（0062） */
+  demoGuideCreateFamily: (key: string) => call<void>("/api/demo/guide/families", json("POST", { key })),
   /** デモの家族を最初の状態に戻す（運営だけ。鍵は渡すだけで残さない。0038） */
   resetDemo: (familyId: string, resetToken: string) =>
     call<DemoResetResult>(`/api/demo/families/${encodeURIComponent(familyId)}/reset`, {

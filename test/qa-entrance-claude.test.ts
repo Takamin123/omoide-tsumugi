@@ -275,20 +275,18 @@ describe("QA ログに本文・名前を出さない", () => {
 });
 
 describe("QA デモの時計のボタンも、Cron と同じ処理（runMorning）で Claude の入り口を作る", () => {
-  it("「次の時間帯へ」を 3 回で翌朝になり、Claude の入り口ができる。開いたときは Claude を呼ばない", async () => {
+  it("「次の日へ」を一押しで翌朝になり、Claude の入り口ができる。開いたときは Claude を呼ばない", async () => {
     const s = await setup((pid, nid) => [good(pid, nid), good(pid, nid)], { isDemo: true });
-    for (let i = 0; i < 3; i++) {
-      const res = await s.t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: s.cookie } });
-      expect(res.status).toBe(200);
-    }
+    const res = await s.t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: s.cookie } });
+    expect(res.status).toBe(200);
     expect(messageCalls(s.requests)).toHaveLength(2);
     const rows = (await d1.prepare("SELECT kind, for_date, prompt_version FROM entrances WHERE family_id = ?").bind(s.familyId).all()).results;
     expect(rows).toHaveLength(2);
     for (const r of rows) expect(r).toMatchObject({ kind: "claude", for_date: "2026-11-03", prompt_version: "entrance/v3" });
 
     const before = s.requests.length;
-    const res = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
-    const body = (await res.json()) as { entrance: { question: string; forDate: string; quote: { text: string } | null } };
+    const res2 = await s.t.app.request("/api/entrances/today", { headers: { Cookie: s.elderCookie } });
+    const body = (await res2.json()) as { entrance: { question: string; forDate: string; quote: { text: string } | null } };
     expect(body.entrance).toMatchObject({ forDate: "2026-11-03", question: QUESTION, quote: { text: "全然抜けなかった" } });
     expect(s.requests.length).toBe(before);
   });

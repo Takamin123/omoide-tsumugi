@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import type { AdvanceClockResult, Entrance } from "../../shared/api";
-import { canAdvanceClock, familyClock, familyToday, nextClock } from "../core/clock";
+import { advanceClockInputSchema, type AdvanceClockResult, type Entrance } from "../../shared/api";
+import { canAdvanceClock, familyClock, familyToday, nextMorning } from "../core/clock";
 import { ensureFixedEntrance } from "../core/entrances";
 import { runMorning } from "../core/morning";
 import { currentMember } from "./auth";
 import type { AppEnv } from "./env";
-import { fail } from "./http";
+import { fail, parseWith, readJson } from "./http";
 import { privateBody } from "./photos";
 import { entranceView } from "./views";
 
@@ -39,20 +39,24 @@ export const entrances = new Hono<AppEnv>()
     return privateBody(obj.body, obj.contentType, obj.size);
   })
 
-  // デモの時計: 朝 → 昼 → 夜 → 翌朝。翌朝になったら毎朝の処理（Cron と同じ関数）を、その家族について呼ぶ
+  // デモの時計: どの時間帯からでも一押しで翌朝へ。毎朝の処理（Cron と同じ関数）を翌朝の日付で先に走らせ、終わってから時計を動かす（0062）。
+  // 先に動かすと、待ちの間に誰かが開いたときに新しい日の固定の入り口ができ、その人だけ Claude の問いかけにならない。
+  // 時計を動かすのは、時計がまだ from の日付のときだけ（一つの UPDATE）。同時に押しても一日しか進まない。毎朝の処理は重なっても一人一日に入り口は一つ
   .post("/demo/clock/advance", async (c) => {
     const deps = c.get("deps");
     const family = c.get("family");
     if (!canAdvanceClock(deps.config, family)) return fail(c, "not_demo");
+    const input = parseWith(advanceClockInputSchema, (await readJson(c)) ?? {});
+    if (!input) return fail(c, "invalid_request");
     const now = deps.now();
-    const clock = nextClock(familyClock(family, now));
-    await deps.repos.families.setClock(family.id, clock);
-    if (clock.slot === "morning") {
-      try {
-        await runMorning(deps, now, { familyId: family.id });
-      } catch {
-        // 入り口が作れなくても時計は進める。開いたときに固定の入り口が作られる
-      }
+    const current = familyClock(family, now);
+    if (input.from !== undefined && input.from !== current.date) return c.json({ clock: current } satisfies AdvanceClockResult);
+    const clock = nextMorning(current);
+    try {
+      await runMorning(deps, now, { familyId: family.id, forDate: clock.date });
+    } catch {
+      // 入り口が作れなくても時計は進める。開いたときに固定の入り口が作られる
     }
+    await deps.repos.families.moveClock(family.id, family.clock?.date ?? null, clock); // 別の押しが先に進めていれば何もしない（同じ翌朝になっている）
     return c.json({ clock } satisfies AdvanceClockResult);
   });

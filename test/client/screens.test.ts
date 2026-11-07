@@ -118,15 +118,13 @@ describe("添える家族の言葉の声と、問いかけの読み上げ", () =
 
 describe("デモの帯", () => {
   const clock = { date: "2026-11-02", slot: "morning" };
-  const bar = { clock, advancing: false, longWait: false, error: null, onAdvance: () => {} };
-  it("夜から翌朝へ進めている間だけ「進めています」を出し、ボタンを押せなくする（0062）", () => {
+  const bar = { clock, advancing: false, error: null, onAdvance: () => {} };
+  it("翌朝へ進めている間「進めています」を出し、ボタンを押せなくする。押した日付を渡す（0062）", () => {
     expect(renderToStaticMarkup(h(DemoBar, bar))).not.toContain(words.demo.advancing);
-    // 待ちの間に読み直すと時計はもう朝。押したときの時間帯で決めるので、時計が朝でも出たまま
-    const waiting = renderToStaticMarkup(h(DemoBar, { ...bar, advancing: true, longWait: true }));
+    const waiting = renderToStaticMarkup(h(DemoBar, { ...bar, advancing: true }));
     expect(waiting).toContain(words.demo.advancing);
     expect(waiting).toMatch(/<button[^>]*disabled=""/);
-    // 朝・昼はすぐ終わるので出さない
-    expect(renderToStaticMarkup(h(DemoBar, { ...bar, advancing: true }))).not.toContain(words.demo.advancing);
+    expect(stripComments(read("src/client/parts/DemoBar.tsx"))).toContain("onAdvance(clock.date)");
   });
   it("進めている間の状態は App が持つ（帯はタブごとに描き直されるので、タブを替えても消えない。0062）", () => {
     expect(stripComments(read("src/client/App.tsx"))).toContain("useAdvanceClock(onAdvanced)");

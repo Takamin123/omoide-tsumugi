@@ -151,7 +151,7 @@ describe("デモの家族の流れ（時計のボタン）", () => {
     const fake = entranceClaude();
     const t = makeTestApp(d1, { claude: fake.claude, now: DEMO_NOW });
     const s = await demo(t);
-    for (let i = 0; i < 3; i++) expect((await advance(t, s.mother.cookie)).status).toBe(200);
+    expect((await advance(t, s.mother.cookie)).status).toBe(200);
     expect(new Set(fake.versions)).toEqual(new Set(["entrance/v3"]));
     const rows = await rowsFor(s.familyId, "2026-11-03");
     expect(rows.length).toBe(2);
@@ -171,7 +171,7 @@ describe("デモの家族の流れ（時計のボタン）", () => {
     const t = makeTestApp(d1, { claude: fake.claude, now: DEMO_NOW });
     const s = await demo(t);
     t.deps.repos = { ...t.deps.repos, musubi: { ...t.deps.repos.musubi, listByFamily: () => Promise.reject(new Error("架空の読み出しの失敗")) } };
-    for (let i = 0; i < 3; i++) expect((await advance(t, s.mother.cookie)).status).toBe(200);
+    expect((await advance(t, s.mother.cookie)).status).toBe(200);
     expect(fake.versions).toEqual([]);
     const rows = await rowsFor(s.familyId, "2026-11-03");
     expect(rows.length).toBe(2);
@@ -202,7 +202,7 @@ describe("デモの初期化（demo-reset）と既定の v3", () => {
 
     const clock = ((await (await t.app.request("/api/family", { headers: { Cookie: first.cookie } })).json()) as { family: { clock: { date: string } } }).family.clock;
     const next = new Date(Date.parse(`${clock.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-    for (let i = 0; i < 3; i++) expect((await advance(t, first.cookie)).status).toBe(200);
+    expect((await advance(t, first.cookie)).status).toBe(200);
     const rows = await rowsFor(f.familyId, next);
     expect(rows.length).toBeGreaterThan(0);
     const claudeRows = rows.filter((r) => r.kind === "claude");

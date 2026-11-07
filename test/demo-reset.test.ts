@@ -294,7 +294,7 @@ describe("初期化の鍵（0038。0030 と同じ規則）", () => {
       const res = await reset(t, f.familyId, bad ?? DEMO_RESET_TOKEN);
       expect(res.status, String(bad)).toBe(401);
     }
-    const base = { appEnv: "production", createFamilyToken: CREATE_TOKEN, opsRecordToken: OPS_TOKEN, opsRecordFamilies: [] };
+    const base = { appEnv: "production", createFamilyToken: CREATE_TOKEN, opsRecordToken: OPS_TOKEN, opsRecordFamilies: [], demoGuideKey: null, demoGuideLinks: null };
     expect(demoResetKeyMisconfig({ ...base, demoResetToken: null })).toBeNull();
     expect(demoResetKeyMisconfig({ ...base, demoResetToken: "a".repeat(31) })).toBe("too_short");
     expect(demoResetKeyMisconfig({ ...base, createFamilyToken: "c".repeat(40), demoResetToken: "c".repeat(40) })).toBe("same_as_create_family_token");

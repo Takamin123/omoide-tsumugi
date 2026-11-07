@@ -7,11 +7,12 @@
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { demoGuideInputSchema, type DemoGuideResult, type DemoResetResult } from "../../shared/api";
+import { jstDate } from "../core/clock";
 import { resetDemoFamily } from "../core/demo-reset";
 import type { AppConfig } from "../core/ports";
-import { hashToken } from "../core/secrets";
+import { hashToken, newInviteToken } from "../core/secrets";
 import { SEED_MEMBERS } from "../demo/seed";
-import { demoGuideKeyUsable, hasDemoResetKey, matchesDemoGuideKey } from "./auth";
+import { hasDemoResetKey, matchesDemoGuideKey, setInviteCookie } from "./auth";
 import type { AppEnv } from "./env";
 import { fail, parseJsonString, parseWith, readJson } from "./http";
 
@@ -24,11 +25,20 @@ function readDemoGuideLinks(config: AppConfig): Record<string, string> | null {
 }
 
 /**
- * 審査員の案内が開いているか（鍵とリンクの設定がどちらも使える）。開いている間は、デモの家族の人とリンクを変えられない（routes/members.ts）。
- * 初期化（0038）は人とリンクに触れず、審査員が壊すと戻せないため。秘密の値を消せば、運営は従来どおり直せる（0062）
+ * 審査員の案内から作った家族の印（families.name。名前としては使っていない列）。数える・見分ける・審査の後に消す家族を引く、に使う。
+ * 移行を足さないための形で、家族の名前を画面に出すようになったら列を分ける（0062）
  */
-export function demoGuideOpen(config: AppConfig): boolean {
-  return demoGuideKeyUsable(config) && readDemoGuideLinks(config) !== null;
+export const DEMO_GUIDE_FAMILY_NAME = "demo-guide";
+/** 審査員の案内から作れる家族の合計 */
+export const DEMO_GUIDE_FAMILY_LIMIT = 20;
+
+/**
+ * 案内の鍵が設定されている間、デモの家族（案内から作った家族を除く）の人とリンクを変えられない（routes/members.ts）。
+ * 初期化（0038）は人とリンクに触れず、審査員が壊すと戻せないため。鍵やリンクの設定が読めなくても、鍵があれば閉じる側に倒す。
+ * 読み取りを足さない。鍵を消せば、運営は従来どおり直せる（0062）
+ */
+export function lockedByDemoGuide(config: AppConfig, family: { isDemo: boolean; name: string | null }): boolean {
+  return config.demoGuideKey !== null && family.isDemo && family.name !== DEMO_GUIDE_FAMILY_NAME;
 }
 
 const requireDemoResetKey: MiddlewareHandler<AppEnv> = async (c, next) => {
@@ -68,4 +78,24 @@ export const demo = new Hono<AppEnv>()
     }
     if (people.length === 0) return fail(c, "not_found");
     return c.json({ people } satisfies DemoGuideResult);
+  })
+  // 審査員が新しい家族を作る（0062）。案内の鍵を合言葉の代わりにする。デモの家族で時計つき（Cron の対象外）。
+  // 最初の人のリンクの合言葉は cookie にだけ置く（リンクの画面を挟まず、最初の人を入れる画面へ進む）
+  .post("/demo/guide/families", async (c) => {
+    c.header("Cache-Control", "private, no-store");
+    const deps = c.get("deps");
+    const input = parseWith(demoGuideInputSchema, await readJson(c));
+    if (!input || !(await matchesDemoGuideKey(deps.config, input.key)) || !readDemoGuideLinks(deps.config)) return fail(c, "not_found");
+    const now = deps.now();
+    const token = newInviteToken();
+    const familyId = crypto.randomUUID();
+    const created = await deps.repos.families.createWithinLimit(
+      { id: familyId, name: DEMO_GUIDE_FAMILY_NAME, isDemo: true, clock: { date: jstDate(now), slot: "morning" } },
+      { id: crypto.randomUUID(), tokenHash: await hashToken(token) },
+      now.getTime(),
+      DEMO_GUIDE_FAMILY_LIMIT,
+    );
+    if (!created) return fail(c, "family_limit");
+    setInviteCookie(c, token);
+    return c.body(null, 204);
   });

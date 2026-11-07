@@ -297,6 +297,38 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
           db.insert(inviteLinks).values({ id: firstLink.id, familyId: family.id, tokenHash: firstLink.tokenHash, memberId: null, createdAt: now }),
         ]);
       },
+      async createWithinLimit(family, firstLink, now, limit) {
+        const v = <T>(x: T, as: string) => sql<T>`${x}`.as(as);
+        await runBatch([
+          db.insert(families).select(
+            db
+              .select({
+                id: v(family.id, "id"),
+                name: v<string | null>(family.name, "name"),
+                isDemo: v(family.isDemo ? 1 : 0, "isDemo"),
+                clockDate: v(family.clock?.date ?? null, "clockDate"),
+                clockSlot: v(family.clock?.slot ?? null, "clockSlot"),
+                createdAt: v(now, "createdAt"),
+              })
+              .from(sql`(SELECT 1)`)
+              .where(sql`(SELECT count(*) FROM ${families} WHERE ${families.name} = ${family.name}) < ${limit}`) as never,
+          ) as unknown as BatchItem,
+          db.insert(inviteLinks).select(
+            db
+              .select({
+                id: v(firstLink.id, "id"),
+                familyId: families.id,
+                tokenHash: v(firstLink.tokenHash, "tokenHash"),
+                memberId: v<string | null>(null, "memberId"),
+                createdAt: v(now, "createdAt"),
+                revokedAt: v<number | null>(null, "revokedAt"),
+              })
+              .from(families)
+              .where(eq(families.id, family.id)),
+          ) as unknown as BatchItem,
+        ]);
+        return (await db.select({ id: families.id }).from(families).where(eq(families.id, family.id)).get()) !== undefined;
+      },
       async get(familyId) {
         const r = await db.select().from(families).where(eq(families.id, familyId)).get();
         return r ? toFamily(r) : null;
@@ -316,6 +348,14 @@ export function createSqlRepositories(db: SqliteDb, runBatch: RunBatch): Reposit
       },
       async setClock(familyId, clock) {
         await db.update(families).set({ clockDate: clock.date, clockSlot: clock.slot }).where(eq(families.id, familyId));
+      },
+      async moveClock(familyId, expectedDate, clock) {
+        const res = await db
+          .update(families)
+          .set({ clockDate: clock.date, clockSlot: clock.slot })
+          .where(and(eq(families.id, familyId), expectedDate === null ? isNull(families.clockDate) : eq(families.clockDate, expectedDate)))
+          .run();
+        return changes(res) > 0;
       },
       async listIdsWithoutClock() {
         const rows = await db.select({ id: families.id }).from(families).where(isNull(families.clockDate)).all();

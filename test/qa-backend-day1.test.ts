@@ -187,9 +187,7 @@ describe("デモの時計は、ほかの家族に触れない", () => {
     await addPhoto(prod, rm.cookie, 1);
     await addPhoto(prod, dm.cookie, 1);
     const before = await count("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ?", real.familyId);
-    for (let i = 0; i < 3; i++) {
-      expect((await prod.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: dm.cookie } })).status).toBe(200);
-    }
+    expect((await prod.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: dm.cookie } })).status).toBe(200);
     expect(await count("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ?", demo.familyId)).toBe(1);
     expect(await count("SELECT COUNT(*) AS n FROM entrances WHERE family_id = ?", real.familyId)).toBe(before);
     expect(await d1.prepare("SELECT clock_date, clock_slot FROM families WHERE id = ?").bind(real.familyId).first()).toEqual({

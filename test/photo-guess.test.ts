@@ -326,10 +326,8 @@ describe("毎朝の処理（デモの時計のボタン）から同じ関数で�
 
     const rows = fam.photoIds.map((id) => ({ custom_id: id, result: { type: "succeeded", message: fakeClaudeMessage(guessReply() as any) } }));
     t.deps.claude = fakeClaude({ batch: { status: "ended", rows } }).claude;
-    for (let i = 0; i < 3; i++) {
-      const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: fam.cookie } });
-      expect(res.status).toBe(200);
-    }
+    const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: fam.cookie } });
+    expect(res.status).toBe(200);
     expect(await t.deps.repos.photoGuesses.listByFamily(fam.familyId)).toHaveLength(n);
   });
 });

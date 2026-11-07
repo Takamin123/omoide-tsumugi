@@ -13,6 +13,7 @@ export const errorKinds = [
   "not_demo", // デモの家族ではない（404 と同じ扱いでよいが、種類は分ける）
   "demo_seed_mismatch", // デモの初期化: 家族の人の呼ばれ方と役が種と合わない（409。何も変えていない。0038）
   "demo_seed_missing", // デモの初期化: 種の写真・録音が置かれていない（409。何も変えていない。0038）
+  "family_limit", // 審査員の案内から作れる家族の上限に達した（409。何も作っていない。0062）
   "too_large", // 413
   "internal", // 500
 ] as const;
@@ -278,11 +279,17 @@ export type Entrance = {
  * 使えるのは FamilyView.family.canAdvanceClock が真の家族だけ。ほかは 404 { error: "not_demo" }
  */
 export type AdvanceClockResult = { clock: Clock };
+/**
+ * POST /api/demo/clock/advance { from? }。from は画面の日付。時計がその日付のときだけ翌朝へ進める（別のタブや別の人の同時の押しで二日進まない。0062）。
+ * 違っていれば何もせず今の時計を返す。from がなければ今の時計を from とみなす
+ */
+export const advanceClockInputSchema = z.object({ from: jstDateSchema.optional() });
 
 // POST /api/demo/guide { key } → 200 DemoGuideResult。審査員の案内（/demo/<鍵>）。鍵が合わない・設定がないときは、区別せず 404 not_found（0062）
 /** 案内の鍵の形。URL の道にそのまま載る文字だけ（/join の合言葉と同じ文字）。上限は入力の検証のため */
 export const DEMO_GUIDE_KEY_PATTERN = /^[A-Za-z0-9_-]{32,200}$/;
 export const demoGuideInputSchema = z.object({ key: z.string().regex(DEMO_GUIDE_KEY_PATTERN) });
+// POST /api/demo/guide/families { key } → 204 と cookie（最初の人のリンクの合言葉。本文には返さない）。鍵の扱いは /api/demo/guide と同じ。上限に達したら 409 family_limit（0062）
 /** 使えるリンクだけが、台本の人の並びで入る。使えないリンクは入らない（その人のボタンを出さない） */
 export type DemoGuideResult = { people: { calledAs: string; token: string }[] };
 

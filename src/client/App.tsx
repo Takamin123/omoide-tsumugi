@@ -2,7 +2,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api, ApiError, type FamilyViewWithClock } from "./lib/api";
 import { errorText } from "./lib/errors";
-import { keyFromDemoGuidePath, screenFor, tokenFromJoinPath } from "./lib/pure";
+import { isDemoGuideStartPath, keyFromDemoGuidePath, screenFor, tokenFromJoinPath } from "./lib/pure";
 import { navigate, usePath } from "./lib/route";
 import { DemoBar, useAdvanceClock, type DemoProps } from "./parts/DemoBar";
 import { ErrorLine } from "./parts/ErrorLine";
@@ -90,7 +90,7 @@ export function App() {
   if (demoGuideKey) {
     return (
       <Suspense fallback={<main><p>{words.loading}</p></main>}>
-        <DemoGuidePage guideKey={demoGuideKey} />
+        <DemoGuidePage guideKey={demoGuideKey} start={isDemoGuideStartPath(path)} />
       </Suspense>
     );
   }

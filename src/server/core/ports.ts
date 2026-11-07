@@ -191,7 +191,14 @@ export interface FamilyRepository {
   get(familyId: string): Promise<FamilyRow | null>;
   /** 取り消されていないリンクのハッシュから、家族と人を引く。 */
   findActiveLink(tokenHash: string): Promise<ActiveLink | null>;
+  /**
+   * 家族を作るのと同じ。ただし同じ name の家族が limit 未満のときだけ（数えるのと作るのは一つの文で、同時に押しても超えない）。
+   * 審査員の案内から作る家族だけが使う（0062）。作れたら true
+   */
+  createWithinLimit(family: Omit<FamilyRow, "createdAt"> & { name: string }, firstLink: NewInviteLink, now: number, limit: number): Promise<boolean>;
   setClock(familyId: string, clock: Clock): Promise<void>;
+  /** 時計がまだ expectedDate（時計を持たない家族は null）のときだけ動かす（一つの文）。動かせたら true（0062） */
+  moveClock(familyId: string, expectedDate: string | null, clock: Clock): Promise<boolean>;
   /** 毎朝の処理の対象: 時計を持たない（本当の時刻で動く）家族 */
   listIdsWithoutClock(): Promise<string[]>;
 }

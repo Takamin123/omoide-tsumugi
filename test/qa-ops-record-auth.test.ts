@@ -34,7 +34,7 @@ const spyRepos = new Proxy({} as Repositories, {
   },
 });
 const appFor = (appEnv = "development") =>
-  createApp(() => fakeDeps({ repos: spyRepos, config: { appEnv, createFamilyToken: CREATE_KEY, opsRecordToken: KEY, opsRecordFamilies: [], demoResetToken: null } }));
+  createApp(() => fakeDeps({ repos: spyRepos, config: { appEnv, createFamilyToken: CREATE_KEY, opsRecordToken: KEY, opsRecordFamilies: [], demoResetToken: null, demoGuideKey: null, demoGuideLinks: null } }));
 const app = appFor();
 
 const COOKIE = { Cookie: cookieOf("any-family-token") };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, appDate, canAdvanceClock, familyClock, jstDate, jstSlot, nextClock } from "../src/server/core/clock";
+import { addDays, appDate, canAdvanceClock, familyClock, jstDate, jstSlot, nextMorning } from "../src/server/core/clock";
 import { pickFixedPhoto } from "../src/server/core/entrances";
 import type { PhotoRow } from "../src/server/core/ports";
 
@@ -34,8 +34,10 @@ describe("日本時間", () => {
     expect(familyClock({ clock: null }, now)).toEqual({ date: "2026-11-02", slot: "morning" });
   });
 
-  it("夜の次は翌日の朝（月・年をまたぐ）", () => {
-    expect(nextClock({ date: "2026-12-31", slot: "night" })).toEqual({ date: "2027-01-01", slot: "morning" });
+  it("どの時間帯からでも、次は翌日の朝（月・年をまたぐ）", () => {
+    for (const slot of ["morning", "noon", "night"] as const) {
+      expect(nextMorning({ date: "2026-12-31", slot })).toEqual({ date: "2027-01-01", slot: "morning" });
+    }
     expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
   });
 });

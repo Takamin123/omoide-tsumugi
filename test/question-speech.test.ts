@@ -326,10 +326,8 @@ describe("毎朝の処理: 問いかけの読み上げ", () => {
 
   it("デモの時計のボタンでも、同じ関数を通って音声ができる", async () => {
     const s = await setup({ isDemo: true });
-    for (let i = 0; i < 3; i++) {
-      const res = await s.t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: s.cookie } });
-      expect(res.status).toBe(200);
-    }
+    const res = await s.t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: s.cookie } });
+    expect(res.status).toBe(200);
     expect(s.speaker.calls).toHaveLength(2);
     expect((await audioRows(s.familyId)).every((r) => r.k !== null)).toBe(true);
   });

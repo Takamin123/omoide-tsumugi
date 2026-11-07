@@ -42,6 +42,8 @@ export interface MorningSummary {
 
 export interface MorningOptions {
   familyId?: string;
+  /** 作る入り口の日付。渡さなければ家族の今日。デモの時計のボタンだけが翌朝の日付を渡す（時計を動かすのは処理の後。0062） */
+  forDate?: string;
   /** 写真の説明づくりにそのまま渡す（budgetMs は前段の締め切りで切り詰める）。デモの初期化だけが渡す（0038） */
   photoGuess?: PhotoGuessOptions;
   /** 記録の取り出しの時間の予算（前段の締め切りで切り詰める）。デモの初期化だけが渡す（0038） */
@@ -110,7 +112,7 @@ export async function runMorning(
     const musubiBudget = preludeBudget(MUSUBI_GUESS_BUDGET_MS);
     if (musubiBudget > 0) await runMusubiGuess(deps, familyId, { budgetMs: musubiBudget, traceId: runId });
     else preludeSkipped++;
-    const forDate = familyToday(family, now);
+    const forDate = opts.forDate ?? familyToday(family, now);
     const members = await deps.repos.members.list(familyId);
     for (const member of members) {
       attempted++;

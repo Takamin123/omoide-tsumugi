@@ -323,8 +323,9 @@ export const words = {
   demo: {
     label: "デモ",
     clock: (label: string) => `いま ${label}`,
-    advance: "次の時間帯へ",
-    /** 夜から翌朝へ進めている間（毎朝の処理が走り、1 分以上かかる。0062） */
+    /** どの時間帯からでも一押しで翌朝へ（0062） */
+    advance: "次の日へ",
+    /** 翌朝へ進めている間（毎朝の処理が走り、1 分以上かかる。0062） */
     advancing: "進めています",
     sendFile: "録音済みの音声を送る",
   },
@@ -339,6 +340,8 @@ export const words = {
     // デモの初期化（運営の画面だけで出る。0038）
     demo_seed_mismatch: "家族の人の呼ばれ方が、デモの台本と合いません。何も変えていません",
     demo_seed_missing: "デモの写真か声が置かれていません。何も変えていません",
+    // 審査員の案内の画面だけで出る（文は demo/guideWords.ts。ここは型のための控え。0062）
+    family_limit: "これ以上作れません",
     too_large: "大きすぎて送れませんでした",
     internal: "うまくいきませんでした。もう一度お試しください",
   } satisfies Record<ErrorKind, string>,

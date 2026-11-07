@@ -85,7 +85,7 @@ Playwright の MCP（`.mcp.json` の `playwright-tablet` と `playwright-phone`�
      -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"isDemo":true}'
    ```
 
-   - `{"isDemo":true}` で作る。デモの家族は作った日の朝の時計を持ち、帯の「次の時間帯へ」で進められる
+   - `{"isDemo":true}` で作る。デモの家族は作った日の朝の時計を持ち、帯の「次の日へ」で進められる
    - 返ってくる `{"familyId","token"}` の `token` で、招待リンク `<URL>/join/<token>` を作る。試しの家族の合言葉なので会話に出てよいが、ファイルには書かない
    - プレビューでは `CREATE_FAMILY_TOKEN` を持っていない。人間に `! ` を付けて同じ curl（URL をプレビューに替えたもの）を実行してもらい、`token` を受け取る
    - デモの初期化（`/demo-reset`）で戻したデモの家族を使うときは、その招待リンクを人間からもらう
@@ -110,7 +110,7 @@ Playwright の MCP（`.mcp.json` の `playwright-tablet` と `playwright-phone`�
    - タブレット: デモの帯の「録音済みの音声を送る」で `test-voice.m4a` を送り、「おくりました」が出る（`POST /api/narrations`、kind = voice）
    - スマホ: 自分の入り口の「文字で」→ 文を打って「送る」（kind = text）
 5. **語りを見る（スマホ）**: `/` を開き直し、写真ごとに祖母の声（再生できる）と自分の文が並ぶ。祖母の語りに「返事」で文字の返事を送り、返した先の語りの下に並ぶことを確かめる
-6. **次の日の入り口**: デモの帯の「次の時間帯へ」を 3 回押す（朝 → 昼 → 夜 → 翌朝。`POST /api/demo/clock/advance`）。帯の日付が翌日の朝になり、翌朝の処理（Cron と同じ関数）が走る。タブレットとスマホの両方で開き直し、翌日の入り口が出ることを確かめる
+6. **次の日の入り口**: デモの帯の「次の日へ」を押す（一押しで翌朝へ。`POST /api/demo/clock/advance`）。帯の日付が翌日の朝になり、翌朝の処理（Cron と同じ関数）が走る。タブレットとスマホの両方で開き直し、翌日の入り口が出ることを確かめる
 
 ### 各画面で見ること
 

@@ -128,12 +128,10 @@ describe("runMorning に渡す引数", () => {
     const t = makeTestApp(d1, { now: NOW });
     const f = await createFamily(t, true);
     const m = await addMember(t, f.cookie);
-    for (let i = 0; i < 3; i++) {
-      const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: m.cookie } });
-      expect(res.status).toBe(200);
-    }
+    const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: m.cookie } });
+    expect(res.status).toBe(200);
     expect(morningCalls).toHaveLength(1);
-    expect(morningCalls[0]![2]).toEqual({ familyId: f.familyId });
+    expect(morningCalls[0]![2]).toEqual({ familyId: f.familyId, forDate: expect.any(String) });
   });
 });
 
@@ -148,7 +146,7 @@ describe("時計のボタンは従来どおり", () => {
     for (const r of await requestRows(f.familyId)) expect(r).toEqual({ state: "failed", batch_id: null, attempts: 0 });
     const g = guessOnlyClaude(0, { batch: { status: "in_progress" } });
     t.deps.claude = g.claude;
-    for (let i = 0; i < 3; i++) await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: m.cookie } });
+    await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: m.cookie } });
     expect(batchCreates(g.requests)).toHaveLength(1);
     expect(messageCalls(g.requests)).toHaveLength(0);
     const rows = await requestRows(f.familyId);

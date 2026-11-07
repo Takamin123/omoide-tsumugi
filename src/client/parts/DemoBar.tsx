@@ -1,6 +1,6 @@
 // デモの操作。family.canAdvanceClock が真のときだけ出す。
 import { useCallback, useState } from "react";
-import type { Clock, TimeSlot } from "../../shared/api";
+import type { Clock } from "../../shared/api";
 import { api } from "../lib/api";
 import { errorText } from "../lib/errors";
 import { formatClock } from "../lib/pure";
@@ -9,16 +9,15 @@ import { words } from "../words";
 import { ErrorLine } from "./ErrorLine";
 
 /**
- * 進めている間の状態は App が持つ（useAdvanceClock）。帯はタブごとに描き直されるので、ここに持つと、夜から翌朝の待ちの間に
+ * 進めている間の状態は App が持つ（useAdvanceClock）。帯はタブごとに描き直されるので、ここに持つと、翌朝への待ちの間に
  * タブを替えたときに「進めています」が消え、ボタンがまた押せるようになる（0062）
  */
 export type DemoProps = {
   clock: Clock;
+  /** 翌朝へ進めている間（毎朝の処理が走り、1 分以上かかる） */
   advancing: boolean;
-  /** 夜から翌朝へ進めている間（毎朝の処理が走り、1 分以上かかる）。ほかはすぐ終わるので出さない */
-  longWait: boolean;
   error: string | null;
-  onAdvance: (from: TimeSlot) => void;
+  onAdvance: (from: string) => void;
 };
 
 type Props = DemoProps & {
@@ -31,44 +30,38 @@ type Props = DemoProps & {
 /** デモの時計を進める。進めている間の状態は、タブを替えても失わないよう、画面の外（App）で持つ */
 export function useAdvanceClock(onAdvanced: () => Promise<void>) {
   const [advancing, setAdvancing] = useState(false);
-  const [longWait, setLongWait] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /**
-   * from は押したときの時間帯。サーバーは毎朝の処理の前に時計を保存するので、待ちの間に読み直した時計（もう朝）では決められない。
-   * 読み直しまで待ってから押せるようにする（古い時計のまま二度押しさせない）
-   */
+  /** from は押したときの画面の日付。読み直しまで待ってから押せるようにする（古い日付のまま二度押しさせない） */
   const onAdvance = useCallback(
-    async (from: TimeSlot) => {
+    async (from: string) => {
       setAdvancing(true);
-      setLongWait(from === "night");
       setError(null);
       try {
-        await api.advanceClock();
+        await api.advanceClock(from);
         await onAdvanced();
       } catch (e) {
         setError(errorText(e));
       } finally {
         setAdvancing(false);
-        setLongWait(false);
       }
     },
     [onAdvanced],
   );
-  return { advancing, longWait, error, onAdvance };
+  return { advancing, error, onAdvance };
 }
 
-export function DemoBar({ clock, advancing, longWait, error, onAdvance, onAudioFile, audioDisabled }: Props) {
+export function DemoBar({ clock, advancing, error, onAdvance, onAudioFile, audioDisabled }: Props) {
   return (
     <section className="demo stack" aria-label={words.demo.label}>
       <div className="row">
         <span>
           {words.demo.label}: {words.demo.clock(formatClock(clock))}
         </span>
-        <button type="button" onClick={() => onAdvance(clock.slot)} disabled={advancing}>
+        <button type="button" onClick={() => onAdvance(clock.date)} disabled={advancing}>
           {words.demo.advance}
         </button>
       </div>
-      {longWait && <span role="status">{words.demo.advancing}</span>}
+      {advancing && <span role="status">{words.demo.advancing}</span>}
       {onAudioFile && (
         <label className="button" aria-disabled={audioDisabled}>
           {words.demo.sendFile}

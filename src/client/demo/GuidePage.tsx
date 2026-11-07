@@ -29,7 +29,44 @@ function useGuideHead() {
   }, []);
 }
 
-export default function GuidePage({ guideKey }: { guideKey: string }) {
+/**
+ * 審査員が新しい家族を作る画面（/demo/<鍵>/start。0062）。合言葉の欄もデモの印も初期化の欄も出さない。
+ * 作ったら履歴を置き換えて / へ（最初の人を入れる画面。「戻る」で案内へ）
+ */
+function NewFamily({ guideKey }: { guideKey: string }) {
+  const g = guideWords;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function create() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.demoGuideCreateFamily(guideKey);
+      navigate("/", { replace: true });
+    } catch (e) {
+      setBusy(false);
+      if (e instanceof ApiError && e.kind === "not_found") navigate("/", { replace: true });
+      else setError(e instanceof ApiError && e.kind === "family_limit" ? g.familyLimit : errorText(e));
+    }
+  }
+
+  return (
+    <main className="stack demo-guide">
+      <h1>{g.newFamily}</h1>
+      <p>{g.startBody}</p>
+      <ErrorLine text={error} />
+      <button type="button" className="primary" onClick={() => void create()} disabled={busy}>
+        {g.startSubmit}
+      </button>
+      <a className="button" href={`/demo/${guideKey}`}>
+        {g.startBack}
+      </a>
+    </main>
+  );
+}
+
+export default function GuidePage({ guideKey, start }: { guideKey: string; start: boolean }) {
   useGuideHead();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -63,17 +100,24 @@ export default function GuidePage({ guideKey }: { guideKey: string }) {
     );
   }
 
+  if (start) return <NewFamily guideKey={guideKey} />;
+
   const g = guideWords;
 
   return (
     <main className="stack demo-guide">
       <h1>{words.appName}</h1>
+      <p>{g.lead}</p>
 
       <div className="stack">
         {g.names.flatMap((name) => {
           const person = load.people.find((p) => p.calledAs === name);
           return person ? [<a key={name} className="button primary" href={`/join/${person.token}`}>{name}</a>] : [];
         })}
+        <a className="button" href={`/demo/${guideKey}/start`}>
+          {g.newFamily}
+        </a>
+        <p className="sub">{g.newFamilyNote}</p>
       </div>
 
       <section className="card-soft" aria-labelledby="guide-next">

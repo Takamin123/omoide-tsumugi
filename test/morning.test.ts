@@ -146,23 +146,78 @@ describe("runMorning", () => {
 });
 
 describe("デモの時計", () => {
-  it("朝 → 昼 → 夜 → 翌朝。翌朝になったときだけ、Cron と同じ runMorning をその家族について呼ぶ", async () => {
+  it("一押しで翌朝へ進み、Cron と同じ runMorning をその家族について呼ぶ（0062）", async () => {
     const f = await createFamily(t, true);
     const m = await addMember(t, f.cookie);
     await addPhoto(t, m.cookie, 1);
-    const clocks = [];
-    for (let i = 0; i < 3; i++) clocks.push(((await (await advance(t, m.cookie)).json()) as { clock: unknown }).clock);
-    expect(clocks).toEqual([
-      { date: "2026-11-02", slot: "noon" },
-      { date: "2026-11-02", slot: "night" },
-      { date: "2026-11-03", slot: "morning" },
-    ]);
+    const r = (await (await advance(t, m.cookie)).json()) as { clock: unknown };
+    expect(r.clock).toEqual({ date: "2026-11-03", slot: "morning" });
     expect(runMorning).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(runMorning).mock.calls[0]![2]).toEqual({ familyId: f.familyId });
+    expect(vi.mocked(runMorning).mock.calls[0]![2]).toEqual({ familyId: f.familyId, forDate: "2026-11-03" });
     const row = await d1.prepare("SELECT for_date FROM entrances WHERE family_id = ?").bind(f.familyId).all();
     expect(row.results).toEqual([{ for_date: "2026-11-03" }]);
     // 時計の日付が「今日」になる
     expect((await today(t, m.cookie)).entrance!.forDate).toBe("2026-11-03");
+  });
+
+  it("どの時間帯からでも一押しで翌朝。朝昼夜のどれでも同じ", async () => {
+    const f = await createFamily(t, true);
+    const m = await addMember(t, f.cookie);
+    await d1.prepare("UPDATE families SET clock_slot = 'noon' WHERE id = ?").bind(f.familyId).run();
+    expect(((await (await advance(t, m.cookie)).json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-03", slot: "morning" });
+    await d1.prepare("UPDATE families SET clock_slot = 'night' WHERE id = ?").bind(f.familyId).run();
+    expect(((await (await advance(t, m.cookie)).json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-04", slot: "morning" });
+    expect(runMorning).toHaveBeenCalledTimes(2);
+  });
+
+  it("画面の日付 from が今の時計と違えば何もしない（別のタブや別の審査員の押しで二日進まない。毎朝の処理も走らない）", async () => {
+    const f = await createFamily(t, true);
+    const m = await addMember(t, f.cookie);
+    const press = (from: string) =>
+      t.app.request("/api/demo/clock/advance", {
+        method: "POST",
+        headers: { Cookie: m.cookie, "Content-Type": "application/json" },
+        body: JSON.stringify({ from }),
+      });
+    expect(((await (await press("2026-11-02")).json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-03", slot: "morning" });
+    expect(((await (await press("2026-11-02")).json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-03", slot: "morning" });
+    expect(runMorning).toHaveBeenCalledTimes(1);
+    expect((await press("x")).status).toBe(400);
+  });
+
+  it("同時に押しても一日だけ進み、一人一日に入り口は一つ", async () => {
+    const f = await createFamily(t, true);
+    const m = await addMember(t, f.cookie);
+    await addPhoto(t, m.cookie, 1);
+    const res = await Promise.all([advance(t, m.cookie), advance(t, m.cookie), advance(t, m.cookie)]);
+    for (const r of res) expect(((await r.json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-03", slot: "morning" });
+    expect((await today(t, m.cookie)).entrance!.forDate).toBe("2026-11-03");
+    expect(await entranceCount(f.familyId)).toBe(1);
+  });
+
+  it("毎朝の処理の間は前の日のまま。開いても新しい日の固定の入り口を作らない（その人だけ Claude の問いかけにならないのを防ぐ）", async () => {
+    const f = await createFamily(t, true);
+    const m = await addMember(t, f.cookie);
+    await addPhoto(t, m.cookie, 1);
+    const actual = await vi.importActual<typeof import("../src/server/core/morning")>("../src/server/core/morning");
+    let during: string | undefined;
+    vi.mocked(runMorning).mockImplementationOnce(async (...args) => {
+      during = (await today(t, m.cookie)).entrance!.forDate;
+      expect(await d1.prepare("SELECT count(*) AS n FROM entrances WHERE family_id = ? AND for_date = '2026-11-03'").bind(f.familyId).first()).toEqual({ n: 0 });
+      return actual.runMorning(...args);
+    });
+    expect(((await (await advance(t, m.cookie)).json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-03", slot: "morning" });
+    expect(during).toBe("2026-11-02");
+    expect((await today(t, m.cookie)).entrance!.forDate).toBe("2026-11-03");
+  });
+
+  it("毎朝の処理が投げても時計は進む", async () => {
+    const f = await createFamily(t, true);
+    const m = await addMember(t, f.cookie);
+    vi.mocked(runMorning).mockRejectedValueOnce(new Error("x"));
+    expect(((await (await advance(t, m.cookie)).json()) as { clock: unknown }).clock).toEqual({ date: "2026-11-03", slot: "morning" });
+    const view = (await (await t.app.request("/api/family", { headers: { Cookie: m.cookie } })).json()) as { family: { clock: unknown } };
+    expect(view.family.clock).toEqual({ date: "2026-11-03", slot: "morning" });
   });
 
   it("時計を持たない家族（手元）は、今の日本時間を起点に進める", async () => {

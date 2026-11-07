@@ -433,11 +433,9 @@ describe("毎朝の処理の中の順番（0039）", () => {
     const form = new FormData();
     form.append("meta", JSON.stringify({ kind: "text", photoId: photo.id, entranceId: null, replyToId: null, text: NARRATION }));
     expect((await postForm(t, "/api/narrations", form, a.cookie)).status).toBeLessThan(300);
-    // 朝 → 昼 → 夜 → 翌朝（翌朝で毎朝の処理）
-    for (let i = 0; i < 3; i++) {
-      const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: a.cookie } });
-      expect(res.status).toBeLessThan(300);
-    }
+    // 一押しで翌朝（毎朝の処理）
+    const res = await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: a.cookie } });
+    expect(res.status).toBeLessThan(300);
     expect(await recordRows(f.familyId)).toEqual([expect.objectContaining({ value: "浜", origin: "told", told_by_member_id: a.id })]);
   });
 });
@@ -479,12 +477,11 @@ describe("冪等（同じ朝を二度・ボタンを重ねて押す。qa）", ()
     form.append("meta", JSON.stringify({ kind: "text", photoId: photo.id, entranceId: null, replyToId: null, text: NARRATION }));
     expect((await postForm(t, "/api/narrations", form, a.cookie)).status).toBeLessThan(300);
     const press = () => t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: a.cookie } });
-    for (let i = 0; i < 2; i++) expect((await press()).status).toBeLessThan(300);
-    // 夜 → 翌朝 を二つ同時に（どちらか、または両方が朝の処理を走らせる）
+    // 翌朝へを二つ同時に（どちらか、または両方が朝の処理を走らせる）
     const res = await Promise.all([press(), press()]);
     for (const x of res) expect(x.status).toBeLessThan(300);
-    // さらに一巡して、次の朝も重ねない
-    for (let i = 0; i < 3; i++) await press();
+    // さらに一日進めて、次の朝も重ねない
+    await press();
     expect(await recordRows(f.familyId)).toEqual([expect.objectContaining({ value: "浜", origin: "told" })]);
     expect(await extractionRows(f.familyId)).toEqual([expect.objectContaining({ state: "done", attempts: 1 })]);
   });

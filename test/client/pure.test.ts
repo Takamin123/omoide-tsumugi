@@ -14,6 +14,7 @@ const {
   roundLocation,
   tallyOne,
   toHex,
+  isDemoGuideStartPath,
   keyFromDemoGuidePath,
   tokenFromJoinPath,
   validDurationMs,
@@ -123,6 +124,9 @@ describe("keyFromDemoGuidePath（審査員の案内。0062）", () => {
   it("/demo/<鍵> の鍵を返す", () => {
     expect(keyFromDemoGuidePath(`/demo/${key}`)).toBe(key);
     expect(keyFromDemoGuidePath(`/demo/${key}/`)).toBe(key);
+    expect(keyFromDemoGuidePath(`/demo/${key}/start`)).toBe(key);
+    expect(isDemoGuideStartPath(`/demo/${key}/start`)).toBe(true);
+    expect(isDemoGuideStartPath(`/demo/${key}`)).toBe(false);
   });
   it.each(["/demo", "/demo/", "/demo/short", `/demo/${key}/x`, `/demo/${"a".repeat(201)}`, `/x/demo/${key}`, `/demo/${"a".repeat(40)}%2F`])(
     "%s はほかの知らない道（null）",

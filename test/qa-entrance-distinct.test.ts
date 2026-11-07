@@ -90,13 +90,11 @@ describe("QA 同じ日の入り口の写真をなるべく重ねない（0042）
     expect(new Set(rows.map((r) => r.photo_id)).size).toBe(4);
   });
 
-  it("デモの時計のボタン（次の時間帯へ × 3）の翌朝も、同じ処理で写真が分かれる", async () => {
+  it("デモの時計のボタン（次の日へ）の翌朝も、同じ処理で写真が分かれる", async () => {
     const d = await family(5, { isDemo: true });
     d.state.preferred = d.photoIds[2]!;
-    for (let i = 0; i < 3; i++) {
-      const res = await d.t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: d.cookie } });
-      expect(res.status).toBe(200);
-    }
+    const res = await d.t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: d.cookie } });
+    expect(res.status).toBe(200);
     const rows = (await d1.prepare("SELECT member_id, photo_id, kind, for_date FROM entrances WHERE family_id = ?").bind(d.f.familyId).all<{
       member_id: string;
       photo_id: string;

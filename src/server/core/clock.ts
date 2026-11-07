@@ -38,10 +38,8 @@ export function familyToday(family: Pick<FamilyRow, "clock">, now: Date): string
   return familyClock(family, now).date;
 }
 
-/** 次の時間帯。夜の次は翌日の朝。 */
-export function nextClock(clock: Clock): Clock {
-  if (clock.slot === "morning") return { date: clock.date, slot: "noon" };
-  if (clock.slot === "noon") return { date: clock.date, slot: "night" };
+/** デモの時計の次の朝。どの時間帯からでも翌日の朝（0062）。 */
+export function nextMorning(clock: Clock): Clock {
   return { date: addDays(clock.date, 1), slot: "morning" };
 }
 
