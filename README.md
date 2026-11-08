@@ -179,6 +179,26 @@ npm run deploy:production
 
 施設で暮らす祖父母と、離れて暮らす家族にも届けていきたいと考えています（まだ実現していません）。
 
+## 開発の進め方（ハーネス）
+
+Claude Code のサブエージェントを 5 つ置き、役割を分けて作りました（[.claude/agents/](.claude/agents/)、[0001](docs/decisions/0001-agent-structure.md)）。
+
+| エージェント | モデル | 役割 |
+|---|---|---|
+| frontend-developer | Opus | 画面を作る（React、スマホで開く Web アプリ） |
+| backend-developer | Opus | API、D1・R2、毎朝の処理、Claude と文字起こしの呼び出し |
+| qa-engineer | Opus | コミット前のテスト、Claude に渡すプロンプトの出し比べ、画面の大きさごとの一巡 |
+| code-reviewer | Opus | コミットごとの軽いレビュー（ステージした差分だけ） |
+| fable-advisor | Fable | 作品の方針、家族に見せる言葉、画面の流れの相談と、区切りの全体レビュー |
+
+相談役は、`/advisor` を使わずに、あえてサブエージェント（fable-advisor）にしました。理由は二つあります。一つは、相談役としての振る舞いを定義に書いて決めたかったからです。fable-advisor はファイルを読むだけで書き換えません。答える形は「結論 → 理由 → 退けた案 → 見直す条件 → 記録の下書き」に決めてあり、相談した側がそれを [docs/decisions/](docs/decisions/) に写します。もう一つは、作っている会話とは別のコンテキストで動かしたかったからです。相談には問いだけを渡し、それまでの会話は持ち込みません。advisor は要件と決定の記録を自分で読み、作っている側の流れから一歩離れたところで判断します。決定の記録 62 件のうち 49 件で、fable-advisor に相談しています。
+
+たとえば [0020](docs/decisions/0020-identify-questions-are-testing.md) では、「この人は誰ですか」のような問いが Claude の問いかけの検査を通ってしまうことが、qa-engineer のテストで分かりました。fable-advisor に相談し、プロンプトで避けさせるのではなく、機械の検査で止める形にしました。
+
+守りたいことは、言い聞かせに頼らず、フックで決まった動きにしています。写真・録音・データベースのファイル・秘密の値はコミットの前に止まります（[.githooks/pre-commit](.githooks/pre-commit)、[0004](docs/decisions/0004-commit-guard.md)）。フックを飛ばすコミットや、本番の D1・家族・R2 を変える操作も止まり、本番のほうは人間の確認を待ちます（[.claude/hooks/guard-bash.mjs](.claude/hooks/guard-bash.mjs)）。
+
+限界もあります。物差しにしている要件と決定の記録は、fable-advisor と一緒に作ったものです。モデルの系統も同じです。なので、これは本当の意味での「第三者の目」ではありません。「決まった物差しで、会話の流れに引っ張られずに見る目」です。
+
 ## ドキュメント
 
 - 要件と守る方針: [docs/requirements.md](docs/requirements.md)
