@@ -104,12 +104,13 @@ export default function GuidePage({ guideKey, start }: { guideKey: string; start
         <p className="sub">{g.newFamilyNote}</p>
       </div>
 
-      <div className="stack">
-        <a className="button" href={`/demo/${guideKey}/record`}>
+      <section className="card-soft" aria-labelledby="guide-record">
+        <h2 id="guide-record">{g.recordTitle}</h2>
+        <p>{g.recordOpenNote}</p>
+        <a className="button guide-record-open" href={`/demo/${guideKey}/record`}>
           {g.recordOpen}
         </a>
-        <p className="sub">{g.recordOpenNote}</p>
-      </div>
+      </section>
 
       <section className="card-soft" aria-labelledby="guide-next">
         <h2 id="guide-next">{g.nextTitle}</h2>

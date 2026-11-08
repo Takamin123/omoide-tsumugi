@@ -52,6 +52,12 @@ describe("審査員の道の記録の画面", () => {
     expect(src).toContain("href={`/demo/${guideKey}/record`}");
     expect(src).toContain("g.recordOpen");
     expect(src).toContain("g.recordOpenNote");
+    // 記録のボタンは、4 人のまとまりとは別のカードに見出し付きで置き、4 人の青い塗りとは別の形にする
+    expect(src).toContain('aria-labelledby="guide-record"');
+    expect(src).toContain("g.recordTitle");
+    expect(src).toContain('className="button guide-record-open"');
+    expect(src.indexOf("guide-record")).toBeGreaterThan(src.indexOf("g.newFamilyNote"));
+    expect(src.indexOf("guide-record")).toBeLessThan(src.indexOf("guide-next"));
     expect(guideWords.recordOpen).toBe("Claude の記録を見る");
     expect(guideWords.notes.some((n: string) => n.includes("Claude の記録の画面にも、そのまま出ます。"))).toBe(true);
   });

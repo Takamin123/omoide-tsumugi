@@ -1005,6 +1005,26 @@ main.home {
   margin: 0;
 }
 
+/*
+ * 案内の「Claude の記録を見る」（0062）。4 人の青い塗りと見分けるため、動画で Claude が選んだものを示す黄色で塗る。
+ * 隣の「ご注意」が注意の帯に見えないよう、枠線は付けずに塗りだけ、文字は濃い --text（黄色の上で約 10:1。押した間で約 8.7:1）。
+ * 大きさは 4 人のボタンと同じにし、それより大きくしない（一番の道は 4 人の画面のまま）
+ */
+.guide-record-open {
+  display: flex;
+  width: 100%;
+  min-height: var(--primary-height);
+  background: #f6c45c;
+  border-color: #f6c45c;
+  color: var(--text);
+  font-weight: bold;
+}
+
+.guide-record-open:active:not(.disabled) {
+  background: #eab43f;
+  border-color: #eab43f;
+}
+
 .demo-guide-notes {
   margin: 0;
   padding-left: 1.25rem;

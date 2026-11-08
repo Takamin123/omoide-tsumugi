@@ -19,7 +19,9 @@ export const guideWords = {
   nextBody: `各タブの一番下、${q(words.demo.label)}の帯の${q(words.demo.advance)}で翌朝へ進みます。家族の語りをもとに、Claude が一人ひとりの翌日の写真と問いかけを作ります。押してから 2 分ほどかかります。`,
   /** Claude の記録の画面（/demo/<鍵>/record。運営の記録の画面を、台本の家族だけ・読み取りだけで開く）。文は fable-advisor に相談、最後の一文は人間が求めた */
   recordOpen: "Claude の記録を見る",
-  recordOpenNote: "Claude が、誰にどの写真と問いかけを選んだか、その理由を見られます。",
+  recordOpenNote: "誰にどの写真と問いかけを選んだか、その理由を見られます。",
+  /** 記録のカードの見出し（この案内の見出しは「そこで何ができるか」を名詞で言う形にそろえる。fable-advisor に相談） */
+  recordTitle: "Claude が選んだ理由",
   recordLead:
     "この画面は、家族には見せない運営の画面です。Claude が、誰にどの写真と問いかけを選んだか、その理由を記録しています。家族が語ったことと、Claude の推測は、分けて置いています。",
   recordScope: "ここで見られるのは、この架空の家族の記録だけです。実際の家族の記録は、その家族が同意したときにだけ、運営が開けます。",
