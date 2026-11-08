@@ -101,76 +101,96 @@ function narrationRecord(n: NarrationRow): OpsNarration {
 const opsImageUrl = (familyId: string, photoId: string) =>
   `/api/ops/families/${encodeURIComponent(familyId)}/photos/${encodeURIComponent(photoId)}/image`;
 
+/**
+ * 一つの家族の記録を組み立てる。家族を見てよいかは呼ぶ側で確かめておく。
+ * 写真の URL は入り口ごとに違う（運営の鍵の道と、審査員の案内の道。0062）ので、作り方を受け取る
+ */
+export async function buildOpsRecord(
+  deps: AppEnv["Variables"]["deps"],
+  family: FamilyRow,
+  imageUrl: (photoId: string) => string,
+): Promise<OpsFamilyRecord> {
+  const { repos } = deps;
+  const familyId = family.id;
+  const [members, photos, entrances, narrations, guesses, musubi] = await Promise.all([
+    repos.members.list(familyId),
+    repos.photos.list(familyId),
+    repos.opsRecords.listEntrances(familyId),
+    repos.narrations.listAll(familyId),
+    repos.photoGuesses.listByFamily(familyId),
+    // むすびが読めなくても記録の画面は開く（見守りの間に画面ごと開けなくならないように）。種類だけをログに残す
+    repos.musubi.listByFamily(familyId).catch((err: unknown) => {
+      console.log(
+        JSON.stringify({
+          event: "ops_record_musubi_read_failed",
+          familyId,
+          errorType: err instanceof Error && /^[A-Za-z_$][\w$]*$/.test(err.name) ? err.name : typeof err,
+        }),
+      );
+      return null;
+    }),
+  ]);
+  const byId = new Map(narrations.map((n) => [n.id, n]));
+  // むすびは、入り口 v3 で Claude に渡したものだけ。推測の理由と根拠の記録は返さない（画面で使わない）
+  const passedMusubi = new Set(entrances.flatMap((e) => e.inputMusubiIds ?? []));
+  return {
+    family: { id: family.id, isDemo: family.isDemo, createdAt: family.createdAt },
+    members: members.map((m) => ({ id: m.id, role: m.role, relation: m.relation, calledAs: m.calledAs })),
+    // 緯度経度と保存先のキーは返さない
+    photos: photos.map((p) => ({
+      id: p.id,
+      ownerMemberId: p.ownerMemberId,
+      width: p.width,
+      height: p.height,
+      takenAt: p.takenAt,
+      createdAt: p.createdAt,
+      imageUrl: imageUrl(p.id),
+    })),
+    entrances: entrances.map((e) => entranceRecord(e, byId)),
+    narrations: narrations.map(narrationRecord),
+    photoGuesses: guesses.map((g) => ({
+      id: g.id,
+      photoId: g.photoId,
+      description: g.description,
+      model: g.model,
+      promptVersion: g.promptVersion,
+      createdAt: g.createdAt,
+    })),
+    musubi: (musubi ?? [])
+      .filter((m) => passedMusubi.has(m.id))
+      .map((m) => ({ id: m.id, createdBy: m.createdBy, photos: m.photos.map((p) => ({ photoId: p.photoId, status: p.status })) })),
+  };
+}
+
+/** 記録の件数だけ（ログ用。本文・説明・理由は出さない） */
+export const opsRecordCounts = (r: OpsFamilyRecord) => ({
+  entrances: r.entrances.length,
+  narrations: r.narrations.length,
+  photoGuesses: r.photoGuesses.length,
+  musubi: r.musubi.length,
+});
+
+/** 家族の写真を一枚返す（private, no-store）。家族を見てよいかは呼ぶ側で確かめておく。ない写真・ほかの家族の写真は null */
+export async function opsPhotoImage(deps: AppEnv["Variables"]["deps"], familyId: string, photoId: string): Promise<Response | null> {
+  const photo = await deps.repos.photos.get(familyId, photoId);
+  if (!photo) return null;
+  const obj = await deps.photos.get(photo.storageKey);
+  if (!obj) return null;
+  return privateBody(obj.body, obj.contentType, obj.size);
+}
+
 export const ops = new Hono<AppEnv>()
   // ここで "*" に掛けると、同じ "/" に載るほかの入り口にも掛かるので、/ops の下だけにする
   .use("/ops/*", requireOpsKey)
 
   .get("/ops/families/:familyId/record", async (c) => {
     const deps = c.get("deps");
-    const { repos } = deps;
     const familyId = c.req.param("familyId");
     const family = await viewableFamily(deps, familyId);
     if (!family) return fail(c, "not_found");
-
-    const [members, photos, entrances, narrations, guesses, musubi] = await Promise.all([
-      repos.members.list(familyId),
-      repos.photos.list(familyId),
-      repos.opsRecords.listEntrances(familyId),
-      repos.narrations.listAll(familyId),
-      repos.photoGuesses.listByFamily(familyId),
-      // むすびが読めなくても記録の画面は開く（見守りの間に画面ごと開けなくならないように）。種類だけをログに残す
-      repos.musubi.listByFamily(familyId).catch((err: unknown) => {
-        console.log(
-          JSON.stringify({
-            event: "ops_record_musubi_read_failed",
-            familyId,
-            errorType: err instanceof Error && /^[A-Za-z_$][\w$]*$/.test(err.name) ? err.name : typeof err,
-          }),
-        );
-        return null;
-      }),
-    ]);
-    const byId = new Map(narrations.map((n) => [n.id, n]));
-    // むすびは、入り口 v3 で Claude に渡したものだけ。推測の理由と根拠の記録は返さない（画面で使わない）
-    const passedMusubi = new Set(entrances.flatMap((e) => e.inputMusubiIds ?? []));
-    const record: OpsFamilyRecord = {
-      family: { id: family.id, isDemo: family.isDemo, createdAt: family.createdAt },
-      members: members.map((m) => ({ id: m.id, role: m.role, relation: m.relation, calledAs: m.calledAs })),
-      // 緯度経度と保存先のキーは返さない
-      photos: photos.map((p) => ({
-        id: p.id,
-        ownerMemberId: p.ownerMemberId,
-        width: p.width,
-        height: p.height,
-        takenAt: p.takenAt,
-        createdAt: p.createdAt,
-        imageUrl: opsImageUrl(familyId, p.id),
-      })),
-      entrances: entrances.map((e) => entranceRecord(e, byId)),
-      narrations: narrations.map(narrationRecord),
-      photoGuesses: guesses.map((g) => ({
-        id: g.id,
-        photoId: g.photoId,
-        description: g.description,
-        model: g.model,
-        promptVersion: g.promptVersion,
-        createdAt: g.createdAt,
-      })),
-      musubi: (musubi ?? [])
-        .filter((m) => passedMusubi.has(m.id))
-        .map((m) => ({ id: m.id, createdBy: m.createdBy, photos: m.photos.map((p) => ({ photoId: p.photoId, status: p.status })) })),
-    };
+    const record = await buildOpsRecord(deps, family, (photoId) => opsImageUrl(familyId, photoId));
     c.header("Cache-Control", "private, no-store");
-    console.log(
-      JSON.stringify({
-        event: "ops_record",
-        familyId,
-        entrances: record.entrances.length,
-        narrations: record.narrations.length,
-        photoGuesses: record.photoGuesses.length,
-        musubi: record.musubi.length,
-      }),
-    );
+    console.log(JSON.stringify({ event: "ops_record", familyId, ...opsRecordCounts(record) }));
     return c.json(record);
   })
 
@@ -179,9 +199,5 @@ export const ops = new Hono<AppEnv>()
     const deps = c.get("deps");
     const familyId = c.req.param("familyId");
     if (!(await viewableFamily(deps, familyId))) return fail(c, "not_found");
-    const photo = await deps.repos.photos.get(familyId, c.req.param("photoId"));
-    if (!photo) return fail(c, "not_found");
-    const obj = await deps.photos.get(photo.storageKey);
-    if (!obj) return fail(c, "not_found");
-    return privateBody(obj.body, obj.contentType, obj.size);
+    return (await opsPhotoImage(deps, familyId, c.req.param("photoId"))) ?? fail(c, "not_found");
   });

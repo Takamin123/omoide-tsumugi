@@ -4,8 +4,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { demoGuideKeyMisconfig } from "../src/server/routes/auth";
 import { DEMO_GUIDE_FAMILY_LIMIT, DEMO_GUIDE_FAMILY_NAME } from "../src/server/routes/demo";
 import { SEED_MEMBERS } from "../src/server/demo/seed";
+import type { OpsFamilyRecord } from "../src/shared/ops";
 import {
   addMember,
+  addPhoto,
   cookieOf,
   CREATE_TOKEN,
   createFamily,
@@ -495,5 +497,205 @@ describe("案内が開いている間の、守りの範囲（足りなかった�
     configure(KEY, links);
     expect((await t.app.request("/api/family", { headers: { Cookie: cookie } })).status).toBe(200);
     expect((await t.app.request("/api/demo/clock/advance", { method: "POST", headers: { Cookie: cookie } })).status).toBe(200);
+  });
+});
+
+// 審査員が見る Claude の記録（0062 の追記 2026-11-08）。GET /api/demo/guide/record と写真。
+// 案内の鍵（Bearer）で守り、家族は案内のリンクをたどった台本の家族だけ。読み取りだけ。運営の鍵での動き（0030）は変えない
+describe("審査員が見る Claude の記録", () => {
+  const RECORD = "/api/demo/guide/record";
+  const get = (path: string, key: string | null = KEY, init: RequestInit = {}) =>
+    t.app.request(path, { ...init, headers: { ...(key ? { Authorization: `Bearer ${key}` } : {}), ...init.headers } });
+  let photoN = 900;
+  /** 台本の家族を作り、写真を一枚足す（鍵は足した後で設定する。開いている間は人を足せないため） */
+  async function seedWithPhoto() {
+    const s = await seedLikeFamily();
+    const photo = await addPhoto(t, s.cookie, photoN++);
+    const familyId = (await d1
+      .prepare("SELECT family_id AS id FROM members WHERE id = ?")
+      .bind(s.ids["お母さん"])
+      .first<{ id: string }>())!.id;
+    return { ...s, photo, familyId };
+  }
+
+  it("鍵が合えば、台本の家族の記録を運営の記録と同じ形で返す。写真は案内の道で、同じ鍵で読める。保存させない", async () => {
+    const s = await seedWithPhoto();
+    configure(KEY, s.links);
+    const res = await get(RECORD);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    const record = (await res.json()) as OpsFamilyRecord;
+    expect(record.family).toMatchObject({ id: s.familyId, isDemo: true });
+    expect(record.members.map((m) => m.calledAs).sort()).toEqual(SEED_MEMBERS.map((m) => m.calledAs).sort());
+    expect(record.photos.map((p) => p.id)).toEqual([s.photo.id]);
+    expect(record.photos[0]!.imageUrl).toBe(`${RECORD}/photos/${s.photo.id}/image`);
+    // 運営の鍵で読んだ記録と、写真の道のほかは同じ
+    const ops = (await (await get(`/api/ops/families/${s.familyId}/record`, OPS_TOKEN)).json()) as OpsFamilyRecord;
+    expect({ ...record, photos: record.photos.map(({ imageUrl: _, ...p }) => p) }).toEqual({
+      ...ops,
+      photos: ops.photos.map(({ imageUrl: _, ...p }) => p),
+    });
+    const img = await get(record.photos[0]!.imageUrl);
+    expect(img.status).toBe(200);
+    expect(img.headers.get("cache-control")).toBe("private, no-store");
+    expect(img.headers.get("content-type")).toBe("image/jpeg");
+  });
+
+  it.each([
+    ["鍵がない", null],
+    ["鍵の不一致", "x".repeat(40)],
+    ["鍵が短い", "short"],
+    ["運営の鍵", OPS_TOKEN],
+    ["初期化の鍵", DEMO_RESET_TOKEN],
+    ["家族を作る鍵", CREATE_TOKEN],
+  ])("%s は、記録も写真も 404 で、本文も見出しも同じ", async (_name, key) => {
+    const s = await seedWithPhoto();
+    configure(KEY, s.links);
+    for (const path of [RECORD, `${RECORD}/photos/${s.photo.id}/image`]) {
+      const res = await get(path, key);
+      expect(res.status).toBe(404);
+      expect(res.headers.get("cache-control")).toBe("private, no-store");
+      expect(await res.json()).toEqual({ error: "not_found" });
+    }
+  });
+
+  it("鍵は Bearer だけで受け取る。検索語・本文・合言葉の cookie では開かない。書き方を変えた道も、鍵なしでは開かない", async () => {
+    const s = await seedWithPhoto();
+    configure(KEY, s.links);
+    expect((await get(`${RECORD}?key=${KEY}`, null)).status).toBe(404);
+    expect((await get(RECORD, null, { headers: { Authorization: KEY } })).status).toBe(404);
+    expect((await get(RECORD, null, { headers: { Cookie: s.cookie } })).status).toBe(404);
+    expect((await get(RECORD, null, { headers: { Cookie: cookieOf(KEY) } })).status).toBe(404);
+    for (const path of ["/API/demo/guide/record", "/api/DEMO/Guide/Record", `/Api/demo/guide/RECORD/photos/${s.photo.id}/image`]) {
+      expect((await get(path, null)).status).toBe(404);
+    }
+  });
+
+  it("読み取りだけ。書き込みの動詞は、鍵が合っていても開かない", async () => {
+    const s = await seedWithPhoto();
+    configure(KEY, s.links);
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      expect((await get(RECORD, KEY, { method })).status).toBe(404);
+      expect((await get(`${RECORD}/photos/${s.photo.id}/image`, KEY, { method })).status).toBe(404);
+    }
+  });
+
+  it("秘密の値を消せば閉じる（鍵なし・リンクなし・リンクの設定が読めない・本番のように何も設定がない）", async () => {
+    const s = await seedWithPhoto();
+    for (const [key, links] of [
+      [null, s.links],
+      [KEY, null],
+      [KEY, "{"],
+      [null, null],
+    ] as const) {
+      configure(key, links);
+      expect((await get(RECORD)).status).toBe(404);
+      expect((await get(`${RECORD}/photos/${s.photo.id}/image`)).status).toBe(404);
+    }
+    // 本番（APP_ENV=production）には DEMO_GUIDE_KEY がない。運営の鍵ではデモの家族が開くが、案内の道は閉じている
+    const prod = makeTestApp(d1, { appEnv: "production" });
+    expect(prod.deps.config.demoGuideKey).toBeNull();
+    expect((await prod.app.request(RECORD, { headers: { Authorization: `Bearer ${KEY}` } })).status).toBe(404);
+    expect((await prod.app.request(`/api/ops/families/${s.familyId}/record`, { headers: { Authorization: `Bearer ${OPS_TOKEN}` } })).status).toBe(200);
+  });
+
+  it("鍵が使えない設定（短い・ほかの鍵と同じ）なら、合っていても閉じる", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = await seedWithPhoto();
+    configure("s".repeat(31), s.links);
+    expect((await get(RECORD, "s".repeat(31))).status).toBe(404);
+    t.deps.config = { ...t.deps.config, demoGuideKey: OPS_TOKEN };
+    expect((await get(RECORD, OPS_TOKEN)).status).toBe(404);
+    configure(null, null);
+    warn.mockRestore();
+  });
+
+  it("家族は要求から受け取らない。ほかのデモの家族の写真を案内の道で引いても 404。検索語の家族 ID は無視する", async () => {
+    const other = await seedWithPhoto();
+    const s = await seedWithPhoto();
+    configure(KEY, s.links);
+    expect((await get(`${RECORD}/photos/${other.photo.id}/image`)).status).toBe(404);
+    const r = (await (await get(`${RECORD}?family=${other.familyId}`)).json()) as OpsFamilyRecord;
+    expect(r.family.id).toBe(s.familyId);
+    // 運営の鍵での動き（0030）は変わらない: デモの家族ならどれも開く
+    expect((await get(`/api/ops/families/${other.familyId}/record`, OPS_TOKEN)).status).toBe(200);
+  });
+
+  it("案内から作った家族（印つき）を指すリンクでは開かない。デモの印があっても 404", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = await seedWithPhoto();
+    await d1.prepare("UPDATE families SET name = ? WHERE id = ?").bind(DEMO_GUIDE_FAMILY_NAME, s.familyId).run();
+    try {
+      configure(KEY, s.links);
+      expect((await get(RECORD)).status).toBe(404);
+      expect((await get(`${RECORD}/photos/${s.photo.id}/image`)).status).toBe(404);
+    } finally {
+      await d1.prepare("UPDATE families SET name = NULL WHERE id = ?").bind(s.familyId).run();
+      warn.mockRestore();
+    }
+  });
+
+  it("実際の家族は、リンクが設定に載っていても開かない。リンクが別々の家族を指すときも開かない", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const real = await seedLikeFamily(false);
+    configure(KEY, real.links);
+    expect((await get(RECORD)).status).toBe(404);
+    // 一人だけ実際の家族を混ぜても、開くのはデモの家族
+    const demo = await seedWithPhoto();
+    configure(KEY, { ...demo.links, じいちゃん: real.links["じいちゃん"]! });
+    expect(((await (await get(RECORD)).json()) as OpsFamilyRecord).family.id).toBe(demo.familyId);
+    // 二つのデモの家族を混ぜれば、どちらとも決めない
+    const another = await seedWithPhoto();
+    configure(KEY, { ...demo.links, ゆい: another.links["ゆい"]! });
+    expect((await get(RECORD)).status).toBe(404);
+    expect(warn.mock.calls.flat().join(" ")).toContain("demo_guide_record_families_differ");
+    warn.mockRestore();
+  });
+
+  it("鍵と合言葉をログに出さない", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = await seedWithPhoto();
+    configure(KEY, s.links);
+    await get(RECORD);
+    await get(RECORD, "x".repeat(40));
+    const logged = [...log.mock.calls, ...warn.mock.calls].flat().join(" ");
+    expect(logged).toContain("demo_guide_record");
+    expect(logged).not.toContain(KEY);
+    for (const token of Object.values(s.links)) expect(logged).not.toContain(token);
+    log.mockRestore();
+    warn.mockRestore();
+  });
+});
+
+describe("審査員が見る Claude の記録の道の書き方（足りなかった場合）", () => {
+  it("鍵なしでは、末尾の / ・二重の / ・百分率で書いた道でも記録を返さない", async () => {
+    const s = await seedLikeFamily();
+    configure(KEY, s.links);
+    for (const path of [
+      "/api/demo/guide/record/",
+      "/api/demo/guide//record",
+      "/api/demo/guide/%72ecord",
+      "/api/demo/%67uide/record",
+      "/api/demo/guide/record%2F",
+      "/api/demo/guide/record/photos/x/image/",
+      "/api/demo/guide/record/./",
+    ]) {
+      const res = await t.app.request(path);
+      expect([401, 404]).toContain(res.status);
+      expect(await res.text()).not.toContain("members");
+    }
+    configure(null, null);
+  });
+
+  it("案内の鍵があっても、家族の入り口（合言葉の道）は開かない", async () => {
+    const s = await seedLikeFamily();
+    configure(KEY, s.links);
+    for (const path of ["/api/family", "/api/entrances/today", `/api/ops/families/x/record`]) {
+      const res = await t.app.request(path, { headers: { Authorization: `Bearer ${KEY}` } });
+      expect(res.status).toBe(401);
+    }
+    configure(null, null);
   });
 });

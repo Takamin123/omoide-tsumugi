@@ -2,7 +2,14 @@
 // 確認しない入り口の一覧をここで固定する。入り口を足したら、ここが気づく。
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/server/app";
-import { FIRST_PERSON_ROUTES, isDemoResetPath, isFirstPersonRoute, isOpsPath, PUBLIC_ROUTES } from "../src/server/routes/auth";
+import {
+  FIRST_PERSON_ROUTES,
+  isDemoGuideRecordPath,
+  isDemoResetPath,
+  isFirstPersonRoute,
+  isOpsPath,
+  PUBLIC_ROUTES,
+} from "../src/server/routes/auth";
 import { fakeDeps } from "./helpers";
 
 const app = createApp(() => fakeDeps());
@@ -31,6 +38,8 @@ describe("合言葉の確認", () => {
     expect(apiRoutes).toEqual([
       "DELETE /api/musubi/:musubiId/photos/:photoId", // はずす（0048）。合言葉を確かめる
       "DELETE /api/narrations/:id", // とりなおす（0050）。合言葉を確かめる
+      "GET /api/demo/guide/record", // 審査員が見る Claude の記録。案内の鍵（Bearer）で守り、合わなければ 404（0062）
+      "GET /api/demo/guide/record/photos/:photoId/image",
       "GET /api/entrances/:id/question-audio",
       "GET /api/entrances/today",
       "GET /api/family",
@@ -92,7 +101,27 @@ describe("合言葉の確認", () => {
     expect(isDemoResetPath("/API/Demo/Families/x/reset")).toBe(true);
   });
 
-  const guarded = apiRoutes.filter((r) => !PUBLIC_ROUTES.some(([m, p]) => `${m} ${p}` === r));
+  it("合言葉の代わりに案内の鍵で守る入り口は、審査員が見る記録の読み取り 2 つだけ。合わなければ 404（0062）", async () => {
+    expect(apiRoutes.filter((r) => isDemoGuideRecordPath(r.split(" ")[1]!))).toEqual([
+      "GET /api/demo/guide/record",
+      "GET /api/demo/guide/record/photos/:photoId/image",
+    ]);
+    expect(isDemoGuideRecordPath("/API/Demo/Guide/Record")).toBe(true);
+    expect(isDemoGuideRecordPath("/api/demo/guide/recordx")).toBe(false);
+    expect(isDemoGuideRecordPath("/api/demo/guide")).toBe(false);
+    expect(isDemoGuideRecordPath("/api/demo/guide/families")).toBe(false);
+    for (const r of apiRoutes.filter((r) => isDemoGuideRecordPath(r.split(" ")[1]!))) {
+      const [method, path] = r.split(" ") as [string, string];
+      const res = await app.request(path.replace(":photoId", "x"), { method });
+      expect(res.status).toBe(404);
+      expect(res.headers.get("cache-control")).toBe("private, no-store");
+      expect(await res.json()).toEqual({ error: "not_found" });
+    }
+  });
+
+  const guarded = apiRoutes.filter(
+    (r) => !PUBLIC_ROUTES.some(([m, p]) => `${m} ${p}` === r) && !isDemoGuideRecordPath(r.split(" ")[1]!),
+  );
   it.each(guarded)("%s は合言葉なしで 401（データベースに触れる前に止まる）", async (route) => {
     const [method, path] = route.split(" ") as [string, string];
     const res = await app.request(path.replace(":id", "x"), { method });

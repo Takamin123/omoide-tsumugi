@@ -3,6 +3,7 @@
 // 一覧が変わったら test/auth.test.ts が気づく。
 // 合言葉の代わりに別の鍵で守る入り口: 運営の記録（/api/ops/*、OPS_RECORD_TOKEN）と、デモの初期化（/api/demo/families/*、DEMO_RESET_TOKEN）。
 // 審査員の案内（POST /api/demo/guide、DEMO_GUIDE_KEY）は PUBLIC_ROUTES に置き、入り口の中で本文の鍵を確かめる（0062）
+// 審査員が見る Claude の記録（/api/demo/guide/record の下、DEMO_GUIDE_KEY の Bearer）は、合言葉の代わりに案内の鍵で守る。合わなければ 404（0062）
 // リンクは一人ずつ（0036）。合言葉から家族と人を引き、人のいない「最初の人のリンク」で通せる入り口は FIRST_PERSON_ROUTES に並べる。
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -180,6 +181,27 @@ export async function matchesDemoGuideKey(config: AppConfig, given: string): Pro
 }
 
 /**
+ * 合言葉ではなく、審査員の案内の鍵（DEMO_GUIDE_KEY の Bearer）で守る入り口の頭（0062 の追記 2026-11-08）。
+ * 台本のデモの家族の記録を読み取りだけで返す。GET /api/demo/guide/record と、その写真だけ。
+ * 家族の合言葉の cookie でも、ほかの鍵でも開かない。合わなければ（設定なしも）区別せず 404
+ */
+export const DEMO_GUIDE_RECORD_PATH = "/api/demo/guide/record";
+
+/** 審査員の記録の入り口か（大文字・小文字によらない） */
+export function isDemoGuideRecordPath(path: string): boolean {
+  const p = path.toLowerCase();
+  return p === DEMO_GUIDE_RECORD_PATH || p.startsWith(`${DEMO_GUIDE_RECORD_PATH}/`);
+}
+
+/** Authorization: Bearer の値が、案内の鍵と同じか。鍵の設定がない・使えない設定なら誰も通さない。検索語の鍵は見ない */
+export async function hasDemoGuideKey(c: Context<AppEnv>): Promise<boolean> {
+  const header = c.req.header("authorization") ?? "";
+  const given = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
+  if (!DEMO_GUIDE_KEY_PATTERN.test(given)) return false;
+  return matchesDemoGuideKey(c.get("deps").config, given);
+}
+
+/**
  * すべての要求に掛ける（app.use("*")）。/api の下で PUBLIC_ROUTES にないものは、合言葉がなければ 401。
  * 合言葉が人を指さない（最初の人のリンク）なら、FIRST_PERSON_ROUTES のほかは 403
  */
@@ -189,6 +211,11 @@ export const requireInvite: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (isOpsPath(c.req.path)) return (await hasOpsKey(c)) ? next() : fail(c, "unauthorized");
   // デモの初期化も合言葉では開かない。初期化の鍵だけで確かめる（family は置かない。0038）
   if (isDemoResetPath(c.req.path)) return (await hasDemoResetKey(c)) ? next() : fail(c, "unauthorized");
+  // 審査員の記録も合言葉では開かない。案内の鍵だけで確かめ、合わなければ案内と同じく 404（family は置かない。0062）
+  if (isDemoGuideRecordPath(c.req.path)) {
+    c.header("Cache-Control", "private, no-store");
+    return (await hasDemoGuideKey(c)) ? next() : fail(c, "not_found");
+  }
   const token = getCookie(c, INVITE_COOKIE);
   if (!token || token.length > 200) return fail(c, "unauthorized");
   const link = await c.get("deps").repos.families.findActiveLink(await hashToken(token));
