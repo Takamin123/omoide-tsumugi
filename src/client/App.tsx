@@ -2,7 +2,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api, ApiError, type FamilyViewWithClock } from "./lib/api";
 import { errorText } from "./lib/errors";
-import { isDemoGuideStartPath, keyFromDemoGuidePath, screenFor, tokenFromJoinPath } from "./lib/pure";
+import { isDemoGuideRecordPath, isDemoGuideStartPath, keyFromDemoGuidePath, screenFor, tokenFromJoinPath } from "./lib/pure";
 import { navigate, usePath } from "./lib/route";
 import { DemoBar, useAdvanceClock, type DemoProps } from "./parts/DemoBar";
 import { ErrorLine } from "./parts/ErrorLine";
@@ -84,6 +84,14 @@ export function App() {
     return (
       <Suspense fallback={<main><p>{words.loading}</p></main>}>
         <OpsRecordPage />
+      </Suspense>
+    );
+  }
+  if (demoGuideKey && isDemoGuideRecordPath(path)) {
+    // 審査員が見る Claude の記録。運営の記録の画面を、案内の鍵で、台本の家族だけ・読み取りだけで開く（0062 の追記）
+    return (
+      <Suspense fallback={<main><p>{words.loading}</p></main>}>
+        <OpsRecordPage guideKey={demoGuideKey} />
       </Suspense>
     );
   }

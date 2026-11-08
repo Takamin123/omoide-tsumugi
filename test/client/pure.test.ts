@@ -14,6 +14,7 @@ const {
   roundLocation,
   tallyOne,
   toHex,
+  isDemoGuideRecordPath,
   isDemoGuideStartPath,
   keyFromDemoGuidePath,
   tokenFromJoinPath,
@@ -127,6 +128,16 @@ describe("keyFromDemoGuidePath（審査員の案内。0062）", () => {
     expect(keyFromDemoGuidePath(`/demo/${key}/start`)).toBe(key);
     expect(isDemoGuideStartPath(`/demo/${key}/start`)).toBe(true);
     expect(isDemoGuideStartPath(`/demo/${key}`)).toBe(false);
+  });
+  it("/demo/<鍵>/record は Claude の記録（0062 の追記）", () => {
+    expect(keyFromDemoGuidePath(`/demo/${key}/record`)).toBe(key);
+    expect(keyFromDemoGuidePath(`/demo/${key}/record/`)).toBe(key);
+    expect(isDemoGuideRecordPath(`/demo/${key}/record`)).toBe(true);
+    expect(isDemoGuideRecordPath(`/demo/${key}`)).toBe(false);
+    expect(isDemoGuideRecordPath(`/demo/${key}/start`)).toBe(false);
+    expect(isDemoGuideStartPath(`/demo/${key}/record`)).toBe(false);
+    expect(keyFromDemoGuidePath(`/demo/${key}/record/x`)).toBeNull();
+    expect(keyFromDemoGuidePath(`/demo/${key}/start/record`)).toBeNull();
   });
   it.each(["/demo", "/demo/", "/demo/short", `/demo/${key}/x`, `/demo/${"a".repeat(201)}`, `/x/demo/${key}`, `/demo/${"a".repeat(40)}%2F`])(
     "%s はほかの知らない道（null）",

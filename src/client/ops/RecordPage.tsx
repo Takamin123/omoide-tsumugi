@@ -2,13 +2,20 @@
 // 家族向けの画面ではないので、言葉は words.ts に入れずここに置く（0014 と同じ考え方）。
 // 家族が語ったもの（出所つき。青の実線、明朝）と、Claude が決めたこと・推測（茶の点線）と、家族の画面に出た形（墨の実線）を枠で分ける。
 // 見方は二つ: 日付と人で見る（既定）／写真で見る。URL の view で切り替え、再読み込みで保つ。外のフォントは読み込まない。
+// 審査員の道（/demo/<鍵>/record。0062 の追記）でも同じ画面を使う。そのときは案内の鍵をパスから props で受け取り（どこにも保存しない）、
+// 家族はサーバーが台本の家族に決める。運営の鍵の欄・鍵を消す操作・家族の ID の欄は出さず、運営の鍵（sessionStorage）は読みも書きもしない。
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { guideWords } from "../demo/guideWords";
+import { useGuideHead } from "../demo/head";
+import { navigate } from "../lib/route";
+import { words } from "../words";
 import type { OpsFamilyRecord, OpsNarration } from "../../shared/ops";
 import { DateView, onPlainClick, type Names } from "./DateView";
 import { PhotoCache, PhotoCacheContext } from "./parts";
 import { PhotoView } from "./PhotoView";
 import {
   entranceDates,
+  fetchGuideRecord,
   fetchRecord,
   loadOpsKey,
   monthDay,
@@ -64,6 +71,8 @@ const opsCss = `
 .ops form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .ops .access { display: flex; flex-direction: column; gap: 0.75rem; }
 .ops .access-inner { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0 0.25rem; }
+.ops .guide-lead { display: flex; flex-direction: column; gap: 0.5rem; max-width: 46rem; }
+.ops .guide-lead a { align-self: flex-start; display: inline-flex; align-items: center; min-height: 2.75rem; }
 
 .ops .bar { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: center; }
 .ops .dates { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -193,14 +202,20 @@ const currentAnchor = (): string | null => {
     return null;
   }
 };
-const hrefOf = (r: OpsRoute, anchor?: string) => `/ops/record${routeSearch(r)}${anchor ? `#${anchor}` : ""}`;
+type HrefOf = (r: OpsRoute, anchor?: string) => string;
+const hrefAt =
+  (base: string): HrefOf =>
+  (r, anchor) =>
+    `${base}${routeSearch(r)}${anchor ? `#${anchor}` : ""}`;
+const opsHrefOf = hrefAt("/ops/record");
 
-export default function RecordPage() {
-  const [key, setKey] = useState<string | null>(() => loadOpsKey());
-  const [keyInput, setKeyInput] = useState("");
-  const [route, setRoute] = useState<OpsRoute>(currentRoute);
-  const [familyInput, setFamilyInput] = useState(() => route.family);
-  const [load, setLoad] = useState<Load>({ state: "idle" });
+export default function RecordPage({ guideKey }: { guideKey?: string } = {}) {
+  return guideKey ? <GuideRecordPage guideKey={guideKey} /> : <OpsRecordPage />;
+}
+
+/** 戻る・進むで、見ている所を URL に合わせる。家族が変わったら onOtherFamily（運営の道だけ） */
+function useRouteState(normalize: (r: OpsRoute) => OpsRoute, hrefOf: HrefOf, onOtherFamily?: (r: OpsRoute) => void) {
+  const [route, setRoute] = useState<OpsRoute>(() => normalize(currentRoute()));
   const [anchor, setAnchor] = useState<string | null>(currentAnchor);
   // URL を書き換えるのは、state の更新関数の外で一度だけ（StrictMode で二度呼ばれても履歴が増えないように）
   const routeRef = useRef(route);
@@ -210,6 +225,151 @@ export default function RecordPage() {
     else history.replaceState(null, "", hrefOf(next, toAnchor));
     setRoute(next);
   };
+  const onOtherRef = useRef(onOtherFamily);
+  onOtherRef.current = onOtherFamily;
+
+  useEffect(() => {
+    const onPop = () => {
+      const r = normalize(currentRoute());
+      const otherFamily = r.family !== routeRef.current.family;
+      routeRef.current = r;
+      setRoute(r);
+      setAnchor(currentAnchor());
+      if (otherFamily) onOtherRef.current?.(r);
+    };
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const go = (patch: Partial<OpsRoute>, toAnchor?: string) => {
+    moveTo({ ...routeRef.current, ...patch }, "push", toAnchor);
+    setAnchor(toAnchor ?? null);
+    if (!toAnchor && patch.view !== undefined) scrollTo({ top: 0 });
+  };
+
+  return { route, anchor, routeRef, moveTo, go };
+}
+
+/** 語りの記録へ移ったら、その欄を見せる（写真は縦横比で場所を取ってあるので、読み込みで位置はずれない） */
+function useAnchorScroll(anchor: string | null, load: Load, route: OpsRoute) {
+  useEffect(() => {
+    if (!anchor || load.state !== "ready") return;
+    const el = document.getElementById(anchor);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.focus({ preventScroll: true });
+  }, [anchor, load, route]);
+}
+
+/** 見方の切り替え（日付と人で見る／写真で見る） */
+function Axis({ route, hrefOf, go }: { route: OpsRoute; hrefOf: HrefOf; go: (patch: Partial<OpsRoute>) => void }) {
+  return (
+    <nav className="axis" aria-label="見方">
+      <a
+        href={hrefOf({ ...route, view: "date" })}
+        aria-current={route.view === "date" ? "page" : undefined}
+        onClick={onPlainClick(() => go({ view: "date" }))}
+      >
+        日付と人で見る
+      </a>
+      <a
+        href={hrefOf({ ...route, view: "photo" })}
+        aria-current={route.view === "photo" ? "page" : undefined}
+        onClick={onPlainClick(() => go({ view: "photo" }))}
+      >
+        写真で見る
+      </a>
+    </nav>
+  );
+}
+
+const noFamily = (r: OpsRoute): OpsRoute => ({ ...r, family: "" });
+
+/**
+ * 審査員が見る Claude の記録（/demo/<鍵>/record。0062 の追記）。読み取りだけ。
+ * 鍵が合わない・設定がないときは、案内と同じく / に置き換える（鍵を URL に残さない。鍵の有無を見せない）
+ */
+function GuideRecordPage({ guideKey }: { guideKey: string }) {
+  useGuideHead();
+  const g = guideWords;
+  const hrefOf = useMemo(() => hrefAt(`/demo/${guideKey}/record`), [guideKey]);
+  const { route, anchor, go, moveTo, routeRef } = useRouteState(noFamily, hrefOf);
+  const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let stale = false;
+    void fetchGuideRecord(guideKey).then((r) => {
+      if (stale) return;
+      if (r.ok) {
+        setLoad({ state: "ready", record: r.record });
+        // 検索語に家族の ID などが付いて来ても、見ている所だけにそろえる
+        moveTo(routeRef.current, "replace", currentAnchor() ?? undefined);
+      } else if (r.reason === "failed") setLoad({ state: "error", reason: "failed" });
+      else navigate("/", { replace: true });
+    });
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guideKey, attempt]);
+
+  useAnchorScroll(anchor, load, route);
+
+  const ready = load.state === "ready" ? load.record : null;
+
+  return (
+    <main className="ops">
+      <style>{opsCss}</style>
+      <header>
+        <h1>記録</h1>
+        {ready && <Axis route={route} hrefOf={hrefOf} go={go} />}
+      </header>
+
+      <div className="body">
+        <div className="guide-lead">
+          <p>{g.recordLead}</p>
+          <p>{g.recordScope}</p>
+          <a href={`/demo/${guideKey}`}>{g.recordBack}</a>
+        </div>
+
+        {load.state === "loading" && <p>読み込んでいます</p>}
+        {load.state === "error" && (
+          <>
+            <p className="error" role="alert">
+              {reasonText[load.reason]}
+            </p>
+            <p>
+              <button type="button" onClick={() => { setLoad({ state: "loading" }); setAttempt((n) => n + 1); }}>
+                {words.retry}
+              </button>
+            </p>
+          </>
+        )}
+        {ready && <Record record={ready} opsKey={guideKey} route={route} go={go} hrefOf={hrefOf} />}
+      </div>
+    </main>
+  );
+}
+
+function OpsRecordPage() {
+  const hrefOf = opsHrefOf;
+  const [key, setKey] = useState<string | null>(() => loadOpsKey());
+  const [keyInput, setKeyInput] = useState("");
+  const { route, anchor, routeRef, moveTo, go } = useRouteState(
+    (r) => r,
+    hrefOf,
+    // 別の家族の URL に戻ったら、その家族を読み直す（URL と画面を食い違わせない）
+    (r) => {
+      setFamilyInput(r.family);
+      const k = loadOpsKey();
+      if (k && r.family) void open(r.family, k);
+      else setLoad({ state: "idle" });
+    },
+  );
+  const [familyInput, setFamilyInput] = useState(() => route.family);
+  const [load, setLoad] = useState<Load>({ state: "idle" });
 
   const open = async (familyId: string, k: string) => {
     setLoad({ state: "loading" });
@@ -235,40 +395,7 @@ export default function RecordPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 戻る・進むで、見ている所を URL に合わせる
-  useEffect(() => {
-    const onPop = () => {
-      const r = currentRoute();
-      const otherFamily = r.family !== routeRef.current.family;
-      routeRef.current = r;
-      setRoute(r);
-      setAnchor(currentAnchor());
-      // 別の家族の URL に戻ったら、その家族を読み直す（URL と画面を食い違わせない）
-      if (otherFamily) {
-        setFamilyInput(r.family);
-        const k = loadOpsKey();
-        if (k && r.family) void open(r.family, k);
-        else setLoad({ state: "idle" });
-      }
-    };
-    addEventListener("popstate", onPop);
-    return () => removeEventListener("popstate", onPop);
-  }, []);
-
-  const go = (patch: Partial<OpsRoute>, toAnchor?: string) => {
-    moveTo({ ...routeRef.current, ...patch }, "push", toAnchor);
-    setAnchor(toAnchor ?? null);
-    if (!toAnchor && patch.view !== undefined) scrollTo({ top: 0 });
-  };
-
-  // 語りの記録へ移ったら、その欄を見せる（写真は縦横比で場所を取ってあるので、読み込みで位置はずれない）
-  useEffect(() => {
-    if (!anchor || load.state !== "ready") return;
-    const el = document.getElementById(anchor);
-    if (!el) return;
-    el.scrollIntoView({ block: "start" });
-    el.focus({ preventScroll: true });
-  }, [anchor, load, route]);
+  useAnchorScroll(anchor, load, route);
 
   const onKey = (e: FormEvent) => {
     e.preventDefault();
@@ -326,24 +453,7 @@ export default function RecordPage() {
             {ready.family.isDemo ? "試しの家族" : "家族"} {shortId(ready.family.id)}
           </p>
         )}
-        {ready && (
-          <nav className="axis" aria-label="見方">
-            <a
-              href={hrefOf({ ...route, view: "date" })}
-              aria-current={route.view === "date" ? "page" : undefined}
-              onClick={onPlainClick(() => go({ view: "date" }))}
-            >
-              日付と人で見る
-            </a>
-            <a
-              href={hrefOf({ ...route, view: "photo" })}
-              aria-current={route.view === "photo" ? "page" : undefined}
-              onClick={onPlainClick(() => go({ view: "photo" }))}
-            >
-              写真で見る
-            </a>
-          </nav>
-        )}
+        {ready && <Axis route={route} hrefOf={hrefOf} go={go} />}
       </header>
 
       <div className="body">
@@ -365,7 +475,7 @@ export default function RecordPage() {
             {reasonText[load.reason]}
           </p>
         )}
-        {ready && key !== null && <Record record={ready} opsKey={key} route={route} go={go} />}
+        {ready && key !== null && <Record record={ready} opsKey={key} route={route} go={go} hrefOf={hrefOf} />}
       </div>
     </main>
   );
@@ -395,11 +505,14 @@ function Record({
   opsKey,
   route,
   go,
+  hrefOf,
 }: {
   record: OpsFamilyRecord;
+  /** 写真を読む鍵（運営の鍵か、審査員の道では案内の鍵） */
   opsKey: string;
   route: OpsRoute;
   go: (patch: Partial<OpsRoute>, anchor?: string) => void;
+  hrefOf: HrefOf;
 }) {
   // 写真は、開いている家族と鍵の間だけ使い回す
   const [cache, setCache] = useState<PhotoCache | null>(null);

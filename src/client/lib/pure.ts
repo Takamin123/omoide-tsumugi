@@ -118,14 +118,17 @@ export function tokenFromJoinPath(pathname: string): string | null {
   return m ? (m[1] ?? null) : null;
 }
 
-/** 審査員の案内の道すじから鍵を取り出す。"/demo/<鍵>" か "/demo/<鍵>/start" でなければ null（ほかの知らない道と同じ扱いになる。0062） */
+/** 審査員の案内の道すじから鍵を取り出す。"/demo/<鍵>"、"/demo/<鍵>/start"、"/demo/<鍵>/record" でなければ null（ほかの知らない道と同じ扱いになる。0062） */
 export function keyFromDemoGuidePath(pathname: string): string | null {
-  const m = /^\/demo\/([^/]+)(?:\/start)?\/?$/.exec(pathname);
+  const m = /^\/demo\/([^/]+)(?:\/start|\/record)?\/?$/.exec(pathname);
   return m && DEMO_GUIDE_KEY_PATTERN.test(m[1]!) ? m[1]! : null;
 }
 
 /** 審査員が新しい家族を作る画面か */
 export const isDemoGuideStartPath = (pathname: string) => /^\/demo\/[^/]+\/start\/?$/.test(pathname);
+
+/** 審査員が Claude の記録を見る画面か（運営の記録の画面を、台本の家族だけ・読み取りだけで開く。0062 の追記） */
+export const isDemoGuideRecordPath = (pathname: string) => /^\/demo\/[^/]+\/record\/?$/.test(pathname);
 
 /** 写真の登録の結果を数える */
 export type UploadTally = { total: number; done: number; added: number; duplicate: number; unreadable: number; failed: number };

@@ -9,6 +9,7 @@ const load = (name: string): Promise<any> => import(name);
 const {
   entranceDates,
   entrancesOn,
+  fetchGuideRecord,
   fetchRecord,
   headSegments,
   inputNarrations,
@@ -111,6 +112,26 @@ describe("fetchRecord", () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
     expect(await fetchRecord("x", "k", f)).toEqual({ ok: false, reason: "failed" });
+  });
+});
+
+describe("fetchGuideRecord（審査員の道。0062 の追記）", () => {
+  it("案内の鍵を Authorization で送り、家族の ID は送らない。cookie は送らない", async () => {
+    const calls: { url: string; init: any }[] = [];
+    const f = (async (url: string, init?: any) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ family: { id: "f" } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await fetchGuideRecord("g-1", f);
+    expect(r).toEqual({ ok: true, record: { family: { id: "f" } } });
+    expect(calls[0]!.url).toBe("/api/demo/guide/record");
+    expect(calls[0]!.init?.headers).toEqual({ Authorization: "Bearer g-1" });
+    expect(calls[0]!.init?.credentials).toBe("omit");
+    expect(calls[0]!.init?.cache).toBe("no-store");
+  });
+  it("404 は not_found（画面は / に置き換える）", async () => {
+    const f = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
+    expect(await fetchGuideRecord("g", f)).toEqual({ ok: false, reason: "not_found" });
   });
 });
 
@@ -239,6 +260,9 @@ describe("見る軸と URL", () => {
       expect(q).not.toMatch(/key|token/);
     }
     expect(routeSearch({ family: "f1", view: "date", date: null, photo: null })).toBe("?family=f1");
+    // 審査員の道では家族の ID を持たない（載せない）
+    expect(routeSearch({ family: "", view: "photo", date: null, photo: "p1" })).toBe("?view=photo&photo=p1");
+    expect(routeSearch({ family: "", view: "date", date: null, photo: null })).toBe("");
   });
 });
 

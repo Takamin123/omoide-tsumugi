@@ -1,7 +1,7 @@
 // 審査員の案内（/demo/<鍵>。0062）。読むのは審査員で、家族ではない。家族の画面からはつながない。
 // 言葉は words.ts に入れず guideWords に置く（0014 と同じ考え方）。ボタンの名前は words.ts から差し込み、画面の文字と一字も違えない。
 // 鍵が合わない・設定がないときは、ほかの知らない道と同じにする（鍵の有無を見せない）。リンクは同じタブで開く（/join は履歴を置き換えるので、「戻る」でここへ戻る）。
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { DemoGuideResult } from "../../shared/api";
 import { api, ApiError } from "../lib/api";
 import { errorText } from "../lib/errors";
@@ -9,25 +9,9 @@ import { navigate } from "../lib/route";
 import { ErrorLine } from "../parts/ErrorLine";
 import { words } from "../words";
 import { guideWords } from "./guideWords";
+import { useGuideHead } from "./head";
 
 type Load = { state: "loading" } | { state: "ready"; people: DemoGuideResult["people"] } | { state: "error"; text: string };
-
-/** 検索に載せない・URL の鍵を外に漏らさない。外のものを読み込まないページだが、重ねて置く */
-function useGuideHead() {
-  useLayoutEffect(() => {
-    const metas = [
-      ["robots", "noindex, nofollow"],
-      ["referrer", "no-referrer"],
-    ].map(([name, content]) => {
-      const m = document.createElement("meta");
-      m.name = name!;
-      m.content = content!;
-      document.head.appendChild(m);
-      return m;
-    });
-    return () => metas.forEach((m) => m.remove());
-  }, []);
-}
 
 /**
  * 審査員が新しい家族を作る画面（/demo/<鍵>/start。0062）。合言葉の欄もデモの印も初期化の欄も出さない。
@@ -118,6 +102,13 @@ export default function GuidePage({ guideKey, start }: { guideKey: string; start
           {g.newFamily}
         </a>
         <p className="sub">{g.newFamilyNote}</p>
+      </div>
+
+      <div className="stack">
+        <a className="button" href={`/demo/${guideKey}/record`}>
+          {g.recordOpen}
+        </a>
+        <p className="sub">{g.recordOpenNote}</p>
       </div>
 
       <section className="card-soft" aria-labelledby="guide-next">

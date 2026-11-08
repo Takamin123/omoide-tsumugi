@@ -98,10 +98,22 @@ export type RecordLoad =
   | { ok: false; reason: "unauthorized" | "not_found" | "failed" };
 
 /** 記録を読む。鍵は Authorization に付ける（URL に載せない） */
-export async function fetchRecord(familyId: string, key: string, fetchImpl: typeof fetch = fetch): Promise<RecordLoad> {
+export function fetchRecord(familyId: string, key: string, fetchImpl: typeof fetch = fetch): Promise<RecordLoad> {
+  return fetchRecordAt(`/api/ops/families/${encodeURIComponent(familyId)}/record`, key, fetchImpl);
+}
+
+/**
+ * 審査員の道（/demo/<鍵>/record）で記録を読む。鍵は案内の鍵。家族はサーバーが台本の家族に決める（家族の ID は送らない）。
+ * 失敗はすべて 404（0062 の追記）
+ */
+export function fetchGuideRecord(guideKey: string, fetchImpl: typeof fetch = fetch): Promise<RecordLoad> {
+  return fetchRecordAt("/api/demo/guide/record", guideKey, fetchImpl);
+}
+
+async function fetchRecordAt(url: string, key: string, fetchImpl: typeof fetch): Promise<RecordLoad> {
   let res: Response;
   try {
-    res = await fetchImpl(`/api/ops/families/${encodeURIComponent(familyId)}/record`, {
+    res = await fetchImpl(url, {
       headers: { Authorization: `Bearer ${key}` },
       credentials: "omit",
       cache: "no-store",
@@ -136,14 +148,16 @@ export function parseRoute(search: string): OpsRoute {
   };
 }
 
-/** URL の検索部分を作る。日付と人で見るときは view を省く。見ていない軸の選択も残す（切り替えて戻ったときに同じ所を開く） */
+/** URL の検索部分を作る（何も選んでいなければ空）。日付と人で見るときは view を省く。見ていない軸の選択も残す（切り替えて戻ったときに同じ所を開く） */
 export function routeSearch(r: OpsRoute): string {
   const q = new URLSearchParams();
-  q.set("family", r.family);
+  // 審査員の道では家族の ID を持たない（空）ので、載せない
+  if (r.family) q.set("family", r.family);
   if (r.view === "photo") q.set("view", "photo");
   if (r.date) q.set("date", r.date);
   if (r.photo) q.set("photo", r.photo);
-  return `?${q.toString()}`;
+  const s = q.toString();
+  return s ? `?${s}` : "";
 }
 
 // ---- 日付と人で見る ----

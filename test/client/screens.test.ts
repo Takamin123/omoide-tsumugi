@@ -285,11 +285,11 @@ describe("家族に見せる日本語は words.ts にだけある", () => {
 });
 
 describe("審査員の案内（0062）", () => {
-  it("demo/ は App の lazy からだけ読み込む（家族の画面からつながない）", () => {
+  it("demo/ は App の lazy と、運営の記録の画面（審査員の道。別の chunk）からだけ読み込む（家族の画面からつながない）", () => {
     const importers = listFiles(clientDir).filter(
       (f) => !f.startsWith(`${demoGuideDir}${path.sep}`) && /["']\.{1,2}\/(?:\.\.\/)*demo\//.test(fs.readFileSync(f, "utf8")),
     );
-    expect(importers.map((f) => path.relative(repoRoot, f))).toEqual(["src/client/App.tsx"]);
+    expect(importers.map((f) => path.relative(repoRoot, f)).sort()).toEqual(["src/client/App.tsx", "src/client/ops/RecordPage.tsx"]);
     expect(read("src/client/App.tsx")).toMatch(/lazy\(\(\) => import\("\.\/demo\/GuidePage"\)\)/);
   });
 
@@ -308,8 +308,10 @@ describe("審査員の案内（0062）", () => {
 
   it("案内のページは検索に載せず、referrer を外に出さず、リンクは同じタブで開く", () => {
     const page = read("src/client/demo/GuidePage.tsx");
-    expect(page).toContain('"noindex, nofollow"');
-    expect(page).toContain('"no-referrer"');
+    const head = read("src/client/demo/head.ts");
+    expect(page).toContain("useGuideHead()");
+    expect(head).toContain('"noindex, nofollow"');
+    expect(head).toContain('"no-referrer"');
     expect(page).not.toContain("target=");
   });
 });
