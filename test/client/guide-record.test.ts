@@ -58,7 +58,7 @@ describe("審査員の道の記録の画面", () => {
     expect(src).toContain('className="button guide-record-open"');
     expect(src.indexOf("guide-record")).toBeGreaterThan(src.indexOf("g.newFamilyNote"));
     expect(src.indexOf("guide-record")).toBeLessThan(src.indexOf("guide-next"));
-    expect(guideWords.recordOpen).toBe("Claude の記録を見る");
+    expect(guideWords.recordOpen).toBe("Claude が写真を選んだ理由を見る");
     expect(guideWords.notes.some((n: string) => n.includes("Claude の記録の画面にも、そのまま出ます。"))).toBe(true);
   });
 });
