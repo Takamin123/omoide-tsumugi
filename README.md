@@ -16,7 +16,7 @@
 
 ## デモ動画
 
-https://www.youtube.com/watch?v=afKqHKHcYQM（約 3 分）
+[https://www.youtube.com/watch?v=afKqHKHcYQM](https://www.youtube.com/watch?v=afKqHKHcYQM)（約 3 分）
 
 動画に登場する家族は架空の設定で、声は作者によるものです。作者の両親の写真・声・画面は映していません。
 
